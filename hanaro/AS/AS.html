@@ -438,15 +438,6 @@
             sessionStorage.removeItem("loggedIn");
         }
 
-        function searchContent() {
-            const query = document.getElementById('search-input').value.trim();
-            if (query) {
-                window.location.href = `/하나로오에이퍼니처/search.html?query=${encodeURIComponent(query)}`;
-            } else {
-                alert('검색어를 입력하세요.');
-            }
-        }
-
         document.getElementById('overlay').addEventListener('click', hideLogin);
     </script>
 
