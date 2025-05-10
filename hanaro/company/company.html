@@ -311,11 +311,11 @@
         </div>
 
         <div>
-            <a href="../gallery/gallery.html">갤러리</a>
+            <a href="../Gallery/Gallery.html">갤러리</a>
         </div>
 
         <div>
-            <a href="../as/as.html">A/S신청</a>
+            <a href="../AS/AS.html">A/S신청</a>
         </div>
 
         <div>
@@ -376,15 +376,6 @@
             document.getElementById('login-link').style.display = 'flex';
             document.getElementById('logout-link').style.display = 'none';
             sessionStorage.removeItem("loggedIn");
-        }
-
-        function searchContent() {
-            const query = document.getElementById('search-input').value.trim();
-            if (query) {
-                window.location.href = `./hanaro/search.html?query=${encodeURIComponent(query)}`;
-            } else {
-                alert('검색어를 입력하세요.');
-            }
         }
 
         document.getElementById('overlay').addEventListener('click', hideLogin);
