@@ -524,9 +524,9 @@ function renderAsPosts() {
   </div>
 
   <form id="as-form" style="display: none; text-align: left; margin-top: 20px;">
-  <div>
-    <label><strong>문의 유형 *</strong></label><br>
-    <select id="as-type" required style="width: 100%; padding: 8px;">
+  <div style="margin-bottom: 10px;">
+    <label style="display: block; margin-bottom: -10px;"><strong>문의 유형 *</strong></label><br>
+    <select id="as-type" required style="width: 100%; padding: 10px;">
       <option value="">문의 유형을 선택해 주세요.</option>
       <option>배송 문의</option>
       <option>제품 불량</option>
@@ -534,14 +534,14 @@ function renderAsPosts() {
     </select>
   </div>
 
-  <div>
-    <label><strong>제목 *</strong></label><br>
-    <input type="text" id="as-title" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 8px;">
+  <div style="margin-bottom: 10px;">
+    <label style="display: block; margin-bottom: -10px;"><strong>제목 *</strong></label><br>
+    <input type="text" id="as-title" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 10px;">
   </div>
 
-  <div>
-    <label><strong>내용 *</strong></label><br>
-    <textarea id="as-content" required placeholder="내용을 입력해 주세요." style="width: 100%; height: 150px; padding: 8px;"></textarea>
+  <div style="margin-bottom: 10px;">
+    <label style="display: block; margin-bottom: -10px;"><strong>내용 *</strong></label><br>
+    <textarea id="as-content" required placeholder="내용을 입력해 주세요." style="width: 100%; height: 150px; padding: 10px;"></textarea>
   </div>
 
   <div style="margin-bottom: 20px;">
@@ -759,4 +759,3 @@ document.getElementById('as-form').addEventListener('submit', function(e) {
     
 </body>
 </html>
-
