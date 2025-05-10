@@ -308,7 +308,7 @@
 
     <div class="footer-top">
         <div>
-            <a href="/하나로오에이퍼니처/staff/staff.html">
+            <a href="../staff/staff.html">
             <button id="employee-button" disabled>임직원</button>
         </div>
     </div>
@@ -316,28 +316,28 @@
     <header class="navbar">
         <div class="logo">
             <a href="/index.html">
-                <img src="/하나로오에이퍼니처/image/logo-nav.png" alt="로고" style="height: 40px;">
+                <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
             </a>
         </div>
 
         <div>
-            <a href="/하나로오에이퍼니처/company/company.html">회사소개</a>
+            <a href="../company/company.html">회사소개</a>
         </div>
 
         <div>
-            <a href="/하나로오에이퍼니처/product/product.html">제품소개</a>
+            <a href="../product/product.html">제품소개</a>
         </div>
         
         <div>
-            <a href="/하나로오에이퍼니처/school/school.html">납품학교 리스트</a>
+            <a href="../school/school.html">납품학교 리스트</a>
         </div>
 
         <div>
-            <a href="/하나로오에이퍼니처/Gallery/Gallery.html">갤러리</a>
+            <a href="../Gallery/Gallery.html">갤러리</a>
         </div>
 
         <div>
-            <a href="#">A/S신청</a>
+            <a href="../AS/AS.html">A/S신청</a>
         </div>
 
         <div>
@@ -346,10 +346,10 @@
 
         <div class="login">
             <a href="#" onclick="showLogin()" id="login-link" style="display: flex; align-items: center;">
-                <img src="/하나로오에이퍼니처/image/login.png" alt="로그인" style="height: 25px; margin-right: 5px;"> 로그인
+                <img src="../image/login.png" alt="로그인" style="height: 25px; margin-right: 5px;"> 로그인
             </a>
             <a href="/하나로오에이퍼니처/index.html" onclick="logout()" id="logout-link" style="display: none; align-items: center;">
-                <img src="/하나로오에이퍼니처/image/logout.png" alt="로그아웃" style="height: 25px; margin-right: 5px;"> 로그아웃
+                <img src="../image/logout.png" alt="로그아웃" style="height: 25px; margin-right: 5px;"> 로그아웃
             </a>
         </div>
     </header>
@@ -406,15 +406,6 @@
             document.getElementById('login-link').style.display = 'flex';
             document.getElementById('logout-link').style.display = 'none';
             sessionStorage.removeItem("loggedIn");
-        }
-
-        function searchContent() {
-            const query = document.getElementById('search-input').value.trim();
-            if (query) {
-                window.location.href = `/하나로오에이퍼니처/search.html?query=${encodeURIComponent(query)}`;
-            } else {
-                alert('검색어를 입력하세요.');
-            }
         }
 
         document.getElementById('overlay').addEventListener('click', hideLogin);
