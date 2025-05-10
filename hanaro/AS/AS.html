@@ -55,43 +55,6 @@
             overflow-x: auto; /* 수평 스크롤 활성화 */
         }
 
-        .search-bar-container {
-            position: absolute;
-            bottom: -25px; /* 네비게이션바 아래 배치 */
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #fff;
-            border-radius: 20px;
-            padding: 5px 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            z-index: 999;
-        }
-
-        .search-bar-container input {
-            border: 1px solid #ccc;
-            border-radius: 20px;
-            padding: 5px 10px;
-            width: 200px;
-            font-size: 14px;
-        }
-
-        .search-bar-container button {
-            margin-left: 10px;
-            padding: 5px 10px;
-            font-size: 14px;
-            background-color: #0071e3;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-        }
-
-        .search-bar-container button:hover {
-            background-color: #005bb5;
-        }
-
         footer {
             background-color: #ccc8c8; /* 배경색 */
             color: #696868;           /* 텍스트 색상 */
@@ -286,6 +249,74 @@
   font-size: 14px;
 }
 
+.inquiry-board {
+  max-width: 1000px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  padding: 30px 40px;
+  font-family: 'Arial', sans-serif;
+}
+
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.board-header h2 {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.inquiry-btn {
+  padding: 6px 16px;
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.inquiry-btn:hover {
+  background: #000;
+  color: #fff;
+  transition: 0.3s;
+}
+
+.board-table {
+  border-top: 2px solid #000;
+  border-bottom: 1px solid #ddd;
+  padding: 20px 0;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 60px 100px 1fr 120px 80px;
+  font-weight: bold;
+  border-bottom: 1px solid #aaa;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.table-empty {
+  text-align: center;
+  padding: 40px 0;
+  font-weight: 500;
+  color: #444;
+}
+
+.board-notice {
+  font-size: 13px;
+  color: #555;
+  margin-top: 30px;
+  line-height: 1.6;
+}
+
+
         @media (max-width: 768px) {
             .navbar {
                 flex-wrap: nowrap;
@@ -371,16 +402,6 @@
         <div>
             <a href="#">고객지원</a>
         </div>
-
-        <div style="position: relative;">
-            <div style="margin-left: 5px; display: flex; align-items: center;">
-                <input id="search-input" type="text" placeholder="검색어를 입력하세요" 
-                   style="border: 1px solid #ccc; border-radius: 20px; padding: 5px 5px; font-size: 12px; width: 130px;">
-                <button onclick="searchContent()" style="margin-left: 5px; padding: 5px 10px; font-size: 12px; background: none; border: none; cursor: pointer;">
-                    <img src="../image/search-icon.png" alt="돋보기" style="height: 20px;">
-                </button>
-            </div>
-        </div>
         
     <div class="login">
             <a href="#" onclick="showLogin()" id="login-link" style="display: flex; align-items: center;">
@@ -439,50 +460,262 @@
         }
 
         document.getElementById('overlay').addEventListener('click', hideLogin);
+
+        function toggleAsForm() {
+  const form = document.getElementById('as-form');
+  const tableHeader = document.querySelector('.table-header');
+  const tableEmpty = document.querySelector('.table-empty');
+
+  const showForm = form.style.display === 'none' || form.style.display === '';
+
+  // 토글 처리
+  form.style.display = showForm ? 'block' : 'none';
+  tableHeader.style.display = showForm ? 'none' : 'grid';
+  tableEmpty.style.display = showForm ? 'none' : 'block';
+}
+
+// 폼 제출 시 동작
+document.getElementById('as-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  alert('A/S 신청이 등록되었습니다.');
+
+  // 폼 숨기고 목록 다시 표시
+  document.getElementById('as-form').style.display = 'none';
+  document.querySelector('.table-header').style.display = 'grid';
+  document.querySelector('.table-empty').style.display = 'block';
+});
     </script>
 
-<section id="board">
-  <h2>게시판</h2>
-  <form id="board-form">
-    <input type="text" id="post-title" placeholder="제목을 입력하세요" required>
-    <textarea id="post-content" placeholder="내용을 입력하세요" required></textarea>
-    <button type="submit">게시글 작성</button>
-  </form>
-  <div id="board-posts">
-    <!-- 작성한 게시글이 이곳에 추가됩니다 -->
+    <script>
+let asPosts = []; // ← A/S 목록 저장 배열
+
+function renderAsPosts() {
+  const list = document.getElementById('as-list-body');
+  list.innerHTML = '';
+
+  if (asPosts.length === 0) {
+    list.innerHTML = '<div class="table-empty">A/S신청 내역이 없습니다.</div>';
+    return;
+  }
+
+  asPosts.forEach((post, index) => {
+    const row = document.createElement('div');
+    row.className = 'table-row';
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '60px 100px 1fr 120px 80px';
+    row.style.fontSize = '14px';
+    row.style.padding = '8px 0';
+    row.innerHTML = `
+      <span>${index + 1}</span>
+      <span>${post.type}</span>
+      <span>${post.title}</span>
+      <span>${post.date}</span>
+      <span>접수됨</span>
+    `;
+    list.appendChild(row);
+  });
+}
+</script>
+
+<section class="inquiry-board">
+  <div class="board-header">
+    <h2>A/S신청 게시판</h2>
+    <button class="inquiry-btn" onclick="toggleAsForm()">A/S 신청</button>
+  </div>
+
+  <form id="as-form" style="display: none; text-align: left; margin-top: 20px;">
+  <div>
+    <label><strong>문의 유형 *</strong></label><br>
+    <select id="as-type" required style="width: 100%; padding: 8px;">
+      <option value="">문의 유형을 선택해 주세요.</option>
+      <option>배송 문의</option>
+      <option>제품 불량</option>
+      <option>기타</option>
+    </select>
+  </div>
+
+  <div>
+    <label><strong>제목 *</strong></label><br>
+    <input type="text" id="as-title" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 8px;">
+  </div>
+
+  <div>
+    <label><strong>내용 *</strong></label><br>
+    <textarea id="as-content" required placeholder="내용을 입력해 주세요." style="width: 100%; height: 150px; padding: 8px;"></textarea>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <label><strong>첨부</strong></label><br>
+    <input type="file" multiple style="margin-top: 5px;">
+  </div>
+
+  <div style="text-align: center;">
+    <button type="button" onclick="toggleAsForm()" style="padding: 10px 20px; background-color: #fff; border: 1px solid #000; border-radius: 25px; margin-right: 10px;">취소</button>
+    <button type="submit" style="padding: 10px 20px; background-color: #000; color: #fff; border: none; border-radius: 25px;">등록</button>
+  </div>
+</form>
+
+  <div class="board-table" id="as-list">
+    <div class="table-header">
+      <span>NO</span>
+      <span>유형</span>
+      <span>제목</span>
+      <span>등록일</span>
+      <span>상태</span>
+    </div>
+
+    <div id="as-list-body" class="table-body">
+    <div class="table-empty">A/S신청 내역이 없습니다.</div>
+  </div>
+</div>
+
+  <div class="board-notice" id="as-notice">
+    · 조금만 기다려주세요! (빠르게 확인 후 이메일로 답변드릴게요.)<br>
+    · A/S신청 게시판을 통해서는 구매/배송/결제 관련 문제에 대해서는 답변을 드리지 않습니다. 기타 문의에 대해서는 공식답변을 드리기 어려운 점 양해 바랍니다.
   </div>
 </section>
 
 <script>
-// 게시판 스크립트: 게시글 작성 후 목록에 추가
+function toggleForm() {
+  const form = document.getElementById('board-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveAsPosts(posts) {
+  localStorage.setItem('asPosts', JSON.stringify(posts));
+}
+
+function loadAsPosts() {
+  const stored = localStorage.getItem('asPosts');
+  return stored ? JSON.parse(stored) : [];
+}
+
+function renderPosts() {
+  const posts = loadPosts();
+  const postContainer = document.getElementById('board-posts');
+  postContainer.innerHTML = '';
+
+  if (posts.length === 0) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'post';
+    emptyDiv.style.textAlign = 'center';
+    emptyDiv.textContent = '아직 작성된 게시글이 없습니다.';
+    postContainer.appendChild(emptyDiv);
+    return;
+  }
+
+  posts.forEach((post, index) => {
+    const postDiv = document.createElement('div');
+    postDiv.className = 'post';
+
+    const postTitle = document.createElement('h3');
+    postTitle.textContent = post.title;
+    postDiv.appendChild(postTitle);
+
+    const postContent = document.createElement('p');
+    postContent.textContent = post.content;
+    postDiv.appendChild(postContent);
+
+    // 삭제 버튼 (관리자만 표시)
+    if (sessionStorage.getItem("loggedIn")) {
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '삭제';
+      delBtn.style = 'margin-top: 5px; background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;';
+      delBtn.onclick = () => {
+        posts.splice(index, 1);
+        savePosts(posts);
+        renderPosts();
+      };
+      postDiv.appendChild(delBtn);
+    }
+
+    postContainer.prepend(postDiv);
+  });
+}
+
 document.getElementById('board-form').addEventListener('submit', function(e) {
   e.preventDefault();
-  
+
   const title = document.getElementById('post-title').value.trim();
   const content = document.getElementById('post-content').value.trim();
-
   if (!title || !content) {
     alert('제목과 내용을 모두 입력하세요.');
     return;
   }
 
-  const postDiv = document.createElement('div');
-  postDiv.className = 'post';
+  const posts = loadPosts();
+  posts.unshift({ title, content });
+  savePosts(posts);
+  renderPosts();
 
-  const postTitle = document.createElement('h3');
-  postTitle.textContent = title;
-  postDiv.appendChild(postTitle);
-
-  const postContent = document.createElement('p');
-  postContent.textContent = content;
-  postDiv.appendChild(postContent);
-
-  // 최신 게시글이 맨 위에 보이도록 추가
-  document.getElementById('board-posts').prepend(postDiv);
-
-  // 입력 필드 초기화
   document.getElementById('post-title').value = '';
   document.getElementById('post-content').value = '';
+  document.getElementById('board-form').style.display = 'none';
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  asPosts = loadAsPosts();
+  renderAsPosts();
+});
+</script>
+
+<script>
+function toggleAsForm() {
+  const form = document.getElementById('as-form');
+  const list = document.getElementById('as-list');
+  const notice = document.getElementById('as-notice');
+
+  const showForm = form.style.display === 'none' || form.style.display === '';
+
+  form.style.display = showForm ? 'block' : 'none';
+  list.style.display = showForm ? 'none' : 'block';
+  notice.style.display = showForm ? 'none' : 'block';
+}
+
+document.getElementById('as-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  alert('A/S 신청이 등록되었습니다.');
+
+  document.getElementById('as-form').style.display = 'none';
+  document.getElementById('as-list').style.display = 'block';
+  document.getElementById('as-notice').style.display = 'block';
+});
+</script>
+
+<script>
+document.getElementById('as-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const type = document.getElementById('as-type').value.trim();
+  const title = document.getElementById('as-title').value.trim();
+  const content = document.getElementById('as-content').value.trim();
+
+  if (!type || !title || !content) {
+    alert('모든 필드를 작성해주세요.');
+    return;
+  }
+
+  const newPost = {
+    type,
+    title,
+    content,
+    date: new Date().toLocaleDateString()
+  };
+
+  asPosts.unshift(newPost);
+  saveAsPosts(asPosts); // ← 저장 추가
+  renderAsPosts();
+
+  // 폼 숨기고 목록 다시 보여주기
+  document.getElementById('as-form').style.display = 'none';
+  document.getElementById('as-list').style.display = 'block';
+  document.getElementById('as-notice').style.display = 'block';
+
+  // 입력 초기화
+  document.getElementById('as-type').value = '';
+  document.getElementById('as-title').value = '';
+  document.getElementById('as-content').value = '';
 });
 </script>
 
@@ -526,3 +759,4 @@ document.getElementById('board-form').addEventListener('submit', function(e) {
     
 </body>
 </html>
+
