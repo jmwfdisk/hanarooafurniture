@@ -487,7 +487,7 @@ document.getElementById('as-form').addEventListener('submit', function(e) {
     </script>
 
     <script>
-let asPosts = []; // ← A/S 목록 저장 배열
+let asPosts = [];
 
 function renderAsPosts() {
   const list = document.getElementById('as-list-body');
@@ -505,16 +505,32 @@ function renderAsPosts() {
     row.style.gridTemplateColumns = '60px 100px 1fr 120px 80px';
     row.style.fontSize = '14px';
     row.style.padding = '8px 0';
+    row.style.alignItems = 'center';
+
     row.innerHTML = `
       <span>${index + 1}</span>
       <span>${post.type}</span>
       <span>${post.title}</span>
       <span>${post.date}</span>
-      <span>접수됨</span>
+      <span><button onclick="deleteAsPost(${index})" style="padding:2px 6px; font-size:12px;">삭제</button></span>
     `;
+
     list.appendChild(row);
   });
 }
+
+function deleteAsPost(index) {
+  if (confirm("정말 삭제하시겠습니까?")) {
+    asPosts.splice(index, 1);
+    saveAsPosts(asPosts);
+    renderAsPosts();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  asPosts = loadAsPosts();
+  renderAsPosts();
+});
 </script>
 
 <section class="inquiry-board">
@@ -523,30 +539,34 @@ function renderAsPosts() {
     <button class="inquiry-btn" onclick="toggleAsForm()">A/S 신청</button>
   </div>
 
-  <form id="as-form" style="display: none; text-align: left; margin-top: 20px;">
-  <div style="margin-bottom: 10px;">
+  <form id="as-form" style="display: none; text-align: left; margin-top: 20px;" enctype="multipart/form-data">
+  <input type="hidden" name="_subject" value="A/S 신청서 접수">
+  <input type="hidden" name="_next" value="https://jmwfdisk.github.io/hanarooafurniture/AS/AS.html">
+  <input type="hidden" name="_captcha" value="false">
+
+  <div style="margin-bottom: 20px;">
     <label style="display: block; margin-bottom: -10px;"><strong>문의 유형 *</strong></label><br>
-    <select id="as-type" required style="width: 100%; padding: 10px;">
+    <select id="as-type" name="문의유형" required style="width: 100%; padding: 10px;">
       <option value="">문의 유형을 선택해 주세요.</option>
-      <option>배송 문의</option>
-      <option>제품 불량</option>
+      <option>제품 파손</option>
+      <option>제품 기능 불량</option>
       <option>기타</option>
     </select>
   </div>
 
-  <div style="margin-bottom: 10px;">
+  <div style="margin-bottom: 20px;">
     <label style="display: block; margin-bottom: -10px;"><strong>제목 *</strong></label><br>
-    <input type="text" id="as-title" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 10px;">
-  </div>
-
-  <div style="margin-bottom: 10px;">
-    <label style="display: block; margin-bottom: -10px;"><strong>내용 *</strong></label><br>
-    <textarea id="as-content" required placeholder="내용을 입력해 주세요." style="width: 100%; height: 150px; padding: 10px;"></textarea>
+    <input type="text" id="as-title" name="제목" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 10px;">
   </div>
 
   <div style="margin-bottom: 20px;">
-    <label><strong>첨부</strong></label><br>
-    <input type="file" multiple style="margin-top: 5px;">
+    <label style="display: block; margin-bottom: -10px;"><strong>내용 *</strong></label><br>
+    <textarea id="as-content" name="내용" required placeholder="내용을 입력해 주세요." style="width: 100%; height: 150px; padding: 10px;"></textarea>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <label><strong>첨부 파일</strong></label><br>
+    <input type="file" name="첨부파일" multiple style="margin-top: 5px;">
   </div>
 
   <div style="text-align: center;">
@@ -671,52 +691,99 @@ function toggleAsForm() {
   list.style.display = showForm ? 'none' : 'block';
   notice.style.display = showForm ? 'none' : 'block';
 }
-
-document.getElementById('as-form').addEventListener('submit', function(e) {
-  e.preventDefault();
-
-  alert('A/S 신청이 등록되었습니다.');
-
-  document.getElementById('as-form').style.display = 'none';
-  document.getElementById('as-list').style.display = 'block';
-  document.getElementById('as-notice').style.display = 'block';
-});
 </script>
 
 <script>
-document.getElementById('as-form').addEventListener('submit', function(e) {
-  e.preventDefault();
+  let asPosts = [];
 
-  const type = document.getElementById('as-type').value.trim();
-  const title = document.getElementById('as-title').value.trim();
-  const content = document.getElementById('as-content').value.trim();
-
-  if (!type || !title || !content) {
-    alert('모든 필드를 작성해주세요.');
-    return;
+  function saveAsPosts(posts) {
+    localStorage.setItem('asPosts', JSON.stringify(posts));
   }
 
-  const newPost = {
-    type,
-    title,
-    content,
-    date: new Date().toLocaleDateString()
-  };
+  function loadAsPosts() {
+    const stored = localStorage.getItem('asPosts');
+    return stored ? JSON.parse(stored) : [];
+  }
 
-  asPosts.unshift(newPost);
-  saveAsPosts(asPosts); // ← 저장 추가
-  renderAsPosts();
+  function renderAsPosts() {
+    const list = document.getElementById('as-list-body');
+    list.innerHTML = '';
 
-  // 폼 숨기고 목록 다시 보여주기
-  document.getElementById('as-form').style.display = 'none';
-  document.getElementById('as-list').style.display = 'block';
-  document.getElementById('as-notice').style.display = 'block';
+    if (asPosts.length === 0) {
+      list.innerHTML = '<div class="table-empty">A/S신청 내역이 없습니다.</div>';
+      return;
+    }
 
-  // 입력 초기화
-  document.getElementById('as-type').value = '';
-  document.getElementById('as-title').value = '';
-  document.getElementById('as-content').value = '';
-});
+    asPosts.forEach((post, index) => {
+      const row = document.createElement('div');
+      row.className = 'table-row';
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '60px 100px 1fr 120px 80px';
+      row.style.fontSize = '14px';
+      row.style.padding = '8px 0';
+      row.innerHTML = `
+        <span>${index + 1}</span>
+        <span>${post.type}</span>
+        <span>${post.title}</span>
+        <span>${post.date}</span>
+        <span>접수됨</span>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    asPosts = loadAsPosts();      // ✅ 로컬 저장소 불러오기
+    renderAsPosts();              // ✅ 렌더링
+  });
+</script>
+
+<script>
+  const form = document.getElementById('as-form');
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const type = document.getElementById('as-type').value.trim();
+    const title = document.getElementById('as-title').value.trim();
+    const content = document.getElementById('as-content').value.trim();
+
+    if (!type || !title || !content) {
+      alert('모든 필드를 작성해주세요.');
+      return;
+    }
+
+    // 로컬 저장소 저장
+    const newPost = {
+      type,
+      title,
+      content,
+      date: new Date().toLocaleDateString()
+    };
+    let posts = JSON.parse(localStorage.getItem('asPosts')) || [];
+    posts.unshift(newPost);
+    localStorage.setItem('asPosts', JSON.stringify(posts));
+
+    // 이메일 전송
+    const formData = new FormData(form);
+    try {
+      await fetch("https://formsubmit.co/ajax/oa9500@empas.com", {
+        method: "POST",
+        body: formData,
+        headers: { 'Accept': 'application/json' }
+      });
+
+      alert("A/S 신청이 정상적으로 접수되었습니다.");
+      form.reset();
+      document.getElementById('as-form').style.display = 'none';
+      document.getElementById('as-list').style.display = 'block';
+      document.getElementById('as-notice').style.display = 'block';
+      renderAsPosts();
+
+    } catch (err) {
+      alert("이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
+  });
 </script>
 
 <div class="partner-logos">
