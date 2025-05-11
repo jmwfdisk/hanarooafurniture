@@ -745,24 +745,46 @@ function toggleAsForm() {
   const form = document.getElementById('as-form');
 
   form.addEventListener('submit', async function (e) {
-    e.preventDefault();
+  e.preventDefault();
 
-    const type = document.getElementById('as-type').value.trim();
-    const title = document.getElementById('as-title').value.trim();
-    const content = document.getElementById('as-content').value.trim();
+  const type = document.getElementById('as-type').value.trim();
+  const title = document.getElementById('as-title').value.trim();
+  const content = document.getElementById('as-content').value.trim();
+  const files = document.querySelector('input[type="file"]').files;
 
-    if (!type || !title || !content) {
-      alert('모든 필드를 작성해주세요.');
-      return;
-    }
+  if (!type || !title || !content) {
+    alert('모든 필드를 작성해주세요.');
+    return;
+  }
 
-    // 로컬 저장소 저장
+    const files = document.querySelector('input[name="첨부파일"]').files;
+    const fileNames = Array.from(files).map(file => file.name);
+    const fileUrls = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const ref = storage.ref().child('uploads/' + Date.now() + '_' + file.name);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    fileUrls.push(url);
+  }
     const newPost = {
       type,
       title,
       content,
+      files: fileNames, 
       date: new Date().toLocaleDateString()
     };
+
+    const posts = loadAsPosts();
+  posts.unshift(newPost);
+  saveAsPosts(posts);
+  renderAsPosts();
+
+  form.reset();
+  toggleAsForm();
+  alert("A/S 신청이 접수되었습니다.");
+});
+
     let posts = JSON.parse(localStorage.getItem('asPosts')) || [];
     posts.unshift(newPost);
     localStorage.setItem('asPosts', JSON.stringify(posts));
@@ -801,18 +823,44 @@ function viewContent(index) {
   document.getElementById('modal-title').innerText = post.title;
   document.getElementById('modal-type').innerText = `[문의 유형] ${post.type}`;
   document.getElementById('modal-content').innerText = post.content;
+  document.getElementById('modal-files').innerHTML =
+  post.files && post.files.length > 0
+    ? `첨부 파일: <br>` + post.files.map(name => `
+        <a href="#" onclick="downloadFile('${name}')" style="color:blue; text-decoration:underline;">${name}</a>
+      `).join('<br>')
+    : '첨부 파일: 없음';
 
   document.getElementById('content-modal').style.display = 'block';
   document.getElementById('modal-overlay').style.display = 'block';
 }
 
 function closeModal() {
-  document.getElementById('content-modal').style.display = 'none';
-  document.getElementById('modal-overlay').style.display = 'none';
+    document.getElementById('content-modal').style.display = 'none';
+    document.getElementById('modal-overlay').style.display = 'none';
 }
 
+function downloadFile(filename) {
+  alert(`파일 "${filename}" 은 로컬에 저장된 정보만 있으므로 직접 열 수 없습니다. 첨부파일은 서버 저장 방식이 필요합니다.`);
+  // 만약 서버에 파일을 올리는 구조라면 아래 링크 방식 사용
+  // window.open(`/uploads/${filename}`, '_blank');
+}  
 </script>
 
+<!-- <head> 내에 Firebase SDK 추가 -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const storage = firebase.storage();
+</script>
 
 <div class="partner-logos">
 <a href="https://www.g2b.go.kr/" target="_blank">
@@ -857,6 +905,7 @@ background:white; border-radius:8px; padding:20px; box-shadow:0 4px 8px rgba(0,0
   <h3 id="modal-title"></h3>
   <p id="modal-type" style="font-size:14px; color:#666; margin-bottom:10px;"></p>
   <p id="modal-content" style="white-space:pre-wrap; line-height:1.5;"></p>
+  <p id="modal-files" style="font-size: 13px; margin-top: 10px; color: #444;"></p>
   <div style="text-align:right; margin-top:20px;">
     <button onclick="closeModal()" style="padding:6px 12px; border:none; background:#000; color:#fff; border-radius:4px;">닫기</button>
   </div>
