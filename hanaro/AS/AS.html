@@ -510,7 +510,7 @@ function renderAsPosts() {
     row.innerHTML = `
       <span>${index + 1}</span>
       <span>${post.type}</span>
-      <span>${post.title}</span>
+      <span><a href="#" onclick="viewContent(${index})" style="text-decoration: underline; color: blue;">${post.title}</a></span>
       <span>${post.date}</span>
       <span><button onclick="deleteAsPost(${index})" style="padding:2px 6px; font-size:12px;">삭제</button></span>
     `;
@@ -724,9 +724,12 @@ function toggleAsForm() {
       row.innerHTML = `
         <span>${index + 1}</span>
         <span>${post.type}</span>
-        <span>${post.title}</span>
+        <span><a href="#" onclick="viewContent(${index})" style="text-decoration: underline; color: blue;">${post.title}</a></span>
         <span>${post.date}</span>
-        <span>접수됨</span>
+        <span>
+          접수완료
+          <button onclick="deleteAsPost(${index})" style="margin-left: 6px;">삭제</button>
+        </span>
       `;
       list.appendChild(row);
     });
@@ -786,6 +789,31 @@ function toggleAsForm() {
   });
 </script>
 
+<script>
+function viewContent(index) {
+  const isLoggedIn = sessionStorage.getItem("loggedIn");
+  if (!isLoggedIn) {
+    alert("관리자 로그인 후 내용을 확인할 수 있습니다.");
+    return;
+  }
+
+  const post = asPosts[index];
+  document.getElementById('modal-title').innerText = post.title;
+  document.getElementById('modal-type').innerText = `[문의 유형] ${post.type}`;
+  document.getElementById('modal-content').innerText = post.content;
+
+  document.getElementById('content-modal').style.display = 'block';
+  document.getElementById('modal-overlay').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('content-modal').style.display = 'none';
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+
+</script>
+
+
 <div class="partner-logos">
 <a href="https://www.g2b.go.kr/" target="_blank">
     <img src="../image/logo1.png" alt="파트너 1">
@@ -823,6 +851,17 @@ function toggleAsForm() {
         <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
         <p1>주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p1>
     </footer>
+    
+    <div id="content-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+background:white; border-radius:8px; padding:20px; box-shadow:0 4px 8px rgba(0,0,0,0.3); z-index:9999; max-width:500px; width:90%;">
+  <h3 id="modal-title"></h3>
+  <p id="modal-type" style="font-size:14px; color:#666; margin-bottom:10px;"></p>
+  <p id="modal-content" style="white-space:pre-wrap; line-height:1.5;"></p>
+  <div style="text-align:right; margin-top:20px;">
+    <button onclick="closeModal()" style="padding:6px 12px; border:none; background:#000; color:#fff; border-radius:4px;">닫기</button>
+  </div>
+</div>
+<div id="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); z-index:9998;" onclick="closeModal()"></div>
     
 </body>
 </html>
