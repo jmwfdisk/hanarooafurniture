@@ -34,6 +34,10 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            white-space: nowrap;
+            flex-wrap: nowrap;
+            gap: 16px;
         }
 
         .secondary-navbar a {
@@ -43,6 +47,7 @@
             text-decoration: none;
             color: #333;
             transition: color 0.3s;
+            flex-shrink: 0;
         }
 
         .secondary-navbar a:hover {
@@ -258,6 +263,25 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
+        .image-grid {
+            display: none;
+            padding: 20px 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            max-width: 1400px;      /* 최대 너비 제한 */
+            margin: 0 auto;         /* 가운데 정렬 */
+            overflow-x: auto;     
+        }
+
+        .image-grid img {
+            width: 300px;                  /* 고정 너비 */
+            height: auto;
+            flex-shrink: 0;                /* 축소 금지 */
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
         @media (max-width: 768px) {
             .navbar {
                 flex-wrap: nowrap;
@@ -360,6 +384,74 @@
         <a href="#">이동식스툴테이블(2100)</a>
         <a href="#">사물함</a>
     </nav>
+
+    <section id="gallery-등받이" class="image-grid">
+        <img src="../image/sample1.jpg" alt="등받이-1">
+        <img src="../image/sample2.jpg" alt="등받이-2">
+        <img src="../image/sample2.jpg" alt="등받이-3">
+        <img src="../image/sample2.jpg" alt="등받이-4">
+        <img src="../image/sample1.jpg" alt="등받이-1">
+        <img src="../image/sample2.jpg" alt="등받이-2">
+        <img src="../image/sample2.jpg" alt="등받이-3">
+        <img src="../image/sample2.jpg" alt="등받이-4">
+        <img src="../image/sample1.jpg" alt="등받이-1">
+        <img src="../image/sample2.jpg" alt="등받이-2">
+        <img src="../image/sample2.jpg" alt="등받이-3">
+        <img src="../image/sample2.jpg" alt="등받이-4">
+        <img src="../image/sample1.jpg" alt="등받이-1">
+        <img src="../image/sample2.jpg" alt="등받이-2">
+        <img src="../image/sample2.jpg" alt="등받이-3">
+        <img src="../image/sample2.jpg" alt="등받이-4">
+    </section>
+
+    <section id="gallery-원형" class="image-grid">
+        <img src="../image/sample1.jpg" alt="원형-1">
+        <img src="../image/sample2.jpg" alt="원형-2">
+        <img src="../image/sample2.jpg" alt="원형-3">
+        <img src="../image/sample2.jpg" alt="원형-4">
+        <img src="../image/sample1.jpg" alt="원형-1">
+        <img src="../image/sample2.jpg" alt="원형-2">
+        <img src="../image/sample2.jpg" alt="원형-3">
+        <img src="../image/sample2.jpg" alt="원형-4">
+        <img src="../image/sample1.jpg" alt="원형-1">
+        <img src="../image/sample2.jpg" alt="원형-2">
+        <img src="../image/sample2.jpg" alt="원형-3">
+        <img src="../image/sample2.jpg" alt="원형-4">
+        <img src="../image/sample1.jpg" alt="원형-1">
+        <img src="../image/sample2.jpg" alt="원형-2">
+        <img src="../image/sample2.jpg" alt="원형-3">
+        <img src="../image/sample2.jpg" alt="원형-4">
+    </section>
+
+    <section id="gallery-2100" class="image-grid">
+        <img src="../image/sample1.jpg" alt="2001-1">
+        <img src="../image/sample2.jpg" alt="2001-2">
+        <img src="../image/sample2.jpg" alt="2001-3">
+        <img src="../image/sample2.jpg" alt="2001-4">
+        <img src="../image/sample1.jpg" alt="2001-1">
+        <img src="../image/sample2.jpg" alt="2001-2">
+        <img src="../image/sample2.jpg" alt="2001-3">
+        <img src="../image/sample2.jpg" alt="2001-4">
+        <img src="../image/sample1.jpg" alt="2001-1">
+        <img src="../image/sample2.jpg" alt="2001-2">
+        <img src="../image/sample2.jpg" alt="2001-3">
+        <img src="../image/sample2.jpg" alt="2001-4">
+        <img src="../image/sample1.jpg" alt="2001-1">
+        <img src="../image/sample2.jpg" alt="2001-2">
+        <img src="../image/sample2.jpg" alt="2001-3">
+        <img src="../image/sample2.jpg" alt="2001-4">
+    </section>
+
+    <section id="gallery-사물함" class="image-grid">
+        <img src="../image/sample1.jpg" alt="사물함-1">
+        <img src="../image/sample2.jpg" alt="사물함-2">
+        <img src="../image/sample2.jpg" alt="사물함-3">
+        <img src="../image/sample2.jpg" alt="사물함-4">
+        <img src="../image/sample1.jpg" alt="사물함-1">
+        <img src="../image/sample2.jpg" alt="사물함-2">
+        <img src="../image/sample2.jpg" alt="사물함-3">
+        <img src="../image/sample2.jpg" alt="사물함-4">
+    </section>
     
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -408,6 +500,33 @@
         }
 
         document.getElementById('overlay').addEventListener('click', hideLogin);
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const sectionMap = {
+               '이동식스툴테이블(등받이)': 'gallery-등받이',
+               '이동식스툴테이블(원형)': 'gallery-원형',
+               '이동식스툴테이블(2100)': 'gallery-2100',
+               '사물함': 'gallery-사물함'
+            };
+
+            const links = document.querySelectorAll('.secondary-navbar a');
+            const galleries = document.querySelectorAll('.image-grid');
+
+        links.forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+            const sectionId = sectionMap[this.textContent.trim()];
+            galleries.forEach(gallery => gallery.style.display = 'none');
+            if (sectionId) {
+                document.getElementById(sectionId).style.display = 'grid';
+            }
+        });
+    });
+
+    // 기본값으로 등받이 갤러리만 보이기
+    galleries.forEach(gallery => gallery.style.display = 'none');
+    document.getElementById('gallery-등받이').style.display = 'grid';
+});
     </script>
 
 <div class="partner-logos">
@@ -417,13 +536,13 @@
 <a href="https://shop.g2b.go.kr/" target="_blank">
     <img src="../image/logo2.png" alt="파트너 2">
 </a>
-<a href="https://example3.com" target="_blank">
+<a href="https://hometax.go.kr/" target="_blank">
     <img src="../image/logo3.png" alt="파트너 3">
 </a>
-<a href="https://example4.com" target="_blank">
+<a href="https://www.smpp.go.kr" target="_blank">
     <img src="../image/logo4.png" alt="파트너 4">
 </a>
-<a href="https://example5.com" target="_blank">
+<a href="https://ecosq.or.kr/" target="_blank">
     <img src="../image/logo5.png" alt="파트너 5">
 </a>
 <a href="https://example6.com" target="_blank">
