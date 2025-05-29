@@ -236,6 +236,38 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
+        .main-info-section {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* ← 여기 수정 */
+            padding: 60px 10%;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .main-image-container img {
+            width: 500px;
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .company-description {
+            max-width: 600px;
+            text-align: left;
+        }
+
+        .company-description h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .company-description p {
+            font-size: 16px;
+            line-height: 1.7;
+        }
+
         @media (max-width: 768px) {
             .navbar {
                 flex-wrap: nowrap;
@@ -331,6 +363,67 @@
             </a>
         </div>
     </header>
+
+<section class="main-info-section">
+    <div class="main-image-container">
+    <img src="../image/c-1.jpeg" alt="회사 메인 이미지">
+    </div>
+    <div class="company-description">
+       <h1 style="border-bottom: 2px solid #333; padding-bottom: 8px; display: inline-block; width: 600px;">회사 소개</h1>
+       <p>
+       (주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여, 다양한 일반 가구 제품 및 종합 인테리어 컨설팅 서비스를 제공하는 전문 업체입니다.  
+       <br>2023년에는 조달 우수제품으로 공식 인증을 받았으며, 현재 전국의 다양한 공공기관과 교육기관 등에 제품 납품과 맞춤형 가구와 인테리어 솔루션 서비스를 제공하고 있으며, 20년간의 축적된 경험과 기술 / 전문성을 바탕으로 고객의 공간에 최적화된 제품과 서비스를 지속적으로 공급하고 있습니다.
+       </p>
+    </div>
+</section>
+
+<section class="company-history-section" style="padding: 0px 10% 5px; background-color: #f9f9f9;">
+  <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 40px;">
+    <div class="company-status" style="flex: 1; min-width: 300px; text-align: left;">
+      <h2 style="font-size: 24px; margin-bottom: 10px; text-align: left; border-bottom: 2px solid #333; padding-bottom: 6px; display: inline-block;">일반 현황</h2>
+      <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px;">
+        <li>회사명: (주)하나로오에이퍼니처</li>
+        <li>대표이사 : 정진희, 장인덕</li>
+        <li>설립연도 : 2001년 4월</li>
+        <li>사업 분야 : 이동식스툴테이블, 사물함, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;학교용 가구<span style="font-size: 14px;">(도서실, 과학실, 영어교실, 보건실, 교탁 등)</span>, OA사무용 가구 외.</li>
+        <li>소재지 : 대전광역시 대덕구 오정로 41번길 12</li>
+      </ul>
+    </div>
+
+    <div style="width: 1px; background-color: #ccc; height: auto;"></div>
+
+    <div class="company-timeline" style="flex: 1; min-width: 300px; text-align: left;">
+      <h2 style="font-size: 24px; margin-bottom: 10px; text-align: left; border-bottom: 2px solid #333; padding-bottom: 6px; display: inline-block;">주요 연혁</h2>
+      <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px;">
+        <li>2001년 4월 : 회사 설립</li>
+        <li>2010년 5월 : 중소기업청 여성기업인증</li>
+        <li>2011년 5월 : 절첩식의자 일체형테이블 특허 등록</li>
+        <li>2011년 11월 : K마크, 환경마크 인증서 획득</li>
+        <li>2012년 3월 : 조달청 우수제품지정(HOA시리즈 이동식스툴테이블)</li>
+        <li>2014년 10월 : 조달청 우수제품지정(사물함)</li>
+        <li>2015년 7월 : ISO 14001(환경경영시스템) / 9001(품질경영시스템) 인증획득)</li>
+        <li>2015년 10월 : 단체표준인증 획득</li>
+        <li>2015년 12월 : 굿디자인 선정</li>
+        <li>2016년 7월 : 2016 대한민국베스트신상품 선정</li>
+        <li>2017년 4월 : 조달청 우수제품지정(HS시리즈 이동식스툴테이블)</li>
+        <li>2018년 12월 : 대한민국환경공헌대상</li>
+        <li>2019년 3월 : 조달청 G-PASS기업 지정</li>
+        <li>2019년 6월 : 경형혁신형 중소기업 회원 지정</li>
+        <li>2023년 4월 : 조달청 우수제품지정(H시리즈 이동식스툴테이블)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="company-history-section" style="padding: 0px 10% 0px; background-color: #f9f9f9; margin-bottom: 0;"></section>
+
+<section class="company-sub-images" style="padding: 20px 10% 20px; background-color: #ffffff;">
+  <h3 style="font-size: 24px; text-align: left; border-bottom: 2px solid #333; display: inline-block; margin-bottom: 40px;">우수제품지정, 기술(성능) 및 인증서</h3>
+  <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px;">
+    <img src="../image/sub-1.png" alt="서브 이미지 1" style="width: 450px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <img src="../image/sub-2.png" alt="서브 이미지 2" style="width: 700px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+  </div>
+</section>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
