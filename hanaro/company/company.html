@@ -13,6 +13,8 @@
             background-color: #ffffff;
             color: #000000;
             text-align: center;
+            min-width: 2000px;
+            overflow-x: auto;
         }
 
         .navbar {
@@ -217,6 +219,7 @@
             flex-wrap: wrap;
             gap: 20px;
             padding: 20px 0;
+            margin-bottom: 10px;
             background-color: #f8f9fa;
         }
 
@@ -267,42 +270,6 @@
             font-size: 16px;
             line-height: 1.7;
         }
-
-        @media (max-width: 768px) {
-            .navbar {
-                flex-wrap: nowrap;
-                overflow-x: auto;
-            }
-
-            .navbar > div > a {
-                flex-shrink: 0; /* 항목 줄어듦 방지 */
-                white-space: nowrap; /* 텍스트 줄바꿈 방지 */
-            }
-
-            .main-section h1 {
-                font-size: 2rem;
-            }
-
-            .main-section p {
-                font-size: 1.8rem;
-            }
-
-            .main-content {
-                width: 90%;
-            }
-
-            .main-section {
-                padding: 300px; /* 여백 조정으로 가독성 유지 */
-            }
-
-            .MAS-section {
-                padding: 300px; /* 여백 조정으로 가독성 유지 */
-            }
-
-            .gallery-section {
-                padding: 300px; /* 여백 조정으로 가독성 유지 */
-            }
-
     </style>
 </head>
 
@@ -371,8 +338,8 @@
     <div class="company-description">
        <h1 style="border-bottom: 2px solid #333; padding-bottom: 8px; display: inline-block; width: 600px;">회사 소개</h1>
        <p>
-       (주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여, 다양한 일반 가구 제품 및 종합 인테리어 컨설팅 서비스를 제공하는 전문 업체입니다.  
-       <br>2023년에는 조달 우수제품으로 공식 인증을 받았으며, 현재 전국의 다양한 공공기관과 교육기관 등에 제품 납품과 맞춤형 가구와 인테리어 솔루션 서비스를 제공하고 있으며, 20년간의 축적된 경험과 기술 / 전문성을 바탕으로 고객의 공간에 최적화된 제품과 서비스를 지속적으로 공급하고 있습니다.
+       (주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여, 다양한 가구 제품 및 종합 가구 컨설팅 서비스를 제공하는 전문 업체입니다.  
+       <br>2023년에는 조달 우수제품으로 공식 인증을 받았으며, 현재 전국의 다양한 공공기관과 교육기관 등에 제품 납품과 맞춤형 공간 가구 솔루션 서비스를 제공하고 있으며, 20년간의 축적된 경험과 기술 / 전문성을 바탕으로 고객의 공간에 최적화된 제품과 서비스를 지속적으로 공급하고 있습니다.
        </p>
     </div>
 </section>
@@ -385,7 +352,7 @@
         <li>회사명: (주)하나로오에이퍼니처</li>
         <li>대표이사 : 정진희, 장인덕</li>
         <li>설립연도 : 2001년 4월</li>
-        <li>사업 분야 : 이동식스툴테이블, 사물함, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;학교용 가구<span style="font-size: 12px;">(도서실, 과학실, 영어교실, 보건실, 교탁 등)</span>, OA사무용 가구 외.</li>
+        <li>사업 분야 : 이동식스툴테이블, 사물함, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;학교용 가구<span style="font-size: 14px;">(도서실, 과학실, 영어교실, 보건실, 교탁 등)</span>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OA사무용 가구 외.</li>
         <li>소재지 : 대전광역시 대덕구 오정로 41번길 12</li>
       </ul>
     </div>
@@ -417,7 +384,7 @@
 
 <section class="company-history-section" style="padding: 0px 10% 0px; background-color: #f9f9f9; margin-bottom: 0;"></section>
 
-<section class="company-sub-images" style="padding: 20px 10% 20px; background-color: #ffffff;">
+<section class="company-sub-images" style="padding: 20px 10% 50px; background-color: #ffffff;">
   <h3 style="font-size: 24px; text-align: left; border-bottom: 2px solid #333; display: inline-block; margin-bottom: 40px;">우수제품지정, 기술(성능) 및 인증서</h3>
   <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px;">
     <img src="../image/sub-1.png" alt="서브 이미지 1" style="width: 450px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -498,7 +465,6 @@
 </a>
 <a href="https://www.4insure.or.kr/" target="_blank">
     <img src="../image/logo8.png" alt="파트너 8">
-</a>
 </div>
 
     <footer>
