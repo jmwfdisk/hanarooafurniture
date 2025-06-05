@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="하나로오에이퍼니처 - 조달 우수제품과 일반제품 소개">
     <meta name="keywords" content="하나로오에이퍼니처, 조달 우수제품, MAS, 가구, 사무가구">
-    <title>하나로오에이퍼니처</title>
+    <title>하나로오에이퍼니처 메인</title>
     <style>
         body {
             margin: 0;
@@ -13,8 +13,6 @@
             background-color: #ffffff;
             color: #000000;
             text-align: center;
-            min-width: 1500px;
-            overflow-x: auto;
         }
 
         .navbar {
@@ -291,6 +289,34 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
+.product-category {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 가로 4개 */
+  gap: 30px; /* 아이템 간 간격 */
+  margin: 40px auto;
+  padding: 0 20px;
+  max-width: 1200px;
+}
+
+.product-item img {
+  width: 100%;
+  height: auto;
+  max-width: 200px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.product-item img:hover {
+  transform: scale(1.05);
+}
+
+.product-item p {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
         @media (max-width: 768px) {
             .navbar {
                 flex-wrap: nowrap;
@@ -341,14 +367,14 @@
 
     <div class="footer-top">
         <div>
-            <a href="../staff/staff.html">
+            <a href="/하나로오에이퍼니처/staff/staff.html">
             <button id="employee-button" disabled>임직원</button>
         </div>
     </div>
 
     <header class="navbar">
         <div class="logo">
-            <a href="https://jmwfdisk.github.io/hanarooafurniture/">
+            <a href="https://jmwfdisk.github.io/hanarooafurniture">
                 <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
             </a>
         </div>
@@ -381,7 +407,7 @@
             <a href="#" onclick="showLogin()" id="login-link" style="display: flex; align-items: center;">
                 <img src="../image/login.png" alt="로그인" style="height: 25px; margin-right: 5px;"> 로그인
             </a>
-            <a href="https://jmwfdisk.github.io/hanarooafurniture/" onclick="logout()" id="logout-link" style="display: none; align-items: center;">
+            <a href="/하나로오에이퍼니처/index.html" onclick="logout()" id="logout-link" style="display: none; align-items: center;">
                 <img src="../image/logout.png" alt="로그아웃" style="height: 25px; margin-right: 5px;"> 로그아웃
             </a>
         </div>
@@ -393,7 +419,270 @@
         <a href="#">사물함</a>
         <a href="#">Accessory</a>
     </nav>
-    
+
+<section id="product-section">
+  <div class="product-category" data-category="우수제품">
+    <div class="product-item">
+      <img src="./image/1/1.jpeg" alt="H1200-2" onclick="openModal(this)">
+      <p>
+        <strong>H1200-2</strong><br>
+        물품식별번호:24481523<br>
+        W1200*D750*H730<br>
+        478,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/4.png" alt="H1200-4" onclick="openModal(this)">
+      <p>
+        <strong>H1200-4</strong><br>
+        물품식별번호:24481530<br>
+        W1200*D750*H730<br>
+        546,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/2.png" alt="H1800-2" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H1800-2</strong><br>
+        물품식별번호 : 24481526<br>
+        W1800*D750*H730<br>
+        639,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/5.png" alt="H1800-4" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H1800-4</strong><br>
+        물품식별번호:24481531<br>
+        W1800*D750*H730<br>
+        749,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/3.jpeg" alt="H1850-2" onclick="openModal(this)">
+      <p>
+        <strong>H1850-2</strong><br>
+        물품식별번호:24481532<br>
+        W1850*D750*H730<br>
+        683,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/6.jpeg" alt="H1850-4" onclick="openModal(this)">
+      <p>
+        <strong>H1850-4</strong><br>
+        물품식별번호:24481529<br>
+        W1850*D750*H730<br>
+        765,000원
+      </p>
+    </div>
+  </div>
+
+<!-- 일반제품 카테고리 시작 -->
+<div class="product-category" data-category="일반제품" style="display: none;">
+    <div class="product-item">
+      <img src="./image/2/1.png" alt="H2S" onclick="openModal(this)">
+      <p>
+        <strong>H2S</strong><br>
+        물품식별번호:22918755<br>
+        W1200*D750*H730<br>
+        469,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/2.png" alt="H10S" onclick="openModal(this)">
+      <p>
+        <strong>H10S</strong><br>
+        물품식별번호:22918746<br>
+        W1200*D750*H730<br>
+        509,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/3.png" alt="H1400-2" onclick="openModal(this)">
+      <p>
+        <strong>H1400-2</strong><br>
+        물품식별번호:25178038<br>
+        W1400*D800*H730<br>
+        533,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/4.png" alt="H1400-4" onclick="openModal(this)">
+      <p>
+        <strong>H1400-4</strong><br>
+        물품식별번호:25178040<br>
+        W1400*D800*H730<br>
+        478,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/5.png" alt="H6S" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H6S</strong><br>
+        물품식별번호:22918751<br>
+        W1800*D750*H730<br>
+        594,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/6.png" alt="H12S" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H12S</strong><br>
+        물품식별번호:22918747<br>
+        W1800*D750*H730<br>
+        689,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/7.png" alt="HS2100-2" onclick="openModal(this)">
+      <p>
+        <strong>HS2100-2</strong><br>
+        물품식별번호:25178039<br>
+        W2100*D800*H730<br>
+        668,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/8.png" alt="HS2100-4" onclick="openModal(this)">
+      <p>
+        <strong>HS2100-4</strong><br>
+        물품식별번호:25178039<br>
+        W2100*D800*H730<br>
+        775,000원
+      </p>
+    </div>
+</div>
+
+<!-- 액세서리 카테고리 시작 -->
+<div class="product-category" data-category="Accessory" style="display: none;">
+    <div class="product-item">
+      <img src="./image/4/1.jpeg" alt="SH-6549" onclick="openModal(this)">
+      <p>
+        <strong>망펄비치(SH-6549)</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/2.jpeg" alt="SH-1024" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>대리석무늬(SH-1024)</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/3.jpeg" alt="SH-2402" onclick="openModal(this)">
+      <p>
+        <strong>대리석무늬(SH-2402)</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/4.jpeg" alt="SH-9001" onclick="openModal(this)">
+      <p>
+        <strong>대리석무늬(SH-9001)</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/5.jpeg" alt="오렌지" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>브로우-오렌지</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/8.jpeg" alt="주황" onclick="openModal(this)">
+      <p>
+        <strong>브로우-주황</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/7.jpeg" alt="빨강" onclick="openModal(this)">
+      <p>
+        <strong>브로우-빨강</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/6.jpeg" alt="연두" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>브로우-연두</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/9.jpeg" alt="짙은연두" onclick="openModal(this)">
+      <p>
+        <strong>브로우-짙은연두</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/10.jpeg" alt="회색" onclick="openModal(this)">
+      <p>
+        <strong>브로우-회색</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item" style="grid-column: 1;">
+      <img src="./image/4/11.jpeg" alt="오렌지" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>원형-오렌지</strong>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/12.jpeg" alt="연두" onclick="openModal(this)">
+      <p>
+        <strong>원형-연두</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/13.jpeg" alt="와인" onclick="openModal(this)">
+      <p>
+        <strong>원형-와인</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/14.jpeg" alt="감색" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>원형-감색</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/15.jpeg" alt="파랑" onclick="openModal(this)">
+      <p>
+        <strong>원형-파랑</strong><br>
+      </p>
+    </div>
+</section>
+   
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const isLoggedIn = sessionStorage.getItem("loggedIn");
@@ -440,7 +729,29 @@
             sessionStorage.removeItem("loggedIn");
         }
 
+        function searchContent() {
+            const query = document.getElementById('search-input').value.trim();
+            if (query) {
+                window.location.href = `/하나로오에이퍼니처/search.html?query=${encodeURIComponent(query)}`;
+            } else {
+                alert('검색어를 입력하세요.');
+            }
+        }
+
         document.getElementById('overlay').addEventListener('click', hideLogin);
+
+const categories = document.querySelectorAll('.product-category');
+const navLinks = document.querySelectorAll('.secondary-navbar a');
+
+navLinks.forEach(link => {
+  link.addEventListener('click', () => {
+    const target = link.textContent.trim();
+    categories.forEach(cat => {
+      cat.style.display = cat.dataset.category === target ? 'grid' : 'none';
+    });
+  });
+});
+
     </script>
 
 <div class="partner-logos">
