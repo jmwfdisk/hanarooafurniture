@@ -67,7 +67,7 @@
             background-image: url('bbb.png');
             background-size: cover;
             background-position: center;
-            padding: 600px 20px 20px;
+            padding: 600px 20px 50px;
             color: #fff;
             text-align: center;
         }
@@ -316,42 +316,6 @@
             border-radius: 0px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-/*
-        @media (max-width: 768px) {
-            .navbar {
-                flex-wrap: nowrap;
-                overflow-x: auto;
-            }
-/*
-            .navbar > div > a {
-                flex-shrink: 0;
-                white-space: nowrap; 
-            }
-/*
-            .main-section h1 {
-                font-size: 2rem;
-            }
-
-            .main-section p {
-                font-size: 1.8rem;
-            }
-
-            .main-content {
-                width: 90%;
-            }
-
-            .main-section {
-                padding: 300px; /* 여백 조정으로 가독성 유지 */
-            }
-/*
-            .MAS-section {
-                padding: 300px; /* 여백 조정으로 가독성 유지 */
-            }
-/*
-            .gallery-section {
-                padding: 300px; /* 여백 조정으로 가독성 유지 */
-            }
-*/
     </style>
 </head>
 
@@ -460,12 +424,34 @@
         }
 
         document.getElementById('overlay').addEventListener('click', hideLogin);
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const categoryParam = urlParams.get("category");
+
+            if (categoryParam) {
+            const categories = document.querySelectorAll('.product-category');
+            const navLinks = document.querySelectorAll('.secondary-navbar a');
+
+            categories.forEach(cat => {
+            cat.style.display = cat.dataset.category === categoryParam ? 'grid' : 'none';
+        });
+
+        navLinks.forEach(link => {
+            if (link.textContent.trim() === categoryParam) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+       });
+    }
+  });
     </script>
 
     <section class="main2-section" style="background-image: url('./hanaro/image/bbb.png'); background-size: cover; background-position: center;">
-        <div class="main2-content" style="position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%); text-align: center;">
+        <div class="main2-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
             <div style="height: 200px;"></div>
-            <a href="https://jmwfdisk.github.io/hanarooafurniture/hanaro/company/company.html" class="cta-button">더 알아보기</a>
+            <a href="#" class="cta-button">더 알아보기</a>
         </div>
     </section>
 
@@ -474,7 +460,7 @@
     <section class="main-section" style="background-image: url('./hanaro/image/ccc.png'); background-size: cover; background-position: center;">
         <div class="main-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
             <div style="height: 200px;"></div>
-            <a href="https://jmwfdisk.github.io/hanarooafurniture/hanaro/product/product.html#" class="cta-button">제품보기</a>
+            <a href="#" class="cta-button">제품보기</a>
             <a href="https://youtu.be/BCFoUwoQyVo?si=FD8xSulI00cRH1LS" target="_blank" class="video-button">영상보기</a>
         </div>
     </section>
@@ -488,7 +474,7 @@
             <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
                 더 우수한 품질과 내구성
             </p>
-            <a href="https://jmwfdisk.github.io/hanarooafurniture/hanaro/product/product.html#" class="cta-button">제품보기</a>
+            <a href="./hanaro/product/product.html?category=일반제품#" class="cta-button">제품보기</a>
         </section>
 
         <section class="gallery-section" style="background-image: url('./hanaro/image/aaa.jpg'); background-size: cover; background-position: center; flex: 1; padding: 60px 20px;">
@@ -497,7 +483,7 @@
             <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
                 전국 학교의 급식실 전경을 살펴보세요
             </p>
-            <a href="https://jmwfdisk.github.io/hanarooafurniture/hanaro/Gallery/Gallery.html" class="cta-button">갤러리 보기</a>
+            <a href="#" class="cta-button">갤러리 보기</a>
         </section>
     </div>
 
