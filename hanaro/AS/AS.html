@@ -13,7 +13,6 @@
             background-color: #ffffff;
             color: #000000;
             text-align: center;
-            overflow-x: auto;
         }
 
         .navbar {
@@ -316,6 +315,41 @@
   margin-top: 30px;
   line-height: 1.6;
 }
+
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .navbar > div > a {
+    flex-shrink: 0; /* 항목 줄어듦 방지 */
+    white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+  }
+
+  .main-section h1 {
+    font-size: 2rem;
+  }
+
+  .main-section p {
+    font-size: 1.8rem;
+  }
+
+  .main-content {
+    width: 90%;
+  }
+
+  .main-section {
+    padding: 20px;
+  }
+  .MAS-section {
+    padding: 20px;
+  }
+  .gallery-section {
+    padding: 20px;
+  }
+
     </style>
 </head>
 
@@ -486,7 +520,7 @@ function renderAsPosts() {
 function deleteAsPost(index) {
   if (confirm("정말 삭제하시겠습니까?")) {
     asPosts.splice(index, 1);
-    saveAsPosts(asPosts);
+    localStorage.setItem('asPosts', JSON.stringify(asPosts));
     renderAsPosts();
   }
 }
@@ -510,22 +544,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
   <div style="margin-bottom: 20px;">
     <label style="display: block; margin-bottom: -10px;"><strong>문의 유형 *</strong></label><br>
-    <select id="as-type" name="문의유형" required style="width: 100%; padding: 10px;">
-      <option value="">문의 유형을 선택해 주세요.</option>
-      <option>제품 파손</option>
-      <option>제품 기능 불량</option>
-      <option>기타</option>
-    </select>
+      <select id="as-type" name="문의유형" required style="width: 100%; padding: 20px; font-size: 18px;">
+        <option value="">문의 유형을 선택해 주세요.</option>
+        <option>제품 파손</option>
+        <option>제품 기능 불량</option>
+        <option>기타</option>
+      </select>
   </div>
 
   <div style="margin-bottom: 20px;">
     <label style="display: block; margin-bottom: -10px;"><strong>제목 *</strong></label><br>
-    <input type="text" id="as-title" name="제목" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 10px;">
+    <input type="text" id="as-title" name="제목" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 10px; font-size: 14px;">
   </div>
 
   <div style="margin-bottom: 20px;">
     <label style="display: block; margin-bottom: -10px;"><strong>내용 *</strong></label><br>
-    <textarea id="as-content" name="내용" required placeholder="내용을 입력해 주세요." style="width: 100%; height: 150px; padding: 10px;"></textarea>
+    <textarea id="as-content" name="내용" required placeholder="내용을 입력해 주세요." style="width: 100%; height: 150px; padding: 10px; font-size: 14px; line-height: 2.0;">
+      1. 신청기관(학교명) :
+      2. 구매연도 :
+      3. 파손부위 및 요청내용 :
+      4. 수량 :
+      5. 연락처 :
+    </textarea>
   </div>
 
   <div style="margin-bottom: 20px;">
@@ -658,8 +698,6 @@ function toggleAsForm() {
 </script>
 
 <script>
-  let asPosts = [];
-
   function saveAsPosts(posts) {
     localStorage.setItem('asPosts', JSON.stringify(posts));
   }
@@ -708,7 +746,7 @@ function toggleAsForm() {
 <script>
   const form = document.getElementById('as-form');
 
-  form.addEventListener('submit', async function (e) {
+form.addEventListener('submit', async function (e) {
   e.preventDefault();
 
   const type = document.getElementById('as-type').value.trim();
@@ -721,58 +759,40 @@ function toggleAsForm() {
     return;
   }
 
-    const files = document.querySelector('input[name="첨부파일"]').files;
-    const fileNames = Array.from(files).map(file => file.name);
-    const fileUrls = [];
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const ref = storage.ref().child('uploads/' + Date.now() + '_' + file.name);
-    await ref.put(file);
-    const url = await ref.getDownloadURL();
-    fileUrls.push(url);
-  }
-    const newPost = {
-      type,
-      title,
-      content,
-      files: fileNames, 
-      date: new Date().toLocaleDateString()
-    };
+  const fileNames = Array.from(files).map(file => file.name);
 
-    const posts = loadAsPosts();
+  const newPost = {
+    type,
+    title,
+    content,
+    files: fileNames,
+    date: new Date().toLocaleDateString()
+  };
+
+  // ✅ 게시글 저장
+  let posts = JSON.parse(localStorage.getItem('asPosts')) || [];
   posts.unshift(newPost);
-  saveAsPosts(posts);
-  renderAsPosts();
+  localStorage.setItem('asPosts', JSON.stringify(posts));
+  asPosts = posts;
+  renderAsPosts();  // ← 반드시 필요
 
+  // ✅ 폼 초기화
   form.reset();
-  toggleAsForm();
-  alert("A/S 신청이 접수되었습니다.");
-});
+  form.style.display = 'none';
+  document.getElementById('as-list').style.display = 'block';
+  document.getElementById('as-notice').style.display = 'block';
 
-    let posts = JSON.parse(localStorage.getItem('asPosts')) || [];
-    posts.unshift(newPost);
-    localStorage.setItem('asPosts', JSON.stringify(posts));
-
-    // 이메일 전송
-    const formData = new FormData(form);
-    try {
-      await fetch("https://formsubmit.co/ajax/oa9500@empas.com", {
-        method: "POST",
-        body: formData,
-        headers: { 'Accept': 'application/json' }
-      });
-
-      alert("A/S 신청이 정상적으로 접수되었습니다.");
-      form.reset();
-      document.getElementById('as-form').style.display = 'none';
-      document.getElementById('as-list').style.display = 'block';
-      document.getElementById('as-notice').style.display = 'block';
-      renderAsPosts();
-
-    } catch (err) {
-      alert("이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.");
-    }
+  // ✅ 이메일 전송 (비동기)
+  fetch("https://formsubmit.co/ajax/oa9500@empas.com", {
+    method: "POST",
+    body: new FormData(form),
+    headers: { 'Accept': 'application/json' }
+  }).then(() => {
+    alert("A/S 신청이 정상적으로 접수되었습니다.");
+  }).catch(() => {
+    alert("이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.");
   });
+});
 </script>
 
 <script>
@@ -853,13 +873,18 @@ function downloadFile(filename) {
 </a>
 </div>
 
+    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
+      <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
+      <p style="text-indent: 20px;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
+    </div>
+    
     <footer>
         <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
-        <p1>주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p1>
+        <p>주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
     </footer>
     
     <div id="content-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-background:white; border-radius:8px; padding:20px; box-shadow:0 4px 8px rgba(0,0,0,0.3); z-index:9999; max-width:500px; width:90%;">
+     background:white; border-radius:8px; padding:20px; box-shadow:0 4px 8px rgba(0,0,0,0.3); z-index:9999; max-width:500px; width:90%;">
   <h3 id="modal-title"></h3>
   <p id="modal-type" style="font-size:14px; color:#666; margin-bottom:10px;"></p>
   <p id="modal-content" style="white-space:pre-wrap; line-height:1.5;"></p>
