@@ -977,21 +977,27 @@ document.getElementById("as-form").addEventListener("submit", function (e) {
       mimeType: file.type
     };
 
-    fetch("https://script.google.com/macros/s/AKfycbyNHHTTT1Ogvc0u0BJ1gUnaK_zh0hV2FCOBH9bqT4V3OHnVXp9oVFsDnevftfblVind/exec", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    })
-      .then(res => res.text())
-      .then(txt => {
-        if (txt.includes("성공")) {
-          alert("A/S 신청이 성공적으로 접수되었습니다.");
-          document.getElementById("as-form").reset();
-        } else {
-          alert("오류 발생: " + txt);
-        }
-      })
-      .catch(err => alert("요청 실패: " + err));
-  };
+fetch("https://script.google.com/macros/s/AKfycbyNHHTTT1Ogvc0u0BJ1gUnaK_zh0hV2FCOBH9bqT4V3OHnVXp9oVFsDnevftfblVind/exec", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    fileName: file.name,
+    mimeType: file.type,
+    fileData: base64File
+  })
+})
+.then(res => res.text())
+.then(txt => {
+  if (txt.includes("성공")) {
+    alert("A/S 신청이 성공적으로 접수되었습니다.");
+    document.getElementById("as-form").reset();
+  } else {
+    alert("오류 발생: " + txt);
+  }
+})
+.catch(err => alert("요청 실패: " + err));
 
   reader.readAsDataURL(file);
 });
@@ -1040,3 +1046,4 @@ async function renderAsPosts() {
 
 </body>
 </html>
+
