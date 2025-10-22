@@ -330,24 +330,32 @@
     display: none;  /* 기본은 숨김 */
 }
 
+.navbar > .logo {
+    margin-right: auto;
+}
+
     @media (max-width: 1024px) {
-  .navbar {
-    display: flex;
-    align-items: center;
-    height: 56px;
-    padding: 0 8px;
-  }
-  .navbar .login {
-    margin-left: auto;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .navbar > div:not(.logo):not(.login):not(.mobile-only) {
-    display: none;
-  }
+        .navbar {
+            display: flex;
+            align-items: center;
+            height: 56px;
+            padding: 0 8px;
+        }
+        .navbar .login {
+            margin-left: auto;
+            display: flex;
+            gap: 0px;
+            align-items: center;
+        }
+        .navbar > div:not(.logo):not(.login):not(.mobile-only) {
+            display: none;
+        }
         .employee-btn { display: block; }
         .footer-top { display: none; }
+
+        .navbar > .logo {
+        margin-right: 0;   /* 또는 필요한 간격만큼 지정: margin-right: 8px; */
+    }
 
         .hamburger {
             grid-column: 1;
@@ -375,15 +383,6 @@
         }
 
         .navbar .logo img { height: 24px; }
-
-        .navbar .login {
-            grid-column: 3;
-            justify-self: end;
-            align-self: center;
-            margin-left: 0;
-            position: static;
-            z-index: 1;
-        }
 
         .navbar > div:not(.logo):not(.login):not(.mobile-only) { display: none; }
 
@@ -443,7 +442,7 @@
         .MAS-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
         .gallery-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
 
-          footer { 
+        footer { 
             padding: 14px 12px 18px;    /* 안쪽 여백 축소 */
         }
         footer::before{
