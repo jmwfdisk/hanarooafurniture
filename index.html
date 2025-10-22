@@ -341,10 +341,16 @@
             height: 56px;
             padding: 0 8px;
         }
+
+        .navbar .login a {
+            margin: 0 !important;
+        }
+
         .navbar .login {
             margin-left: auto;
             display: flex;
-            gap: 0px;
+            flex-direction: column;
+            gap: 5px;
             align-items: center;
         }
         .navbar > div:not(.logo):not(.login):not(.mobile-only) {
@@ -352,10 +358,7 @@
         }
         .employee-btn { display: block; }
         .footer-top { display: none; }
-
-        .navbar > .logo {
-        margin-right: 0;   /* 또는 필요한 간격만큼 지정: margin-right: 8px; */
-    }
+        .navbar > .logo { margin-right: 0; }
 
         .hamburger {
             grid-column: 1;
@@ -370,6 +373,7 @@
             position: absolute; left: 0; right: 0;
             height: 2px; background: #000; margin: 0;
         }
+        
         .hamburger .bar:nth-child(1) { top: 2px; }
         .hamburger .bar:nth-child(2) { top: 11px; }
         .hamburger .bar:nth-child(3) { bottom: 2px; }
