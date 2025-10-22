@@ -310,6 +310,163 @@
             border-radius: 0px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
+        .hamburger { display: none; background: transparent; border: 0; padding: 8px; cursor: pointer; }
+        .hamburger .bar { display: block; width: 22px; height: 2px; margin: 4px 0; background: #000; transition: transform 0.3s, opacity 0.3s; }
+        .mobile-drawer { display: none !important; }
+
+        .mas-gallery-container {
+           display: flex;
+           gap: 10px;
+        }
+
+.login {
+    display: flex;
+    align-items: center;
+    gap: 8px;       /* 로그인/로그아웃/임직원 사이 간격 */
+}
+
+.employee-btn {
+    display: none;  /* 기본은 숨김 */
+}
+
+    @media (max-width: 1024px) {
+        .hamburger { z-index: 2; align-self: center; }   /* 버튼 클릭/세로중앙 */
+        .navbar .logo { z-index: 1; }
+        .navbar > .logo { margin-right: 0; }
+        .navbar > div > a { margin: 0 !important; }      /* 전역 13px 마진 무효화 */
+
+        .navbar > div:not(.logo):not(.login):not(.mobile-only) {
+            display: none !important;
+        }
+
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            height: 56px;
+            padding: 0 8px;
+            display: grid;
+            grid-template-columns: 44px 1fr 44px; /* 좌:버거, 가운데:로고, 우:로그인 */
+            align-items: center;
+        }
+
+        .hamburger {
+            grid-column: 1;
+            display: inline-flex;
+            width: 28px; height: 24px;
+            position: relative;
+            justify-self: start;
+            padding: 0; border: 0; background: transparent;
+        }
+
+        .hamburger .bar {
+            position: absolute; left: 0; right: 0;
+            height: 2px; background: #000; margin: 0;
+        }
+        .hamburger .bar:nth-child(1) { top: 2px; }
+        .hamburger .bar:nth-child(2) { top: 11px; }
+        .hamburger .bar:nth-child(3) { bottom: 2px; }
+
+        .navbar .logo {
+            grid-column: 2;
+            justify-self: center;
+            position: static;  /* 겹침 방지 */
+            transform: none;
+            z-index: 1;
+        }
+
+        .navbar .logo img { height: 24px; }
+
+        .navbar .login {
+            grid-column: 3;
+            justify-self: end;
+            align-self: center;
+            margin-left: 0;
+            position: static;
+            z-index: 1;
+        }
+
+        .navbar > div:not(.logo):not(.login):not(.mobile-only) { display: none; }
+
+        .mobile-drawer {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            width: 80%;
+            max-width: 340px;
+            height: calc(100vh - 56px);
+            background: #fff;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            display: flex !important;
+            flex-direction: column;
+            padding: 16px 20px;
+            gap: 8px;
+            z-index: 1001;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .mobile-drawer a {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            font-weight: bold;
+            color: #000;
+            text-decoration: none;
+        }
+
+        .mobile-drawer.open { transform: translateX(0); }
+
+        .body.menu-open { overflow: hidden; }
+        .overlay.menu-open { display: block !important; }
+
+        .mas-gallery-container {
+            display: flex;
+            flex-direction: column;  /* 세로 배치 */
+            gap: 20px;              /* 위아래 간격 */
+        }
+
+        .mas-gallery-container section {
+            flex: none;
+            width: 100%;
+        }
+
+        .MAS-section h2 { margin-top: -10px; margin-left: -30px; font-size: 1.2rem; }
+        .gallery-section h2 { margin-top: -8px; margin-left: -30px; font-size: 1.2rem; }
+
+      /* 설명 문구 */
+        .MAS-section p { margin-top: 5px; margin-left: -30px; font-size: 0.9rem; }
+        .gallery-section p { margin-top: 5px; margin-left: -30px; font-size: 0.9rem; }
+
+      /* 버튼 */
+        .MAS-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
+        .gallery-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
+
+          footer { 
+            padding: 14px 12px 18px;    /* 안쪽 여백 축소 */
+        }
+        footer::before{
+            width: 90%;                 /* 구분선 길이 살짝 늘림 */
+            margin-bottom: 10px;
+        }
+        footer p, footer p1{
+            font-size: 10px;            /* 글자 크기 */
+            line-height: 1.35;          /* 줄간격 */
+            letter-spacing: 0;          /* 자간 */
+            text-align: left;           /* 정렬 */
+            margin: 4px 0;
+        }
+
+        .employee-btn {
+            display: block;    /* 모바일에서만 표시 */
+        }
+        .footer-top {
+            display: none;     /* 모바일에서는 기존 임직원 위치 숨김 */
+        }
+    }
     </style>
 </head>
 
@@ -326,16 +483,32 @@
     <div class="footer-top">
         <div>
             <a href="./hanaro/staff/staff.html">
-            <button id="employee-button" disabled>임직원</button>
+              <button id="employee-button" disabled>임직원</button>
+            </a>  
         </div>
     </div>
 
     <header class="navbar">
-        <div class="logo">
-            <a href="https://hanarooa.com/">
-                <img src="./hanaro/image/logo-nav.png" alt="로고" style="height: 40px;">
-            </a>
-        </div>
+      <button class="hamburger" id="hamburger" aria-label="메뉴 열기" aria-controls="mobile-nav" aria-expanded="false">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+      </button>
+
+      <div class="logo">
+          <a href="https://hanarooa.com/">
+              <img src="./hanaro/image/logo-nav.png" alt="로고" style="height: 40px;">
+          </a>
+      </div>
+
+      <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
+          <a href="./hanaro/company/company.html">회사소개</a>
+          <a href="./hanaro/product/product.html">제품소개</a>
+          <a href="./hanaro/school/school.html">납품학교 리스트</a>
+          <a href="./hanaro/Gallery/Gallery.html">갤러리</a>
+          <a href="./hanaro/AS/AS.html">A/S신청</a>
+          <a href="#">고객지원</a>
+      </nav>
 
         <div>
             <a href="./hanaro/company/company.html">회사소개</a>
@@ -368,8 +541,87 @@
             <a href="/하나로오에이퍼니처/index.html" onclick="logout()" id="logout-link" style="display: none; align-items: center;">
                 <img src="./hanaro/image/logout.png" alt="로그아웃" style="height: 25px; margin-right: 5px;"> 로그아웃
             </a>
+            <a href="./hanaro/staff/staff.html" class="employee-btn">
+                <button id="employee-button" disabled>임직원</button>
+            </a>
         </div>
     </header>
+
+    <section class="main2-section" style="background-image: url('./hanaro/image/bbb.png'); background-size: cover; background-position: center;">
+        <div class="main2-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
+            <div style="height: 200px;"></div>
+            <a href="./hanaro/company/company.html" class="cta-button">더 알아보기</a>
+        </div>
+    </section>
+
+    <div style="height: 10px;"></div>
+
+    <section class="main-section" style="background-image: url('./hanaro/image/ccc.png'); background-size: cover; background-position: center;">
+        <div class="main-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
+            <div style="height: 200px;"></div>
+            <a href="./hanaro/product/product.html?category=우수제품" class="cta-button">제품보기</a>
+            <a href="https://youtu.be/BCFoUwoQyVo?si=FD8xSulI00cRH1LS" target="_blank" class="video-button">영상보기</a>
+        </div>
+    </section>
+
+    <div style="height: 10px;"></div>
+
+    <div class="mas-gallery-container">
+        <section class="MAS-section" style="background-image: url('./image/mas.png'); background-size: cover; background-position: center; flex: 1; padding: 60px 20px;">
+            <div style="height: 350px;"></div>
+            <h2>일반제품(MAS)</h2>
+            <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
+                더 우수한 품질과 내구성
+            </p>
+            <a href="./hanaro/product/product.html?category=일반제품#" class="cta-button">제품보기</a>
+        </section>
+
+        <section class="gallery-section" style="background-image: url('./image/aaa.png'); background-size: cover; background-position: center; flex: 1; padding: 60px 20px;">
+            <div style="height: 350px;"></div>
+            <h2>갤러리</h2>
+            <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
+                전국 학교의 급식실 전경을 살펴보세요
+            </p>
+            <a href="./hanaro/Gallery/Gallery.html" class="cta-button">갤러리 보기</a>
+        </section>
+    </div>
+
+    <div class="partner-logos">
+            <a href="https://www.g2b.go.kr/" target="_blank">
+                <img src="./image/logo1.png" alt="파트너 1">
+            </a>
+            <a href="https://shop.g2b.go.kr/" target="_blank">
+                <img src="./image/logo2.png" alt="파트너 2">
+            </a>
+            <a href="https://hometax.go.kr/" target="_blank">
+                <img src="./image/logo3.png" alt="파트너 3">
+            </a>
+            <a href="https://www.smpp.go.kr" target="_blank">
+                <img src="./image/logo4.png" alt="파트너 4">
+            </a>
+            <a href="https://ecosq.or.kr/" target="_blank">
+                <img src="./image/logo5.png" alt="파트너 5">
+            </a>
+            <a href="https://www.sgic.co.kr/" target="_blank">
+                <img src="./image/logo6.png" alt="파트너 6">
+            </a>
+            <a href="https://si4n.nhis.or.kr/" target="_blank">
+                <img src="./image/logo7.png" alt="파트너 7">
+            </a>
+            <a href="https://www.4insure.or.kr/" target="_blank">
+                <img src="./image/logo8.png" alt="파트너 8">
+            </a>
+    </div>
+
+    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
+      <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
+      <p style="text-indent: 20px;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
+    </div>
+
+    <footer>
+        <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
+        <p1>주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p1>
+    </footer>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -442,78 +694,44 @@
   });
     </script>
 
-    <section class="main2-section" style="background-image: url('./hanaro/image/bbb.png'); background-size: cover; background-position: center;">
-        <div class="main2-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
-            <div style="height: 200px;"></div>
-            <a href="./hanaro/company/company.html" class="cta-button">더 알아보기</a>
-        </div>
-    </section>
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const burger = document.getElementById('hamburger');
+  const drawer = document.getElementById('mobile-nav');
+  const overlay = document.getElementById('overlay');
+  if (!burger || !drawer || !overlay) return;
 
-    <div style="height: 10px;"></div>
+  let prevFocus = null;
+  function setState(open) {
+    burger.setAttribute('aria-expanded', String(open));
+    burger.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
+    drawer.classList.toggle('open', open);
+    document.body.classList.toggle('menu-open', open);
+    overlay.classList.toggle('menu-open', open);
+  }
+  function openMenu() {
+    // 로그인 창이 열려 있으면 닫기
+    const login = document.getElementById('login-container');
+    if (login && login.style.display === 'block' && typeof hideLogin === 'function') hideLogin();
+    prevFocus = document.activeElement;
+    setState(true);
+    const first = drawer.querySelector('a');
+    if (first) first.focus();
+  }
+  function closeMenu() {
+    setState(false);
+    if (prevFocus && prevFocus.focus) prevFocus.focus();
+    prevFocus = null;
+  }
+  function toggleMenu() {
+    const isOpen = drawer.classList.contains('open');
+    isOpen ? closeMenu() : openMenu();
+  }
 
-    <section class="main-section" style="background-image: url('./hanaro/image/ccc.png'); background-size: cover; background-position: center;">
-        <div class="main-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
-            <div style="height: 200px;"></div>
-            <a href="./hanaro/product/product.html?category=우수제품" class="cta-button">제품보기</a>
-            <a href="https://youtu.be/BCFoUwoQyVo?si=FD8xSulI00cRH1LS" target="_blank" class="video-button">영상보기</a>
-        </div>
-    </section>
-
-    <div style="height: 10px;"></div>
-
-    <div style="display: flex; gap: 10px;">
-        <section class="MAS-section" style="background-image: url('./image/mas.png'); background-size: cover; background-position: center; flex: 1; padding: 60px 20px;">
-            <div style="height: 350px;"></div>
-            <h2>일반제품(MAS)</h2>
-            <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
-                더 우수한 품질과 내구성
-            </p>
-            <a href="./hanaro/product/product.html?category=일반제품#" class="cta-button">제품보기</a>
-        </section>
-
-        <section class="gallery-section" style="background-image: url('./image/aaa.png'); background-size: cover; background-position: center; flex: 1; padding: 60px 20px;">
-            <div style="height: 350px;"></div>
-            <h2>갤러리</h2>
-            <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
-                전국 학교의 급식실 전경을 살펴보세요
-            </p>
-            <a href="./hanaro/Gallery/Gallery.html" class="cta-button">갤러리 보기</a>
-        </section>
-    </div>
-
-    <div class="partner-logos">
-            <a href="https://www.g2b.go.kr/" target="_blank">
-                <img src="./image/logo1.png" alt="파트너 1">
-            </a>
-            <a href="https://shop.g2b.go.kr/" target="_blank">
-                <img src="./image/logo2.png" alt="파트너 2">
-            </a>
-            <a href="https://hometax.go.kr/" target="_blank">
-                <img src="./image/logo3.png" alt="파트너 3">
-            </a>
-            <a href="https://www.smpp.go.kr" target="_blank">
-                <img src="./image/logo4.png" alt="파트너 4">
-            </a>
-            <a href="https://ecosq.or.kr/" target="_blank">
-                <img src="./image/logo5.png" alt="파트너 5">
-            </a>
-            <a href="https://www.sgic.co.kr/" target="_blank">
-                <img src="./image/logo6.png" alt="파트너 6">
-            </a>
-            <a href="https://si4n.nhis.or.kr/" target="_blank">
-                <img src="./image/logo7.png" alt="파트너 7">
-            </a>
-            <a href="https://www.4insure.or.kr/" target="_blank">
-                <img src="./image/logo8.png" alt="파트너 8">
-            </a>
-    </div>
-
-    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
-      <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
-      <p style="text-indent: 20px;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
-    </div>
-
-    <footer>
-        <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
-        <p1>주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p1>
-    </footer>
+  burger.addEventListener('click', toggleMenu);
+  overlay.addEventListener('click', () => { if (drawer.classList.contains('open')) closeMenu(); });
+  drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer.classList.contains('open')) closeMenu(); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 1024 && drawer.classList.contains('open')) closeMenu(); });
+});
+</script>
