@@ -331,25 +331,23 @@
 }
 
     @media (max-width: 1024px) {
-        .hamburger { z-index: 2; align-self: center; }   /* 버튼 클릭/세로중앙 */
-        .navbar .logo { z-index: 1; }
-        .navbar > .logo { margin-right: 0; }
-        .navbar > div > a { margin: 0 !important; }      /* 전역 13px 마진 무효화 */
-
-        .navbar > div:not(.logo):not(.login):not(.mobile-only) {
-            display: none !important;
-        }
-
-        .navbar {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            height: 56px;
-            padding: 0 8px;
-            display: grid;
-            grid-template-columns: 44px 1fr 44px; /* 좌:버거, 가운데:로고, 우:로그인 */
-            align-items: center;
-        }
+  .navbar {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    padding: 0 8px;
+  }
+  .navbar .login {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .navbar > div:not(.logo):not(.login):not(.mobile-only) {
+    display: none;
+  }
+        .employee-btn { display: block; }
+        .footer-top { display: none; }
 
         .hamburger {
             grid-column: 1;
@@ -459,13 +457,6 @@
             text-align: left;           /* 정렬 */
             margin: 4px 0;
         }
-
-        .employee-btn {
-            display: block;    /* 모바일에서만 표시 */
-        }
-        .footer-top {
-            display: none;     /* 모바일에서는 기존 임직원 위치 숨김 */
-        }
     }
     </style>
 </head>
@@ -534,17 +525,13 @@
             <a href="#">고객지원</a>
         </div>
         
-    <div class="login">
-            <a href="#" onclick="showLogin()" id="login-link" style="display: flex; align-items: center;">
-                <img src="./hanaro/image/login.png" alt="로그인" style="height: 25px; margin-right: 5px;"> 로그인
-            </a>
-            <a href="/하나로오에이퍼니처/index.html" onclick="logout()" id="logout-link" style="display: none; align-items: center;">
-                <img src="./hanaro/image/logout.png" alt="로그아웃" style="height: 25px; margin-right: 5px;"> 로그아웃
-            </a>
-            <a href="./hanaro/staff/staff.html" class="employee-btn">
-                <button id="employee-button" disabled>임직원</button>
-            </a>
-        </div>
+<div class="login">
+  <a href="#" onclick="showLogin()" id="login-link">로그인</a>
+  <a href="/하나로오에이퍼니처/index.html" onclick="logout()" id="logout-link" style="display:none;">로그아웃</a>
+  <a href="./hanaro/staff/staff.html" class="employee-btn">
+    <button id="employee-button" disabled>임직원</button>
+  </a>
+</div>
     </header>
 
     <section class="main2-section" style="background-image: url('./hanaro/image/bbb.png'); background-size: cover; background-position: center;">
