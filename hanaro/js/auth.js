@@ -441,17 +441,26 @@ async function login() {
         // 이메일 형식이 아닌 경우 이메일로 변환 시도
         let email = emailOrUsername;
         if (!emailOrUsername.includes('@')) {
-            // username으로 이메일 찾기
-            const usersSnapshot = await authDb.collection('users')
-                .where('username', '==', emailOrUsername)
-                .limit(1)
-                .get();
-            
-            if (usersSnapshot.empty) {
-                alert('존재하지 않는 아이디입니다.');
-                return;
+            // username으로 이메일 찾기 (권한 오류 처리)
+            try {
+                const usersSnapshot = await authDb.collection('users')
+                    .where('username', '==', emailOrUsername)
+                    .limit(1)
+                    .get();
+                
+                if (usersSnapshot.empty) {
+                    alert('존재하지 않는 아이디입니다.');
+                    return;
+                }
+                email = usersSnapshot.docs[0].data().email;
+            } catch (queryError) {
+                console.error('사용자 정보 조회 오류:', queryError);
+                if (queryError.code === 'permission-denied') {
+                    alert('로그인 전에는 username으로 로그인할 수 없습니다.\n이메일 주소로 로그인해주세요.');
+                    return;
+                }
+                throw queryError;
             }
-            email = usersSnapshot.docs[0].data().email;
         }
 
         // Firebase Auth로 로그인 (타임아웃 추가)
@@ -517,6 +526,8 @@ async function login() {
 
     } catch (error) {
         console.error('로그인 오류:', error);
+        console.error('오류 코드:', error.code);
+        console.error('오류 메시지:', error.message);
         
         if (error.code === 'auth/user-not-found') {
             alert('존재하지 않는 계정입니다.');
@@ -526,8 +537,13 @@ async function login() {
             alert('올바른 이메일 형식을 입력해주세요.');
         } else if (error.code === 'auth/too-many-requests') {
             alert('로그인 시도가 너무 많습니다.\n잠시 후 다시 시도해주세요.');
+        } else if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+            alert('권한 오류가 발생했습니다.\nFirestore 보안 규칙을 확인해주세요.');
+        } else if (error.message === '로그인 시간 초과') {
+            alert('로그인 시간이 초과되었습니다.\n네트워크 연결을 확인하고 다시 시도해주세요.');
         } else {
-            alert('로그인 중 오류가 발생했습니다.\n' + (error.message || ''));
+            const errorMsg = error.message || '알 수 없는 오류';
+            alert('로그인 중 오류가 발생했습니다.\n' + errorMsg);
         }
     }
 }
