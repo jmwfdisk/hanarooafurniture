@@ -2303,12 +2303,13 @@
         </div>
         
         <div class="board-table">
-            <div class="table-header" style="grid-template-columns: 60px 100px 150px 150px 100px 100px 120px;">
+            <div class="table-header" style="grid-template-columns: 60px 100px 150px 150px 100px 100px 100px 120px;">
                 <span>번호</span>
                 <span>아이디</span>
                 <span>이름</span>
                 <span>이메일</span>
                 <span>연락처</span>
+                <span>회원유형</span>
                 <span>신청일</span>
                 <span>관리</span>
             </div>
@@ -3318,9 +3319,20 @@
             pageMembers.forEach((member, index) => {
                 const row = document.createElement('div');
                 row.className = 'table-row';
-                row.style.gridTemplateColumns = '60px 100px 150px 150px 100px 100px 120px';
+                row.style.gridTemplateColumns = '60px 100px 150px 150px 100px 100px 100px 120px';
                 
                 const date = member.createdAt ? new Date(member.createdAt).toLocaleDateString('ko-KR') : '-';
+                
+                // 회원 유형 표시
+                let userTypeText = '-';
+                let userTypeStyle = '';
+                if (member.userType === 'employee') {
+                    userTypeText = '임직원';
+                    userTypeStyle = 'color: #0071e3; font-weight: 600;';
+                } else if (member.userType === 'general') {
+                    userTypeText = '일반회원';
+                    userTypeStyle = 'color: #44aa6b; font-weight: 600;';
+                }
                 
                 let actionButtons = '';
                 if (currentMemberTab === 'pending') {
@@ -3343,6 +3355,7 @@
                     <span>${member.name || '-'}</span>
                     <span style="font-size: 11px;">${member.email || '-'}</span>
                     <span style="font-size: 11px;">${member.phone || '-'}</span>
+                    <span style="font-size: 11px; ${userTypeStyle}">${userTypeText}</span>
                     <span style="font-size: 11px;">${date}</span>
                     <span>${actionButtons}</span>
                 `;
