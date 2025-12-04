@@ -1430,32 +1430,68 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Firebase Firestore에서 A/S 게시글 로드
         async function loadAsPosts() {
+            // Firebase가 초기화될 때까지 대기 (최대 5초)
+            let retryCount = 0;
+            while (!db && retryCount < 10) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+            }
+            
             if (db) {
                 // Firebase Firestore 사용
                 try {
                     const snapshot = await db.collection('asPosts').doc('posts').get();
                     if (snapshot.exists) {
-                        return snapshot.data().posts || [];
+                        const posts = snapshot.data().posts || [];
+                        console.log('Firebase에서 A/S 게시글 로드 완료:', posts.length, '개');
+                        return Array.isArray(posts) ? posts : [];
                     } else {
                         // 기존 localStorage 데이터 마이그레이션
                         const stored = localStorage.getItem('asPosts');
                         if (stored) {
-                            const posts = JSON.parse(stored);
-                            // Firebase로 마이그레이션
-                            await db.collection('asPosts').doc('posts').set({ posts: posts });
-                            return posts;
+                            try {
+                                const posts = JSON.parse(stored);
+                                if (Array.isArray(posts) && posts.length > 0) {
+                                    // Firebase로 마이그레이션
+                                    await db.collection('asPosts').doc('posts').set({ posts: posts });
+                                    console.log('localStorage 데이터를 Firebase로 마이그레이션 완료');
+                                    return posts;
+                                }
+                            } catch (parseError) {
+                                console.error('localStorage 데이터 파싱 실패:', parseError);
+                            }
                         }
+                        return [];
                     }
                 } catch (error) {
                     console.error('Firebase 로드 실패:', error);
                     // 실패 시 localStorage 사용
                     const stored = localStorage.getItem('asPosts');
-                    return stored ? JSON.parse(stored) : [];
+                    if (stored) {
+                        try {
+                            const posts = JSON.parse(stored);
+                            return Array.isArray(posts) ? posts : [];
+                        } catch (parseError) {
+                            console.error('localStorage 데이터 파싱 실패:', parseError);
+                            return [];
+                        }
+                    }
+                    return [];
                 }
             } else {
-                // localStorage 사용
+                // Firebase가 초기화되지 않은 경우 localStorage 사용
+                console.warn('Firebase가 초기화되지 않아 localStorage에서 로드합니다.');
                 const stored = localStorage.getItem('asPosts');
-                return stored ? JSON.parse(stored) : [];
+                if (stored) {
+                    try {
+                        const posts = JSON.parse(stored);
+                        return Array.isArray(posts) ? posts : [];
+                    } catch (parseError) {
+                        console.error('localStorage 데이터 파싱 실패:', parseError);
+                        return [];
+                    }
+                }
+                return [];
             }
         }
 
@@ -1465,14 +1501,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Firebase Firestore 사용
                 try {
                     await db.collection('asPosts').doc('posts').set({ posts: posts });
+                    console.log('Firebase에 A/S 게시글 저장 완료');
+                    // 저장 성공 후 localStorage에도 백업 (오프라인 대비)
+                    localStorage.setItem('asPosts', JSON.stringify(posts));
+                    return true;
                 } catch (error) {
                     console.error('Firebase 저장 실패:', error);
                     // 실패 시 localStorage에 백업
                     localStorage.setItem('asPosts', JSON.stringify(posts));
+                    alert('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                    return false;
                 }
             } else {
-                // localStorage 사용
+                // localStorage 사용 (Firebase가 초기화되지 않은 경우)
+                console.warn('Firebase가 초기화되지 않아 localStorage에만 저장됩니다.');
                 localStorage.setItem('asPosts', JSON.stringify(posts));
+                return false;
             }
         }
 
@@ -2035,7 +2079,9 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
                 }
             } else {
                 // 파일이 없는 경우 바로 저장
-                savePost(type, title, content, fileNames, [], []);
+                (async () => {
+                    await savePost(type, title, content, fileNames, [], []);
+                })();
             }
         });
 
@@ -2078,7 +2124,7 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
                 });
                 
                 // 게시글 저장
-                savePost(type, title, content, fileNames, fileData, fileUrls);
+                await savePost(type, title, content, fileNames, fileData, fileUrls);
                 
             } catch (error) {
                 console.error('파일 업로드 오류:', error);
@@ -2087,7 +2133,7 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
         }
 
         // localStorage에 파일 저장 (Firebase 미사용 시)
-        function uploadFilesToLocalStorage(files, type, title, content, fileNames) {
+        async function uploadFilesToLocalStorage(files, type, title, content, fileNames) {
             const fileData = [];
             let processedFiles = 0;
             let hasError = false;
@@ -2111,7 +2157,9 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
                     if (processedFiles === files.length) {
                         // 모든 파일 처리 완료 후 저장
                         if (!hasError) {
-                            savePost(type, title, content, fileNames, fileData, []);
+                            (async () => {
+                                await savePost(type, title, content, fileNames, fileData, []);
+                            })();
       } else {
                             alert('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
                         }
@@ -2123,7 +2171,9 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
                     processedFiles++;
                     if (processedFiles === files.length) {
                         if (!hasError) {
-                            savePost(type, title, content, fileNames, fileData, []);
+                            (async () => {
+                                await savePost(type, title, content, fileNames, fileData, []);
+                            })();
                         } else {
                             alert('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
                         }
@@ -2133,7 +2183,7 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
 });
         }
 
-        function savePost(type, title, content, fileNames, fileData, fileUrls) {
+        async function savePost(type, title, content, fileNames, fileData, fileUrls) {
             const newPost = {
                 type: type,
                 title: title,
@@ -2145,9 +2195,23 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
             };
 
             asPosts.unshift(newPost);
-            saveAsPosts(asPosts).then(() => {
-                currentPage = 1;
-            });
+            
+            // Firestore에 저장
+            const saved = await saveAsPosts(asPosts);
+            
+            if (saved) {
+                // 저장 성공 후 최신 데이터 다시 로드 (다른 컴퓨터에서도 보이도록)
+                try {
+                    const latestPosts = await loadAsPosts();
+                    if (latestPosts && Array.isArray(latestPosts)) {
+                        asPosts = latestPosts;
+                    }
+                } catch (error) {
+                    console.error('최신 데이터 로드 실패:', error);
+                }
+            }
+            
+            currentPage = 1;
             
             // 폼 초기화 및 숨기기
             document.getElementById('as-form').reset();
