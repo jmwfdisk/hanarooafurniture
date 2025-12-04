@@ -7,9 +7,17 @@
     <meta name="keywords" content="하나로오에이퍼니처, 조달 우수제품, MAS, 가구, 사무가구">
     <title>하나로오에이퍼니처</title>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
     <link rel="icon" href="./image/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="./image/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="./image/favicon.png">
+    
+    <!-- 공통 디자인 시스템 CSS -->
+    <link rel="stylesheet" href="./hanaro/css/common.css">
 
     <style>
         body {
@@ -22,19 +30,44 @@
         }
 
         .navbar {
-            background-color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             padding: 5px 5px;
             display: flex;
             justify-content: flex-start;
             align-items: center;
             position: relative;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 그림자 추가 */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             z-index: 1000;
-            height: 40px;
+            height: 78px;
+            transition: all 0.3s ease;
         }
 
         .navbar > .logo {
             margin-right: auto; /* 로고와 나머지 항목 간 여백 */
+        }
+        
+        .navbar .logo a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #000;
+        }
+        
+        .navbar .logo img {
+            height: 75px;
+        }
+        
+        .navbar .logo a {
+            pointer-events: none;
+            cursor: default;
+        }
+        
+        .navbar .logo span {
+            font-size: 18px;
+            font-weight: bold;
+            white-space: nowrap;
         }
 
         .navbar > div {
@@ -42,19 +75,23 @@
         }
 
         .navbar > div > a {
-            margin: 13px !important;
-            font-size: 14px !important;  /* 강제 적용 */
-            font-weight: bold;
+            margin: 13px 4px !important;
+            font-size: 18px !important;
+            font-weight: 600;
             letter-spacing: -0.5px;
             text-decoration: none;
-            color: #000000;
-            transition: color 0.3s;
+            color: #212529;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: center;
             white-space: nowrap;
+            position: relative;
+            padding: 8px 12px;
+            border-radius: 8px;
         }
 
         .navbar > div > a:hover {
-            color: #d8e8f8;
+            color: #44aa6b;
+            background: rgba(68, 170, 107, 0.08);
         }
 
         .body {
@@ -63,12 +100,208 @@
 
         .main2-section {
             position: relative;
-            background-image: url('bbb.png');
-            background-size: cover;
-            background-position: center;
-            padding: 600px 20px 50px;
+            width: 100%;
+            height: 70vh;
+            min-height: 500px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: #fff;
             text-align: center;
+        }
+
+        .main2-section video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            opacity: 0.7;
+            background: #000;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .main2-section video.fade-out {
+            opacity: 0;
+        }
+
+        .main2-section video.fade-in {
+            opacity: 0.7;
+        }
+
+        .main2-section::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 2;
+        }
+
+        .main2-section .video-fade-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 2;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            pointer-events: none;
+        }
+
+        .main2-section .video-fade-overlay.active {
+            opacity: 1;
+        }
+
+        .main2-content {
+            position: absolute;
+            top: calc(50% - 50px);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .main2-title {
+            font-size: 56px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 2px 2px 12px rgba(0, 0, 0, 0.6),
+                         0 0 30px rgba(255, 255, 255, 0.3);
+            letter-spacing: 4px;
+            text-align: center;
+            animation: fadeIn 1s ease;
+            margin: 0 0 -5px 0;
+            line-height: 1.1;
+        }
+
+        .main2-subtitle {
+            font-size: 24px;
+            font-weight: 400;
+            color: #fff;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5),
+                         0 0 20px rgba(255, 255, 255, 0.2);
+            letter-spacing: 2px;
+            text-align: center;
+            animation: fadeIn 1.2s ease;
+            margin: 0;
+            font-style: italic;
+            line-height: 1.2;
+        }
+
+
+        .main2-buttons {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3;
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+
+        .product-button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: #fff;
+            text-decoration: none;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(68, 170, 107, 0.3);
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .product-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .product-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .product-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(68, 170, 107, 0.4);
+        }
+
+        .product-button:active {
+            transform: translateY(-1px);
+        }
+
+
+        @media (max-width: 768px) {
+            .main2-section {
+                height: 60vh;
+                min-height: 400px;
+            }
+
+            .main2-title {
+                font-size: 32px;
+                letter-spacing: 2px;
+                margin-bottom: -3px;
+                line-height: 1.1;
+            }
+
+            .main2-subtitle {
+                font-size: 18px;
+                letter-spacing: 1px;
+                line-height: 1.2;
+            }
+
+
+            .main2-buttons {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(2, 1fr);
+                gap: 10px;
+                bottom: 20px;
+                max-width: 600px;
+            }
+
+            .product-button {
+                width: auto;
+                min-width: 140px;
+            }
+
+            .main2-content {
+                padding: 0 15px;
+                gap: 30px;
+            }
         }
 
         .main-section {
@@ -94,82 +327,211 @@
             font-size: 2rem;
             color: #000;
             margin-bottom: 20px;
+            animation: fadeIn 0.8s ease;
         }
 
         .main-section p {
             font-size: 1.2rem;
             line-height: 2;
             margin: 10px 0;
+            animation: fadeIn 0.8s ease 0.2s both;
         }
 
         .cta-button {
             display: inline-block;
             margin-top: 20px;
-            padding: 10px 20px;
-            background-color: transparent;
-            color: #0071e3;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: #fff;
             text-decoration: none;
-            border: 2px solid #0071e3;
-            border-radius: 50px; /* Changed to make it elliptical */
+            border: none;
+            border-radius: 12px;
             font-size: 16px;
-            font-weight: bold;
-            transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(68, 170, 107, 0.3);
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .cta-button:hover::before {
+            width: 300px;
+            height: 300px;
         }
 
         .cta-button:hover {
-            background-color: #0071e3;
-            color: #fff;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(68, 170, 107, 0.4);
+        }
+
+        .cta-button:active {
+            transform: translateY(-1px);
         }
 
         .video-button {
             display: inline-block;
             margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #f94444;
+            margin-left: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
             color: #fff;
             text-decoration: none;
             border: none;
-            border-radius: 50px;
+            border-radius: 12px;
             font-size: 16px;
-            font-weight: bold;
-            transition: background-color 0.3s, box-shadow 0.3s;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
             cursor: pointer;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .video-button:hover::before {
+            width: 300px;
+            height: 300px;
         }
 
         .video-button:hover {
-            background-color: #cc0000;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(255, 107, 107, 0.4);
+        }
+
+        .video-button:active {
+            transform: translateY(-1px);
         }
 
         .MAS-section {
-            background-color: #ffffff;
-            padding: 40px 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 60px 40px;
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+            margin: 20px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeIn 0.8s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .MAS-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(68, 170, 107, 0.05), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .MAS-section:hover::before {
+            left: 100%;
+        }
+
+        .MAS-section:hover {
+            box-shadow: 0 16px 48px rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.08);
+            transform: translateY(-6px) scale(1.01);
         }
 
         .MAS-section h2 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            animation: slideUp 0.6s ease 0.2s both;
         }
 
         .MAS-section p {
-            font-size: 1rem; /* 텍스트 크기를 조정 */
+            font-size: 16px;
+            color: #495057;
+            line-height: 1.6;
         }
         
         .gallery-section {
-            background-size: contain; /* 이미지를 잘리지 않도록 조정 */
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            background-size: contain;
             background-position: center;
-            height: 550px; /* 이미지의 높이를 조정 */
-            padding: 550px 10px;
+            padding: 60px 40px;
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+            margin: 20px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 400px;
+            animation: fadeIn 0.8s ease 0.1s both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gallery-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(68, 170, 107, 0.05), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .gallery-section:hover::before {
+            left: 100%;
+        }
+
+        .gallery-section:hover {
+            box-shadow: 0 16px 48px rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.08);
+            transform: translateY(-6px) scale(1.01);
         }
 
         .gallery-section h2 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            animation: slideUp 0.6s ease 0.3s both;
         }
 
         .gallery-section p {
-            font-size: 1rem; /* 텍스트 크기를 조정 */
+            font-size: 16px;
+            color: #495057;
+            line-height: 1.6;
         }
 
         footer {
@@ -181,7 +543,7 @@
             padding-bottom: 20px;             /* 선과 텍스트 간격 */
         }
 
-        footer p, footer p1 {
+        footer p, footer .footer-info {
            font-size: 12px;
            line-height: 1.0;
            margin: 4px 0;  /* 위아래 간격 최소화 */
@@ -202,34 +564,140 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 32px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             text-align: center;
-            z-index: 1000;
+            z-index: 1001;
+            min-width: 360px;
+            max-width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -48%) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 24px;
+            border-radius: 12px;
+            background: #e9ecef;
+            padding: 4px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: #6c757d;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .auth-tab.active {
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
+        }
+
+        .auth-tab:hover:not(.active) {
+            color: #44aa6b;
+        }
+
+        .auth-form {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-container h2 {
+            margin: 0 0 24px 0;
+            font-size: 24px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .login-container input {
-            margin: 10px 0;
-            padding: 10px;
-            width: 80%;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            margin: 8px 0;
+            padding: 12px 16px;
+            width: calc(100% - 32px);
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
         }
 
-        .login-container button {
-            padding: 10px 20px;
-            background-color: #0071e3;
+        .login-container input:focus {
+            outline: none;
+            border-color: #44aa6b;
+            box-shadow: 0 0 0 4px rgba(68, 170, 107, 0.1);
+        }
+
+        .login-container button:not(.auth-tab) {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 12px;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 15px;
+            margin-top: 16px;
+            width: 100%;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(68, 170, 107, 0.3);
+            position: relative;
+            overflow: hidden;
         }
 
-        .login-container button:hover {
-            background-color: #005bb5;
+        .login-container button:not(.auth-tab)::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .login-container button:not(.auth-tab):hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .login-container button:not(.auth-tab):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.4);
+        }
+
+        .auth-notice {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.5;
         }
 
         .overlay {
@@ -240,7 +708,14 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            animation: overlayFadeIn 0.2s ease-out;
+        }
+
+        @keyframes overlayFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .footer-top {
@@ -291,24 +766,72 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 20px;
-            padding: 20px 0;
-            background-color: #f8f9fa;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .partner-logos-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .partner-logos a {
-            display: inline-block;
-            transition: transform 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        
+        .partner-logos a::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(68, 170, 107, 0.1) 0%, rgba(58, 143, 90, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .partner-logos a:hover {
-            transform: scale(1.1);
+            transform: translateY(-4px) scale(1.15);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.25);
+        }
+        
+        .partner-logos a:hover::before {
+            opacity: 1;
         }
 
         .partner-logos img {
-            width: 40px;
-            height: auto;
-            border-radius: 0px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .partner-logos a:hover img {
+            transform: scale(1.2);
         }
 
         .hamburger { display: none; background: transparent; border: 0; padding: 8px; cursor: pointer; }
@@ -324,10 +847,47 @@
     display: flex;
     align-items: center;
     gap: 8px;       /* 로그인/로그아웃/임직원 사이 간격 */
+    flex-direction: row;
 }
 
 .employee-btn {
-    display: none;  /* 기본은 숨김 */
+    display: flex;  /* 항상 표시 */
+    align-items: center;
+}
+
+.employee-btn button {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.employee-btn button:not(:disabled) {
+    background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
+}
+
+.employee-btn button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(68, 170, 107, 0.4);
+}
+
+.employee-btn button:disabled {
+    background-color: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+}
+
+/* 로그인 아이콘 스타일 */
+.login-icon {
+    height: 20px;
+    width: auto;
+    margin-right: 5px;
+    vertical-align: middle;
 }
 
 .navbar > .logo {
@@ -336,9 +896,10 @@
 
     @media (max-width: 1024px) {
         .navbar {
-            display: flex;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
             align-items: center;
-            height: 56px;
+            height: 59px;
             padding: 0 8px;
         }
 
@@ -347,17 +908,28 @@
         }
 
         .navbar .login {
+            grid-column: 3;
             margin-left: auto;
             display: flex;
-            flex-direction: column;
-            gap: 5px;
+            flex-direction: row;
+            gap: 8px;
             align-items: center;
+        }
+        
+        .employee-btn {
+            display: flex !important;
+        }
+        
+        .employee-btn button {
+            padding: 6px 12px;
+            font-size: 12px;
         }
         .navbar > div:not(.logo):not(.login):not(.mobile-only) {
             display: none;
         }
         .employee-btn { display: block; }
         .footer-top { display: none; }
+        .login-icon { display: none; }
         .navbar > .logo { margin-right: 0; }
 
         .hamburger {
@@ -380,23 +952,33 @@
 
         .navbar .logo {
             grid-column: 2;
-            justify-self: center;
-            position: static;  /* 겹침 방지 */
+            justify-self: start;
+            align-self: center;
+            position: static;
             transform: none;
             z-index: 1;
+            margin-top: 0;
+            margin-left: 12px;
         }
 
-        .navbar .logo img { height: 24px; }
+        .navbar .logo img {
+            height: 55px;
+        }
+        
+        .navbar .logo span {
+            font-size: 14px !important;
+            font-weight: bold;
+        }
 
         .navbar > div:not(.logo):not(.login):not(.mobile-only) { display: none; }
 
         .mobile-drawer {
             position: fixed;
-            top: 56px;
+            top: 59px;
             left: 0;
             width: 80%;
             max-width: 340px;
-            height: calc(100vh - 56px);
+            height: calc(100vh - 59px);
             background: #fff;
             box-shadow: 2px 0 12px rgba(0,0,0,0.15);
             transform: translateX(-100%);
@@ -453,14 +1035,31 @@
             width: 90%;                 /* 구분선 길이 살짝 늘림 */
             margin-bottom: 10px;
         }
-        footer p, footer p1{
-            font-size: 10px;            /* 글자 크기 */
-            line-height: 1.35;          /* 줄간격 */
-            letter-spacing: 0;          /* 자간 */
-            text-align: left;           /* 정렬 */
-            margin: 4px 0;
+            footer p, footer .footer-info{
+                font-size: 10px;            /* 글자 크기 */
+                line-height: 1.35;          /* 줄간격 */
+                letter-spacing: 0;          /* 자간 */
+                text-align: left;           /* 정렬 */
+                margin: 4px 0;
+            }
+            
+            .partner-logos {
+                gap: 16px;
+                padding: 25px 15px;
+            }
+            
+            .partner-logos a {
+                width: 35px;
+                height: 35px;
+                min-width: 35px;
+                padding: 6px;
+            }
+            
+            .partner-logos img {
+                max-width: 100%;
+                max-height: 100%;
+            }
         }
-    }
     </style>
 </head>
 
@@ -468,17 +1067,29 @@
     <div class="overlay" id="overlay"></div>
 
     <div class="login-container" id="login-container">
-        <h2>로그인</h2>
-        <input type="text" id="username" placeholder="아이디">
-        <input type="password" id="password" placeholder="비밀번호">
-        <button onclick="login()">로그인</button>
-    </div>
-
-    <div class="footer-top">
-        <div>
-            <a href="./hanaro/staff/staff.html">
-              <button id="employee-button" disabled>임직원</button>
-            </a>  
+        <!-- 탭 버튼 -->
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="showAuthTab('login')">로그인</button>
+            <button class="auth-tab" onclick="showAuthTab('register')">회원가입</button>
+        </div>
+        
+        <!-- 로그인 폼 -->
+        <div id="login-form" class="auth-form">
+            <input type="text" id="username" placeholder="아이디">
+            <input type="password" id="password" placeholder="비밀번호">
+            <button onclick="login()">로그인</button>
+        </div>
+        
+        <!-- 회원가입 폼 -->
+        <div id="register-form" class="auth-form" style="display: none;">
+            <input type="text" id="reg-username" placeholder="아이디 (4자 이상)">
+            <input type="password" id="reg-password" placeholder="비밀번호 (6자 이상)">
+            <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인">
+            <input type="text" id="reg-name" placeholder="이름">
+            <input type="email" id="reg-email" placeholder="이메일">
+            <input type="tel" id="reg-phone" placeholder="연락처">
+            <button onclick="register()">회원가입 신청</button>
+            <p class="auth-notice">* 회원가입 후 관리자 승인이 필요합니다.</p>
         </div>
     </div>
 
@@ -490,12 +1101,11 @@
       </button>
 
       <div class="logo">
-          <a href="https://hanarooa.com/">
               <img src="./hanaro/image/logo-nav.png" alt="로고" style="height: 40px;">
-          </a>
       </div>
 
       <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
+          <a href="./index.html">홈</a>
           <a href="./hanaro/company/company.html">회사소개</a>
           <a href="./hanaro/product/product.html">제품소개</a>
           <a href="./hanaro/school/school.html">납품학교 리스트</a>
@@ -503,6 +1113,10 @@
           <a href="./hanaro/AS/AS.html">A/S신청</a>
           <a href="#">고객지원</a>
       </nav>
+
+        <div>
+            <a href="./index.html">홈</a>
+        </div>
 
         <div>
             <a href="./hanaro/company/company.html">회사소개</a>
@@ -529,18 +1143,33 @@
         </div>
         
 <div class="login">
-  <a href="#" onclick="showLogin()" id="login-link">로그인</a>
-  <a href="./index.html" onclick="logout()" id="logout-link" style="display:none;">로그아웃</a>
+    <a href="#" onclick="showLogin()" id="login-link" class="login-item">
+        <img src="./hanaro/image/login.png" alt="로그인" class="login-icon"> 로그인
+    </a>
+    <a href="#" onclick="logout()" id="logout-link" class="login-item" style="display:none;">
+        <img src="./hanaro/image/logout.png" alt="로그아웃" class="login-icon"> 로그아웃
+    </a>
   <a href="./hanaro/staff/staff.html" class="employee-btn">
-    <button id="employee-button" disabled>임직원</button>
+    <button class="employee-button" disabled>임직원</button>
   </a>
 </div>
     </header>
 
-    <section class="main2-section" style="background-image: url('./hanaro/image/bbb.png'); background-size: cover; background-position: center;">
-        <div class="main2-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
-            <div style="height: 200px;"></div>
-            <a href="./hanaro/company/company.html" class="cta-button">더 알아보기</a>
+    <section class="main2-section">
+        <video autoplay muted loop playsinline preload="auto" id="main-video" crossorigin="anonymous">
+            <source src="./image/main ch.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div class="video-fade-overlay" id="video-fade-overlay"></div>
+        <div class="main2-content">
+            <h1 class="main2-title">HANARO OA FURNITURE</h1>
+            <p class="main2-subtitle">a better future for children</p>
+        </div>
+        <div class="main2-buttons">
+            <a href="./hanaro/product/product.html?category=일반제품" class="product-button">일반제품</a>
+            <a href="./hanaro/product/product.html?category=우수제품" class="product-button">우수제품</a>
+            <a href="./hanaro/product/product.html?category=사물함" class="product-button">사물함</a>
+            <a href="./hanaro/product/product.html?category=Accessory" class="product-button">Accessory</a>
         </div>
     </section>
 
@@ -577,30 +1206,30 @@
     </div>
 
     <div class="partner-logos">
-            <a href="https://www.g2b.go.kr/" target="_blank">
-                <img src="./image/logo1.png" alt="파트너 1">
-            </a>
-            <a href="https://shop.g2b.go.kr/" target="_blank">
-                <img src="./image/logo2.png" alt="파트너 2">
-            </a>
-            <a href="https://hometax.go.kr/" target="_blank">
-                <img src="./image/logo3.png" alt="파트너 3">
-            </a>
-            <a href="https://www.smpp.go.kr" target="_blank">
-                <img src="./image/logo4.png" alt="파트너 4">
-            </a>
-            <a href="https://ecosq.or.kr/" target="_blank">
-                <img src="./image/logo5.png" alt="파트너 5">
-            </a>
-            <a href="https://www.sgic.co.kr/" target="_blank">
-                <img src="./image/logo6.png" alt="파트너 6">
-            </a>
-            <a href="https://si4n.nhis.or.kr/" target="_blank">
-                <img src="./image/logo7.png" alt="파트너 7">
-            </a>
-            <a href="https://www.4insure.or.kr/" target="_blank">
-                <img src="./image/logo8.png" alt="파트너 8">
-            </a>
+        <a href="https://www.g2b.go.kr/" target="_blank">
+            <img src="./image/logo1.png" alt="파트너 1">
+        </a>
+        <a href="https://shop.g2b.go.kr/" target="_blank">
+            <img src="./image/logo2.png" alt="파트너 2">
+        </a>
+        <a href="https://hometax.go.kr/" target="_blank">
+            <img src="./image/logo3.png" alt="파트너 3">
+        </a>
+        <a href="https://www.smpp.go.kr" target="_blank">
+            <img src="./image/logo4.png" alt="파트너 4">
+        </a>
+        <a href="https://ecosq.or.kr/" target="_blank">
+            <img src="./image/logo5.png" alt="파트너 5">
+        </a>
+        <a href="https://www.sgic.co.kr/" target="_blank">
+            <img src="./image/logo6.png" alt="파트너 6">
+        </a>
+        <a href="https://si4n.nhis.or.kr/" target="_blank">
+            <img src="./image/logo7.png" alt="파트너 7">
+        </a>
+        <a href="https://www.4insure.or.kr/" target="_blank">
+            <img src="./image/logo8.png" alt="파트너 8">
+        </a>
     </div>
 
     <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
@@ -610,78 +1239,34 @@
 
     <footer>
         <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
-        <p1>주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p1>
+        <p class="footer-info">주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
     </footer>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const isLoggedIn = sessionStorage.getItem("loggedIn");
-            if (isLoggedIn) {
-                document.getElementById('employee-button').disabled = false;
-                document.getElementById('login-link').style.display = 'none';
-                document.getElementById('logout-link').style.display = 'flex';
-            }
-        });
-    </script>
+    <!-- 공통 인증 스크립트 -->
+    <script src="./hanaro/js/auth.js"></script>
 
     <script>
-        function showLogin() {
-            document.getElementById('overlay').style.display = 'block';
-            document.getElementById('login-container').style.display = 'block';
-        }
-
-        function hideLogin() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('login-container').style.display = 'none';
-        }
-
-        function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            if (username === 'admin' && password === 'password') {
-                alert('로그인 성공');
-                document.getElementById('employee-button').disabled = false;
-                document.getElementById('login-link').style.display = 'none';
-                document.getElementById('logout-link').style.display = 'flex';
-                sessionStorage.setItem("loggedIn", "true");
-                hideLogin();
-            } else {
-                alert('아이디 또는 비밀번호가 잘못되었습니다.');
-            }
-        }
-
-        function logout() {
-            alert('로그아웃되었습니다.');
-            document.getElementById('employee-button').disabled = true;
-            document.getElementById('login-link').style.display = 'flex';
-            document.getElementById('logout-link').style.display = 'none';
-            sessionStorage.removeItem("loggedIn");
-        }
-
-        document.getElementById('overlay').addEventListener('click', hideLogin);
-
         document.addEventListener("DOMContentLoaded", function () {
             const urlParams = new URLSearchParams(window.location.search);
             const categoryParam = urlParams.get("category");
 
             if (categoryParam) {
-            const categories = document.querySelectorAll('.product-category');
-            const navLinks = document.querySelectorAll('.secondary-navbar a');
+                const categories = document.querySelectorAll('.product-category');
+                const navLinks = document.querySelectorAll('.secondary-navbar a');
 
-            categories.forEach(cat => {
-            cat.style.display = cat.dataset.category === categoryParam ? 'grid' : 'none';
+                categories.forEach(cat => {
+                    cat.style.display = cat.dataset.category === categoryParam ? 'grid' : 'none';
+                });
+
+                navLinks.forEach(link => {
+                    if (link.textContent.trim() === categoryParam) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
         });
-
-        navLinks.forEach(link => {
-            if (link.textContent.trim() === categoryParam) {
-            link.classList.add('active');
-        } else {
-            link.classList.remove('active');
-        }
-       });
-    }
-  });
     </script>
 
     <script>
@@ -724,5 +1309,74 @@ document.addEventListener('DOMContentLoaded', function () {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer.classList.contains('open')) closeMenu(); });
   window.addEventListener('resize', () => { if (window.innerWidth > 1024 && drawer.classList.contains('open')) closeMenu(); });
 });
+
+// 비디오 로드 및 재생 보장
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('main-video');
+    if (video) {
+        // 비디오 로드 시도
+        video.load();
+        
+        // 재생 시도
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.log('비디오 자동 재생 실패:', error);
+                // 자동 재생이 실패해도 비디오는 표시됨
+            });
+        }
+        
+        // 자연스러운 루프를 위한 처리 (검은색 페이드 아웃)
+        let isRestarting = false;
+        const fadeOverlay = document.getElementById('video-fade-overlay');
+        video.addEventListener('timeupdate', function() {
+            // 비디오가 거의 끝나갈 때 (마지막 1초 전) 부드럽게 다시 시작
+            if (!isRestarting && video.duration && video.currentTime >= video.duration - 1.0) {
+                isRestarting = true;
+                // 검은색 페이드 아웃 효과
+                if (fadeOverlay) {
+                    fadeOverlay.classList.add('active');
+                }
+                
+                setTimeout(() => {
+                    video.currentTime = 0;
+                    // 페이드인 없이 바로 검은색 오버레이 제거
+                    if (fadeOverlay) {
+                        fadeOverlay.classList.remove('active');
+                    }
+                    isRestarting = false;
+                }, 1000);
+            }
+        });
+        
+        // 비디오가 실제로 끝났을 때도 처리 (백업)
+        video.addEventListener('ended', function() {
+            if (!isRestarting) {
+                video.currentTime = 0;
+                video.play();
+            }
+        });
+        
+        // 에러 처리
+        video.addEventListener('error', function(e) {
+            console.error('비디오 로드 오류:', e);
+            // 비디오 로드 실패 시 배경 이미지로 대체
+            const section = video.closest('.main2-section');
+            if (section) {
+                section.style.backgroundImage = 'url("./image/bbb.png")';
+                section.style.backgroundSize = 'cover';
+                section.style.backgroundPosition = 'center';
+                video.style.display = 'none';
+            }
+        });
+        
+        // 비디오가 로드되었는지 확인
+        video.addEventListener('loadeddata', function() {
+            console.log('비디오 로드 완료');
+        });
+    }
+});
 </script>
 
+</body>
+</html>
