@@ -298,9 +298,11 @@ function setupActivityListeners() {
 
 // 로그인 상태 설정
 function setLoggedInState(isLoggedIn, userData = null) {
-    // 임직원 버튼 상태 설정
-    document.querySelectorAll('.employee-button').forEach(btn => btn.disabled = !isLoggedIn);
-    document.querySelectorAll('#employee-button, #employee-button-mobile').forEach(btn => btn.disabled = !isLoggedIn);
+    // 임직원 버튼 상태 설정 (임직원만 활성화)
+    const isEmployee = isLoggedIn && userData && (userData.userType === 'employee' || userData.isAdmin);
+    document.querySelectorAll('.employee-button, #employee-button, #employee-button-mobile').forEach(btn => {
+        btn.disabled = !isEmployee;
+    });
     
     // 로그인/로그아웃 링크 표시
     const loginLink = document.getElementById('login-link');
@@ -556,6 +558,7 @@ async function register() {
     const name = document.getElementById('reg-name').value.trim();
     const email = document.getElementById('reg-email').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
+    const userType = document.getElementById('reg-user-type') ? document.getElementById('reg-user-type').value : 'general';
 
     // 유효성 검사
     if (!username || !password || !name || !email) {
@@ -627,6 +630,7 @@ async function register() {
             name: name,
             email: email,
             phone: phone || '',
+            userType: userType,  // 'employee' 또는 'general'
             status: 'pending',  // 승인 대기
             createdAt: new Date().toISOString(),
             isAdmin: false
