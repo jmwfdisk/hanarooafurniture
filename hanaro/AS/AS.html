@@ -1030,9 +1030,9 @@
         
         <!-- 로그인 폼 -->
         <div id="login-form" class="auth-form">
-            <input type="text" id="username" placeholder="아이디">
-            <input type="password" id="password" placeholder="비밀번호">
-            <button onclick="login()">로그인</button>
+        <input type="text" id="username" placeholder="아이디">
+        <input type="password" id="password" placeholder="비밀번호">
+        <button onclick="login()">로그인</button>
         </div>
         
         <!-- 회원가입 폼 -->
@@ -1043,6 +1043,10 @@
             <input type="text" id="reg-name" placeholder="이름">
             <input type="email" id="reg-email" placeholder="이메일">
             <input type="tel" id="reg-phone" placeholder="연락처">
+            <select id="reg-user-type" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                <option value="general">일반회원</option>
+                <option value="employee">임직원</option>
+            </select>
             <button onclick="register()">회원가입 신청</button>
             <p class="auth-notice">* 회원가입 후 관리자 승인이 필요합니다.</p>
         </div>
@@ -1056,7 +1060,7 @@
       </button>
 
         <div class="logo">
-            <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
+                <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
         </div>
 
       <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
@@ -1097,15 +1101,15 @@
             <a href="#">고객지원</a>
         </div>
         
-        <div class="login">
+    <div class="login">
             <a href="#" onclick="showLogin()" id="login-link" class="login-item">
                 <img src="../image/login.png" alt="로그인" class="login-icon"> 로그인
             </a>
             <a href="#" onclick="logout()" id="logout-link" class="login-item" style="display:none;">
                 <img src="../image/logout.png" alt="로그아웃" class="login-icon"> 로그아웃
             </a>
-            <a href="../staff/staff.html" class="employee-btn">
-                <button class="employee-button" disabled>임직원</button>
+  <a href="../staff/staff.html" class="employee-btn">
+    <button class="employee-button" disabled>임직원</button>
             </a>
         </div>
     </header>
@@ -1118,15 +1122,15 @@
         
         // auth.js가 Firebase를 초기화한 후 Storage와 Firestore 참조 가져오기
         function initFirebaseServices() {
-            try {
+        try {
                 if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-                    storage = firebase.storage();
-                    db = firebase.firestore();
+                storage = firebase.storage();
+                db = firebase.firestore();
                 } else {
                     // auth.js가 아직 초기화하지 않은 경우 잠시 후 재시도
                     setTimeout(initFirebaseServices, 100);
-                }
-            } catch (error) {
+            }
+        } catch (error) {
                 console.warn('Firebase 서비스 초기화 실패:', error);
             }
         }
@@ -1450,13 +1454,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         const stored = localStorage.getItem('asPosts');
                         if (stored) {
                             try {
-                                const posts = JSON.parse(stored);
+                            const posts = JSON.parse(stored);
                                 if (Array.isArray(posts) && posts.length > 0) {
-                                    // Firebase로 마이그레이션
-                                    await db.collection('asPosts').doc('posts').set({ posts: posts });
+                            // Firebase로 마이그레이션
+                            await db.collection('asPosts').doc('posts').set({ posts: posts });
                                     console.log('localStorage 데이터를 Firebase로 마이그레이션 완료');
-                                    return posts;
-                                }
+                            return posts;
+                        }
                             } catch (parseError) {
                                 console.error('localStorage 데이터 파싱 실패:', parseError);
                             }
@@ -1542,6 +1546,18 @@ if (asPosts.length === 0) {
   const end = start + postsPerPage;
   const pagePosts = asPosts.slice(start, end);
 
+  // 현재 사용자 정보 가져오기 (삭제 버튼 표시 여부 결정용)
+  const loggedInUser = sessionStorage.getItem('loggedInUser');
+  let userData = null;
+  
+  if (loggedInUser) {
+    try {
+      userData = JSON.parse(loggedInUser);
+    } catch (e) {
+      console.error('사용자 정보 파싱 오류:', e);
+    }
+  }
+
   pagePosts.forEach((post, index) => {
     const row = document.createElement('div');
     row.className = 'table-row';
@@ -1551,13 +1567,39 @@ if (asPosts.length === 0) {
     row.style.padding = '8px 0';
     row.style.alignItems = 'center';
 
-                const globalIndex = start + index;
+    const globalIndex = start + index;
+    
+    // 삭제 버튼 표시 여부 결정
+    let canDeleteThisPost = false;
+    let deleteButton = '<span style="color: #999; font-size: 11px;">-</span>';
+    
+    if (userData) {
+      const isAdmin = userData.isAdmin || userData.username === 'admin';
+      const isGeneralUser = userData.userType === 'general' && userData.status === 'approved';
+      
+      if (isAdmin) {
+        // 관리자는 모든 글 삭제 가능
+        canDeleteThisPost = true;
+      } else if (isGeneralUser) {
+        // 일반회원은 본인이 작성한 글만 삭제 가능
+        const isAuthor = post.uid === userData.uid || 
+                        post.username === userData.username ||
+                        (post.name && post.name === userData.name);
+        canDeleteThisPost = isAuthor;
+      }
+      // 임직원은 삭제 불가 (canDeleteThisPost는 false로 유지)
+      
+      if (canDeleteThisPost) {
+        deleteButton = `<button onclick="deleteAsPost(${globalIndex})" style="padding:4px 8px; font-size:11px; cursor: pointer; min-width: 45px; height: 24px;">삭제</button>`;
+      }
+    }
+    
     row.innerHTML = `
                     <span>${globalIndex + 1}</span>
                     <span>${post.type || ''}</span>
                     <span><a href="#" onclick="viewContent(${globalIndex}); return false;" style="text-decoration: underline; color: blue; cursor: pointer;">${post.title || ''}</a></span>
                     <span>${post.date || ''}</span>
-                    <span><button onclick="deleteAsPost(${globalIndex})" style="padding:4px 8px; font-size:11px; cursor: pointer; min-width: 45px; height: 24px;">삭제</button></span>
+                    <span>${deleteButton}</span>
     `;
 
     list.appendChild(row);
@@ -1567,6 +1609,49 @@ if (asPosts.length === 0) {
 }
 
 function deleteAsPost(index) {
+  // 현재 사용자 정보 가져오기
+  const loggedInUser = sessionStorage.getItem('loggedInUser');
+  if (!loggedInUser) {
+    alert('로그인이 필요합니다.');
+    return;
+  }
+  
+  let userData;
+  try {
+    userData = JSON.parse(loggedInUser);
+  } catch (e) {
+    console.error('사용자 정보 파싱 오류:', e);
+    alert('사용자 정보를 확인할 수 없습니다.');
+    return;
+  }
+  
+  // 삭제 권한 확인
+  const isAdmin = userData.isAdmin || userData.username === 'admin';
+  const isGeneralUser = userData.userType === 'general' && userData.status === 'approved';
+  const post = asPosts[index];
+  
+  if (isAdmin) {
+    // 관리자는 모든 글 삭제 가능
+  } else if (isGeneralUser) {
+    // 일반회원은 본인이 작성한 글만 삭제 가능
+    const isAuthor = post.uid === userData.uid || 
+                    post.username === userData.username ||
+                    (post.name && post.name === userData.name);
+    
+    if (!isAuthor) {
+      alert('본인이 작성한 A/S 신청만 삭제할 수 있습니다.');
+      return;
+    }
+  } else {
+    // 임직원 또는 승인되지 않은 사용자는 삭제 불가
+    if (userData.userType === 'employee') {
+      alert('임직원은 A/S 신청을 삭제할 수 없습니다.');
+    } else {
+      alert('A/S 신청은 관리자 또는 일반회원만 삭제할 수 있습니다.');
+    }
+    return;
+  }
+  
   if (confirm("정말 삭제하시겠습니까?")) {
     asPosts.splice(index, 1);
                 saveAsPosts(asPosts).then(() => {
@@ -2184,6 +2269,23 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
         }
 
         async function savePost(type, title, content, fileNames, fileData, fileUrls) {
+            // 현재 사용자 정보 가져오기 (작성자 정보 저장용)
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            let uid = null;
+            let username = null;
+            let name = null;
+            
+            if (loggedInUser) {
+                try {
+                    const userData = JSON.parse(loggedInUser);
+                    uid = userData.uid;
+                    username = userData.username;
+                    name = userData.name;
+                } catch (e) {
+                    console.error('사용자 정보 파싱 오류:', e);
+                }
+            }
+            
             const newPost = {
                 type: type,
                 title: title,
@@ -2191,7 +2293,10 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
                 date: new Date().toLocaleDateString('ko-KR'),
                 files: fileNames,
                 fileData: fileData || [],
-                fileUrls: fileUrls || [] // Firebase Storage URL
+                fileUrls: fileUrls || [], // Firebase Storage URL
+                uid: uid,  // 작성자 UID 저장
+                username: username,  // 작성자 username 저장
+                name: name  // 작성자 name 저장
             };
 
             asPosts.unshift(newPost);
@@ -2211,7 +2316,7 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
                 }
             }
             
-            currentPage = 1;
+                currentPage = 1;
             
             // 폼 초기화 및 숨기기
             document.getElementById('as-form').reset();
