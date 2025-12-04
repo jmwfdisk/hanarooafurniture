@@ -671,12 +671,37 @@ async function logout() {
         if (!warningShown || Date.now() - lastActivityTime < AUTO_LOGOUT_TIME) {
     alert('로그아웃되었습니다.');
         }
+        
+        // 스태프 페이지에서 로그아웃한 경우 홈으로 리다이렉트
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('staff.html')) {
+            // 홈 페이지로 리다이렉트
+            const homePath = currentPath.includes('/hanaro/staff/') 
+                ? '../../index.html' 
+                : currentPath.includes('/staff/')
+                ? '../../../index.html'
+                : '/index.html';
+            window.location.href = homePath;
+            return;
+        }
     } catch (error) {
         console.error('로그아웃 오류:', error);
         // 오류가 발생해도 로컬 상태는 초기화
         sessionStorage.removeItem("loggedInUser");
         sessionStorage.removeItem("loggedIn");
         setLoggedInState(false);
+        
+        // 스태프 페이지에서 로그아웃한 경우 홈으로 리다이렉트
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('staff.html')) {
+            const homePath = currentPath.includes('/hanaro/staff/') 
+                ? '../../index.html' 
+                : currentPath.includes('/staff/')
+                ? '../../../index.html'
+                : '/index.html';
+            window.location.href = homePath;
+            return;
+        }
     }
 }
 
