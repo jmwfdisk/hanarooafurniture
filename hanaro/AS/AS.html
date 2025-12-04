@@ -1147,7 +1147,11 @@
             // 로그인 상태는 auth.js의 setLoggedInState에서 처리
             // 타이머는 auth.js의 resetAutoLogoutTimer에서 자동으로 시작됨
             loadAsPosts().then(posts => {
-                asPosts = posts;
+                asPosts = posts || [];
+                renderAsPosts();
+            }).catch(error => {
+                console.error('A/S 게시글 로드 실패:', error);
+                asPosts = [];
                 renderAsPosts();
             });
             
@@ -1477,6 +1481,11 @@ function renderAsPosts() {
             if (!list) return;
             
   list.innerHTML = '';
+
+  // asPosts가 배열이 아니면 빈 배열로 초기화
+  if (!Array.isArray(asPosts)) {
+    asPosts = [];
+  }
 
 if (asPosts.length === 0) {
   list.innerHTML = '<div class="table-empty">A/S신청 내역이 없습니다.</div>';
