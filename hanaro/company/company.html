@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="하나로오에이퍼니처 - 조달 우수제품과 일반제품 소개">
     <meta name="keywords" content="하나로오에이퍼니처, 조달 우수제품, MAS, 가구, 사무가구">
-    <title>하나로오에이퍼니처 메인</title>
+    <title>하나로오에이퍼니처 제품보기</title>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -24,7 +24,6 @@
             background-color: #ffffff;
             color: #000000;
             text-align: center;
-            overflow-x: auto;
         }
 
         .navbar {
@@ -39,6 +38,38 @@
             z-index: 1000;
             height: 78px;
             transition: all 0.3s ease;
+        }
+
+        .secondary-navbar {
+            background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%);
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 113, 227, 0.3);
+        }
+
+        .secondary-navbar a {
+            margin: 0;
+            padding: 16px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            position: relative;
+        }
+
+        .secondary-navbar a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .secondary-navbar a.active {
+            background: rgba(255, 255, 255, 0.15);
+            border-bottom-color: #fff;
+            font-weight: 700;
         }
 
         .navbar > .logo {
@@ -122,39 +153,20 @@
             margin-left: 10px;
             padding: 8px 16px;
             font-size: 14px;
-            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%);
             color: white;
             border: none;
             border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(68, 170, 107, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .search-bar-container button::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .search-bar-container button:hover::before {
-            width: 300px;
-            height: 300px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
         }
 
         .search-bar-container button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.4);
+            box-shadow: 0 6px 20px rgba(0, 113, 227, 0.4);
+            background: linear-gradient(135deg, #005bb5 0%, #004a94 100%);
         }
 
         footer {
@@ -170,6 +182,11 @@
             font-size: 13px;       /* 텍스트 크기 */
             margin: 8px 0;         /* 각 문장 간 간격 */
             line-height: 1.5;      /* 줄 간격 */
+        }
+
+        footer p1 {
+            font-size: 13px;
+            text-align: left;
         }
 
         footer::before {
@@ -224,7 +241,38 @@
             height: 16px;
             width: 16px;
         }
-        
+  
+        .HS-section {
+            position: relative;
+            background-image: url('우수제품.png');
+            background-size: cover;
+            background-position: center;
+            padding: 550px 20px 50px;
+            color: #fff;
+            text-align: center;
+        }
+
+        .HS-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            text-align: center;
+        }
+
+        .HS-section h1 {
+            font-size: 2rem;
+            color: #000;
+            margin-bottom: 20px;
+        }
+
+        .HS-section p {
+            font-size: 1.2rem;
+            line-height: 2;
+            margin: 10px 0;
+        }
+
         .partner-logos {
             display: flex;
             justify-content: center;
@@ -232,7 +280,6 @@
             flex-wrap: wrap;
             gap: 20px;
             padding: 30px 20px;
-            margin-bottom: 10px;
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border-top: 1px solid rgba(0, 0, 0, 0.05);
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -292,359 +339,552 @@
             transform: scale(1.2);
         }
 
-        .main-info-section {
+        .product-category {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 가로 4개 */
+            gap: 30px; /* 아이템 간 간격 */
+            margin: 40px auto;
+            padding: 0 20px;
+            max-width: 1200px;
+        }
+
+        .product-item img {
+            width: auto;
+            height: 200px;
+            max-width: 200px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .product-item img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+        
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .image-modal.active {
+            display: flex;
+        }
+        
+        .image-modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90vh;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* ← 여기 수정 */
-            padding: 60px 10%;
-            gap: 40px;
-            flex-wrap: wrap;
+            align-items: center;
+            cursor: pointer;
         }
-
-        .main-image-container img {
-            width: 400px;
+        
+        .image-modal-content img {
             max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: imageZoomIn 0.3s ease-out;
+        }
+        
+        @keyframes imageZoomIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 24px;
+            color: #333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 2001;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .image-modal-close:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: rotate(90deg) scale(1.1);
+        }
+        
+        .image-modal-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            color: #333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 2001;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .image-modal-nav:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateY(-50%) scale(1.1);
+        }
+        
+        .image-modal-prev {
+            left: 20px;
+        }
+        
+        .image-modal-next {
+            right: 20px;
         }
 
-        .company-description {
-            max-width: 600px;
+        .product-item p {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .section-title {
             text-align: left;
+            font-weight: bold;
+            font-size: 24px;
+            margin: 0;              /* 위아래 여백 제거 */
+            padding-bottom: 2px;    /* 텍스트 아래 약간 여백 */
+            color: #444;
+            margin-top: 0px;       /* 세컨더리 네비바와의 거리 */
+            margin-bottom: -20px;     /* 구분선과의 거리 */
+            white-space: nowrap;
         }
 
-        .company-description h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
+        .product-divider {
+            border-top: 2px solid #9b9999;
+            margin: 0;              /* 위아래 여백 제거 */
+            height: 1px;
+            padding: 0;
+            width: 100%;
+            grid-column: 1 / -1;
+            margin-bottom: 0px; 
         }
 
-        .company-description p {
-            font-size: 16px;
-            line-height: 1.7;
+        .hamburger { 
+            display: none; 
+            background: transparent; 
+            border: 0; 
+            padding: 8px; 
+            cursor: pointer; 
+            position: relative;
+            width: 28px;
+            height: 24px;
+        }
+        .hamburger .bar { 
+            display: block; 
+            width: 22px; 
+            height: 2px; 
+            margin: 4px 0; 
+            background: #000; 
+            transition: transform 0.3s, opacity 0.3s; 
+        }
+        .mobile-drawer { display: none !important; }
+
+        .login {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-direction: row;
         }
 
-        /* 햄버거 버튼과 바 스타일 */
-.hamburger {
-    display: none;
-    background: transparent;
-    border: 0;
-    padding: 8px;
-    cursor: pointer;
-}
-.hamburger .bar {
-    display: block;
-    width: 22px;
-    height: 2px;
-    margin: 4px 0;
-    background: #000;
-    transition: transform 0.3s, opacity 0.3s;
-}
+        .employee-btn {
+            display: flex;
+            align-items: center;
+        }
+        
+        .employee-btn button {
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
 
-/* 드로어 메뉴 기본 숨김 - 데스크톱에서만 */
-@media (min-width: 1025px) {
-    .mobile-drawer {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        transform: translateX(-100%) !important;
-    }
-}
+        .employee-btn button:not(:disabled) {
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
+        }
 
-/* 로그인/로그아웃 링크 내 아이콘 정렬 */
-.login {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-direction: row;
-}
+        .employee-btn button:not(:disabled):hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(68, 170, 107, 0.4);
+        }
 
-.login a {
-    display: flex;
-    align-items: center;
-}
+        .employee-btn button:disabled {
+            background-color: #e9ecef;
+            color: #adb5bd;
+            cursor: not-allowed;
+        }
 
-.employee-btn {
-    display: flex;
-    align-items: center;
-}
+        /* 로그인 아이콘 스타일 */
+        .login-icon {
+            height: 20px;
+            width: auto;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
 
-.employee-btn button {
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
+        .navbar > .logo {
+            margin-right: auto;
+        }
 
-.employee-btn button:not(:disabled) {
-    background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
-    color: white;
-    box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
-}
+        @media (max-width: 1024px) {
+            .navbar {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                align-items: center;
+                height: 59px;
+                padding: 0 8px;
+            }
 
-.employee-btn button:not(:disabled):hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(68, 170, 107, 0.4);
-}
+            .navbar .login a {
+                margin: 0 !important;
+            }
 
-.employee-btn button:disabled {
-    background-color: #e9ecef;
-    color: #adb5bd;
-    cursor: not-allowed;
-}
+            .navbar .login {
+                grid-column: 3;
+                margin-left: auto;
+                display: flex;
+                flex-direction: row;
+                gap: 8px;
+                align-items: center;
+            }
+            
+            .employee-btn {
+                display: flex !important;
+            }
+            
+            .employee-btn button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            .navbar > div:not(.logo):not(.login):not(.mobile-only) {
+                display: none;
+            }
+            .employee-btn { 
+                display: block;
+                pointer-events: auto;
+            }
+            .employee-btn button:disabled {
+                pointer-events: none !important;
+                cursor: default;
+            }
+            .employee-btn:has(button:disabled) {
+                pointer-events: none !important;
+            }
+            .footer-top { display: none; }
+            .login-icon { display: none; }
+            .navbar > .logo { 
+                margin-right: 0;
+            }
 
-/* 아이콘 크기 및 여백 */
-.login-icon {
-    height: 25px;
-    width: auto;
-    margin-right: 5px;
-}
+            .hamburger {
+                grid-column: 1;
+                display: inline-flex;
+                width: 28px;
+                height: 24px;
+                position: relative;
+                justify-self: start;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                cursor: pointer;
+                z-index: 1003 !important;
+            }
 
-        /* 모바일 레이아웃 */
-@media (max-width: 1024px) {
-    .navbar {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        height: 59px;
-        padding: 0 8px;
-    }
-    /* 로그인 링크에서 margin 제거, 세로 정렬 */
-    .navbar .login a { margin: 0 !important; }
-    .navbar .login {
-        grid-column: 3;
-        margin-left: auto;
-        display: flex;
-        flex-direction: row;
-        gap: 8px;
-        align-items: center;
-    }
-    
-    .employee-btn {
-        display: flex !important;
-    }
-    
-    .employee-btn button {
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-    /* 데스크톱 메뉴 숨김 */
-    .navbar > div:not(.logo):not(.login):not(.mobile-only) { display: none; }
-    /* 모바일용 임직원 버튼 보임, 데스크톱용 숨김 */
-    .employee-btn { 
-        display: block;
-        pointer-events: auto;
-    }
-    .employee-btn button:disabled {
-        pointer-events: none !important;
-        cursor: default;
-    }
-    .employee-btn:has(button:disabled) {
-        pointer-events: none !important;
-    }
-    .footer-top { display: none; }
-    /* 아이콘 숨김 */
-    .login-icon { display: none; }
-    /* 로고 위치 스타일 - 인덱스 페이지와 동일 */
-    .navbar > .logo { 
-        margin-right: 0;
-    }
+            .hamburger .bar {
+                position: absolute;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: #000;
+                margin: 0;
+            }
+            
+            .hamburger .bar:nth-child(1) {
+                top: 2px;
+            }
+            .hamburger .bar:nth-child(2) {
+                top: 11px;
+            }
+            .hamburger .bar:nth-child(3) {
+                bottom: 2px;
+            }
 
-    /* 햄버거 버튼 표시 */
-    .hamburger {
-        grid-column: 1;
-        display: inline-flex;
-        width: 28px;
-        height: 24px;
-        position: relative;
-        justify-self: start;
-        padding: 0;
-        border: 0;
-        background: transparent;
-        cursor: pointer;
-        z-index: 1003 !important;
-        flex-shrink: 0;
-        order: -1;
-        align-items: center;
-        justify-content: center;
-        margin-right: auto;
-    }
+            .navbar .logo {
+                grid-column: 2;
+                justify-self: start;
+                align-self: center;
+                position: static;
+                transform: none;
+                z-index: 1;
+                margin-top: 0;
+                margin-left: 12px;
+            }
 
-    .hamburger .bar {
-        position: absolute;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: #000;
-        margin: 0;
-    }
-    
-    .hamburger .bar:nth-child(1) {
-        top: 2px;
-    }
-    .hamburger .bar:nth-child(2) {
-        top: 11px;
-    }
-    .hamburger .bar:nth-child(3) {
-        bottom: 2px;
-    }
+            .navbar .logo img {
+                height: 55px;
+            }
+            
+            .navbar .logo span {
+                font-size: 14px !important;
+                font-weight: bold;
+            }
 
-    .navbar .logo {
-        grid-column: 2;
-        justify-self: start;
-        align-self: center;
-        position: static;
-        transform: none;
-        z-index: 1;
-        margin-top: 0;
-        margin-left: 12px;
-    }
+            .navbar > div:not(.logo):not(.login):not(.mobile-only) { display: none; }
 
-    .navbar .logo img {
-        height: 55px;
-    }
-    
-    .navbar .logo span {
-        font-size: 14px !important;
-        font-weight: bold;
-    }
+            .mobile-drawer {
+                position: fixed;
+                top: 59px;
+                left: 0;
+                width: 80%;
+                max-width: 340px;
+                height: calc(100vh - 59px);
+                background: #fff;
+                box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                display: flex !important;
+                flex-direction: column;
+                padding: 16px 20px;
+                gap: 8px;
+                z-index: 1001;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
 
-    /* 모바일 드로어 메뉴 스타일 */
-    .mobile-drawer {
-        position: fixed;
-        top: 59px;
-        left: 0;
-        width: 80%;
-        max-width: 340px;
-        height: calc(100vh - 59px);
-        background: #fff;
-        box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        display: flex !important;
-        flex-direction: column;
-        padding: 16px 20px;
-        gap: 8px;
-        z-index: 1001;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .mobile-drawer a {
-        padding: 12px 16px;
-        border-bottom: 1px solid #eee;
-        text-align: left;
-        font-weight: 600;
-        font-size: 16px;
-        color: #212529;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        border-radius: 8px;
-        margin: 2px 0;
-    }
-    
-    .mobile-drawer a:hover {
-        background: rgba(68, 170, 107, 0.1);
-        color: #44aa6b;
-        padding-left: 20px;
-    }
-    
-    .mobile-drawer.open {
-        transform: translateX(0);
-    }
+            .mobile-drawer a {
+                padding: 12px 0;
+                border-bottom: 1px solid #eee;
+                text-align: left;
+                font-weight: bold;
+                color: #000;
+                text-decoration: none;
+            }
 
-    .body.menu-open { overflow: hidden; }
-    .overlay.menu-open { 
-        display: block !important;
-        z-index: 1000;
-    }
+            .mobile-drawer.open { transform: translateX(0); }
 
-    .main-info-section {
-        flex-direction: column;
-        padding: 30px 15px;
-        gap: 20px;
-    }
+            .body.menu-open { overflow: hidden; }
+            .overlay.menu-open { display: block !important; }
 
-    .main-image-container img {
-        width: 100%;
-        max-width: 100%;
-    }
+            .secondary-navbar {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 0;
+            }
 
-    .company-description {
-        max-width: 100%;
-    }
+            .secondary-navbar a {
+                margin: 0;
+                padding: 12px 16px;
+                font-size: 13px;
+                flex-shrink: 0;
+                border-bottom: 3px solid transparent;
+            }
+            
+            .secondary-navbar a:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-bottom-color: rgba(255, 255, 255, 0.5);
+            }
+            
+            .secondary-navbar a.active {
+                background: rgba(255, 255, 255, 0.15);
+                border-bottom-color: #fff;
+                font-weight: 700;
+            }
 
-    .company-description h1 {
-        font-size: 22px;
-        width: 100%;
-    }
+            .product-category {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 15px 10px;
+                margin: 15px auto;
+                max-width: 100%;
+            }
 
-    .company-description p {
-        font-size: 14px;
-    }
+            .product-item {
+                width: 100%;
+                display: flex;
+                flex-direction: row;
+                align-items: stretch;
+                justify-content: center;
+                padding: 15px;
+                background: #fff;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                gap: 25px;
+            }
 
-    .company-history-section {
-        padding: 20px 15px !important;
-        flex-direction: column !important;
-    }
+            .product-item > img {
+                width: 45%;
+                max-width: 180px;
+                min-width: 150px;
+                height: auto;
+                max-height: 220px;
+                object-fit: contain;
+                border-radius: 8px;
+                flex-shrink: 0;
+                align-self: center;
+                margin: 0;
+                display: block;
+            }
 
-    .company-history-section > div {
-        flex-direction: column !important;
-        gap: 20px !important;
-    }
+            .product-item p {
+                font-size: 12px;
+                text-align: left;
+                width: 55%;
+                margin: 0 auto;
+                padding: 10px 0;
+                line-height: 1.8;
+                color: #333;
+                flex: 1;
+                word-break: keep-all;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                justify-content: center;
+            }
 
-    .company-status, .company-timeline {
-        min-width: 100% !important;
-    }
+            .product-item p img[src*="best.png"],
+            .product-item p img[alt="베스트"] {
+                width: 12px !important;
+                height: auto !important;
+                margin-right: 4px !important;
+                vertical-align: middle !important;
+            }
 
-    .company-sub-images {
-        padding: 20px 15px !important;
-    }
+            .product-item p strong {
+                display: block;
+                font-size: 14px;
+                margin-bottom: 5px;
+                color: #000;
+                font-weight: bold;
+                text-align: left;
+            }
 
-    .company-sub-images h3 {
-        font-size: 18px;
-    }
+            .product-item p br {
+                line-height: 1.5;
+            }
+            
+            .image-modal-content {
+                max-width: 95%;
+                max-height: 95vh;
+            }
+            
+            .image-modal-close {
+                top: 10px;
+                right: 10px;
+                width: 36px;
+                height: 36px;
+                font-size: 20px;
+            }
+            
+            .image-modal-nav {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .image-modal-prev {
+                left: 10px;
+            }
+            
+            .image-modal-next {
+                right: 10px;
+            }
 
-    .company-sub-images img {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
+            .section-title {
+                font-size: 22px;
+                text-align: left;
+                width: 100%;
+                padding: 0 15px;
+                margin-bottom: 10px;
+            }
 
-    footer { 
-        padding: 14px 12px 18px;
-    }
-    footer::before{
-        width: 90%;
-        margin-bottom: 10px;
-    }
-    footer p{
-        font-size: 10px;
-        line-height: 1.35;
-        letter-spacing: 0;
-        text-align: left;
-        margin: 4px 0;
-    }
-    
-    .partner-logos {
-        gap: 16px;
-        padding: 25px 15px;
-    }
-    
-    .partner-logos a {
-        width: 35px;
-        height: 35px;
-        min-width: 35px;
-        padding: 6px;
-    }
-    
-    .partner-logos img {
-        max-width: 100%;
-        max-height: 100%;
-    }
-}
+            .product-divider {
+                width: calc(100% - 30px);
+                margin: 10px 15px 25px 15px;
+            }
+
+            footer { 
+                padding: 14px 12px 18px;
+            }
+            footer::before{
+                width: 90%;
+                margin-bottom: 10px;
+            }
+            footer p, footer .footer-info{
+                font-size: 10px;
+                line-height: 1.35;
+                letter-spacing: 0;
+                text-align: left;
+                margin: 4px 0;
+            }
+            
+            .partner-logos {
+                gap: 16px;
+                padding: 25px 15px;
+            }
+            
+            .partner-logos a {
+                width: 35px;
+                height: 35px;
+                min-width: 35px;
+                padding: 6px;
+            }
+            
+            .partner-logos img {
+                max-width: 100%;
+                max-height: 100%;
+            }
+        }
     </style>
 </head>
 
@@ -682,117 +922,619 @@
         </div>
     </div>
 
-<header class="navbar">
-  <!-- 햄버거 버튼 -->
-  <button class="hamburger" id="hamburger" aria-label="메뉴 열기" aria-controls="mobile-nav" aria-expanded="false">
-    <span class="bar"></span>
-    <span class="bar"></span>
-    <span class="bar"></span>
-  </button>
+    <header class="navbar">
+      <button class="hamburger" id="hamburger" aria-label="메뉴 열기" aria-controls="mobile-nav" aria-expanded="false">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+      </button>
 
-  <!-- 로고 -->
-  <div class="logo">
-      <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
+        <div class="logo">
+            <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
+        </div>
+
+      <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
+          <a href="../../index.html">홈</a>
+          <a href="../company/company.html">회사소개</a>
+          <a href="../product/product.html">제품소개</a>
+          <a href="../school/school.html">납품학교 리스트</a>
+          <a href="../Gallery/Gallery.html">갤러리</a>
+          <a href="../AS/AS.html">A/S신청</a>
+          <a href="#">고객지원</a>
+      </nav>
+
+        <div>
+            <a href="../../index.html">홈</a>
+        </div>
+
+        <div>
+            <a href="../company/company.html">회사소개</a>
+        </div>
+
+        <div>
+            <a href="../product/product.html">제품소개</a>
+        </div>
+        
+        <div>
+            <a href="../school/school.html">납품학교 리스트</a>
+        </div>
+
+        <div>
+            <a href="../Gallery/Gallery.html">갤러리</a>
+        </div>
+
+        <div>
+            <a href="../AS/AS.html">A/S신청</a>
+        </div>
+
+        <div>
+            <a href="#">고객지원</a>
+        </div>
+
+        <div class="login">
+            <a href="#" onclick="showLogin()" id="login-link" class="login-item">
+                <img src="../image/login.png" alt="로그인" class="login-icon"> 로그인
+            </a>
+            <a href="#" onclick="logout()" id="logout-link" class="login-item" style="display:none;">
+                <img src="../image/logout.png" alt="로그아웃" class="login-icon"> 로그아웃
+            </a>
+            <a href="../staff/staff.html" class="employee-btn">
+                <button class="employee-button" disabled>임직원</button>
+            </a>
+        </div>
+    </header>
+
+    <nav class="secondary-navbar">
+        <a href="#">우수제품</a>
+        <a href="#">일반제품</a>
+        <a href="#">사물함</a>
+        <a href="#">Accessory</a>
+    </nav>
+
+<section id="product-section">
+  <div class="product-category" data-category="우수제품">
+    <div class="section-title">우수제품</div>
+    <div class="product-divider"></div>
+    <div class="product-item">
+      <img src="./image/1/1.jpeg" alt="H1200-2" onclick="openModal(this)">
+      <p>
+        <strong>H1200-2</strong><br>
+        물품식별번호:24481523<br>
+        W1200*D750*H730<br>
+        478,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/4.png" alt="H1200-4" onclick="openModal(this)">
+      <p>
+        <strong>H1200-4</strong><br>
+        물품식별번호:24481530<br>
+        W1200*D750*H730<br>
+        546,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/2.png" alt="H1800-2" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H1800-2</strong><br>
+        물품식별번호 : 24481526<br>
+        W1800*D750*H730<br>
+        639,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/5.png" alt="H1800-4" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H1800-4</strong><br>
+        물품식별번호:24481531<br>
+        W1800*D750*H730<br>
+        749,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/3.jpeg" alt="H1850-2" onclick="openModal(this)">
+      <p>
+        <strong>H1850-2</strong><br>
+        물품식별번호:24481532<br>
+        W1850*D750*H730<br>
+        683,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/1/6.jpeg" alt="H1850-4" onclick="openModal(this)">
+      <p>
+        <strong>H1850-4</strong><br>
+        물품식별번호:24481529<br>
+        W1850*D750*H730<br>
+        765,000원
+      </p>
+    </div>
+</div>
+
+<!-- 일반제품 카테고리 시작 -->
+<div class="product-category" data-category="일반제품" style="display: none;">
+    <div class="section-title">일반제품</div>
+    <div class="product-divider"></div>
+    <div class="product-item">
+      <img src="./image/2/1.png" alt="H2S" onclick="openModal(this)">
+      <p>
+        <strong>H2S</strong><br>
+        물품식별번호:22918755<br>
+        W1200*D750*H730<br>
+        469,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/2.png" alt="H10S" onclick="openModal(this)">
+      <p>
+        <strong>H10S</strong><br>
+        물품식별번호:22918746<br>
+        W1200*D750*H730<br>
+        509,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/3.png" alt="H1400-2" onclick="openModal(this)">
+      <p>
+        <strong>HS1400-2</strong><br>
+        물품식별번호:25178038<br>
+        W1400*D800*H730<br>
+        533,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/4.png" alt="H1400-4" onclick="openModal(this)">
+      <p>
+        <strong>HS1400-4</strong><br>
+        물품식별번호:25178040<br>
+        W1400*D800*H730<br>
+        565,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/5.png" alt="H6S" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H6S</strong><br>
+        물품식별번호:22918751<br>
+        W1800*D750*H730<br>
+        594,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/6.png" alt="H12S" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>H12S</strong><br>
+        물품식별번호:22918747<br>
+        W1800*D750*H730<br>
+        689,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/7.png" alt="HS2100-2" onclick="openModal(this)">
+      <p>
+        <strong>HS2100-2</strong><br>
+        물품식별번호:25178039<br>
+        W2100*D800*H730<br>
+        668,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/2/8.png" alt="HS2100-4" onclick="openModal(this)">
+      <p>
+        <strong>HS2100-4</strong><br>
+        물품식별번호:25178041<br>
+        W2100*D800*H730<br>
+        775,000원
+      </p>
+    </div>
+</div>
+
+  <!-- 사물함 카테고리 시작 -->
+<div class="product-category" data-category="사물함" style="display: none;">
+    <div class="section-title">H900시리즈</div>
+    <div class="product-divider"></div>
+    <div class="product-item">
+      <img src="./image/3/H900/1.png" alt="HOA-L49001" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L49001</strong><br>
+        물품식별번호:22700369<br>
+        W400*D450*H900<br>
+        132,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H900/2.png" alt="HOA-L59001" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L59001</strong><br>
+        물품식별번호:25185328<br>
+        W400*D450*H901<br>
+        154,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H900/3.png" alt="HOA-L49002" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L49002</strong><br>
+        물품식별번호:22700370<br>
+        W400*D450*H900<br>
+        151,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H900/4.png" alt="HOA-L59002" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L59002</strong><br>
+        물품식별번호:25185329<br>
+        W400*D590*H901<br>
+        176,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H900/5.png" alt="HOA-L49004" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L49004</strong><br>
+        물품식별번호:22700371<br>
+        W800*D450*H900<br>
+        269,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H900/6.png" alt="HOA-L59004" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L59004</strong><br>
+        물품식별번호:25185330<br>
+        W800*D590*H901<br>
+        299,000원
+      </p>
+    </div>
+</div>
+
+<div class="product-category" data-category="사물함" style="display: none;">
+    <div class="section-title">H1050, H1200시리즈</div>
+    <div class="product-divider"></div>
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/1.png" alt="HOA-L410502" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L410502</strong><br>
+        물품식별번호:22700372<br>
+        W400*D450*H1050<br>
+        154,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/2.png" alt="HOA-L510502" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L510502</strong><br>
+        물품식별번호:22700391<br>
+        W400*D590*H1050<br>
+        186,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/3.png" alt="HOA-L410503" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L410503</strong><br>
+        물품식별번호:22700373<br>
+        W400*D450*H1050<br>
+        187,000원
+      </p>
+    </div>   
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/4.png" alt="HOA-L510503" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L510503</strong><br>
+        물품식별번호:22700392<br>
+        W400*D590*H1050<br>
+        198,000원
+      </p>
+    </div>   
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/5.png" alt="HOA-L410504" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L410504</strong><br>
+        물품식별번호:22700374<br>
+        W800*D450*H1050<br>
+        275,000원
+      </p>
+    </div> 
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/6.png" alt="HOA-L510504" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L510504</strong><br>
+        물품식별번호:22700393<br>
+        W800*D590*H1050<br>
+        315,000원
+      </p>
+    </div> 
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/7.png" alt="HOA-L410506" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L410506</strong><br>
+        물품식별번호:22700375<br>
+        W800*D450*H1050<br>
+        330,000원
+      </p>
+    </div> 
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/8.png" alt="HOA-L510506" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L510506</strong><br>
+        물품식별번호:22700394<br>
+        W800*D590*H1050<br>
+        372,000원
+      </p>
+    </div>   
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/9.png" alt="HOA-L412002" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L412002</strong><br>
+        물품식별번호:22700376<br>
+        W400*D450*H1200<br>
+        176,000원
+      </p>
+    </div>  
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/10.png" alt="HOA-L512002" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L512002</strong><br>
+        물품식별번호:25185331<br>
+        W400*D590*H1201<br>
+        198,000원
+      </p>
+    </div>  
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/11.png" alt="HOA-L412003" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L412003</strong><br>
+        물품식별번호:22700377<br>
+        W400*D450*H1200<br>
+        198,000원
+      </p>
+    </div>  
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/12.png" alt="HOA-L512003" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L512003</strong><br>
+        물품식별번호:25185332<br>
+        W400*D590*H1201<br>
+        220,000원
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/13.png" alt="HOA-L412004" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L412004</strong><br>
+        물품식별번호:22700378<br>
+        W800*D450*H1200<br>
+        298,000원
+      </p>
+    </div> 
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/14.png" alt="HOA-L512004" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L512004</strong><br>
+        물품식별번호:25185333<br>
+        W800*D590*H1201<br>
+        328,000원
+      </p>
+    </div>     
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/15.png" alt="HOA-L412006" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L412006</strong><br>
+        물품식별번호:22700379<br>
+        W800*D450*H1200<br>
+        354,000원
+      </p>
+    </div>     
+
+    <div class="product-item">
+      <img src="./image/3/H1050,1200/16.png" alt="HOA-L512006" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L512006</strong><br>
+        물품식별번호:25185334<br>
+        W800*D590*H1201<br>
+        384,000원
+      </p>
+    </div>     
+  </div>  
+
+<div class="product-category" data-category="사물함" style="display: none;">
+    <div class="section-title">H1600, H1800시리즈</div>
+    <div class="product-divider"></div>
+    <div class="product-item">
+      <img src="./image/3/H1600,1800/1.png" alt="HOA-L49001" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L49001</strong><br>
+        물품식별번호:22700369<br>
+        W400*D450*H900<br>
+        132,000원
+      </p>
+    </div>
   </div>
 
-  <!-- 모바일 드로어 메뉴 -->
-  <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
-      <a href="../../index.html">홈</a>
-      <a href="../company/company.html">회사소개</a>
-      <a href="../product/product.html">제품소개</a>
-      <a href="../school/school.html">납품학교 리스트</a>
-      <a href="../Gallery/Gallery.html">갤러리</a>
-      <a href="../AS/AS.html">A/S신청</a>
-      <a href="#">고객지원</a>
-  </nav>
-
-  <!-- 데스크톱 네비게이션 (기존 구조 유지) -->
-  <div><a href="../../index.html">홈</a></div>
-  <div><a href="../company/company.html">회사소개</a></div>
-  <div><a href="../product/product.html">제품소개</a></div>
-  <div><a href="../school/school.html">납품학교 리스트</a></div>
-  <div><a href="../Gallery/Gallery.html">갤러리</a></div>
-  <div><a href="../AS/AS.html">A/S신청</a></div>
-  <div><a href="#">고객지원</a></div>
-
-  <!-- 로그인/로그아웃 및 임직원 버튼 -->
-  <div class="login">
-      <a href="#" onclick="showLogin()" id="login-link" class="login-item">
-          <img src="../image/login.png" alt="로그인" class="login-icon"> 로그인
-      </a>
-      <a href="#" onclick="logout()" id="logout-link" class="login-item" style="display:none;">
-          <img src="../image/logout.png" alt="로그아웃" class="login-icon"> 로그아웃
-      </a>
-      <!-- 모바일용 임직원 버튼 -->
-      <a href="../staff/staff.html" class="employee-btn">
-          <button id="employee-button-mobile" disabled>임직원</button>
-      </a>
-  </div>
-</header>
-
-<section class="main-info-section">
-    <div class="main-image-container">
-    <img src="../image/c-1.jpeg" alt="회사 메인 이미지">
+<div class="product-category" data-category="사물함" style="display: none;">
+    <div class="section-title">Locker</div>
+    <div class="product-divider"></div>
+    <div class="product-item">
+      <img src="./image/3/Locker/1.png" alt="HOA-L49001" onclick="openModal(this)">
+      <p>
+        <strong>HOA-L49001</strong><br>
+        물품식별번호:22700369<br>
+        W400*D450*H900<br>
+        132,000원
+      </p>
     </div>
-    <div class="company-description">
-       <h1 style="border-bottom: 2px solid #333; padding-bottom: 8px; display: inline-block; width: 600px;">회사 소개</h1>
-       <p>
-       (주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여, 다양한 가구 제품 및 종합 가구 컨설팅 서비스를 제공하는 전문 업체입니다.  
-       <br>2023년에는 조달 우수제품으로 공식 인증을 받았으며, 현재 전국의 공공기관과 교육기관 등에 제품 납품과 맞춤형 공간 가구 솔루션 서비스를 제공하고 있으며, 20년간의 축적된 경험과 기술 / 전문성을 바탕으로 고객의 공간에 최적화된 제품과 서비스를 지속적으로 공급하고 있습니다.
-       </p>
+  </div>  
+
+<!-- 액세서리 카테고리 시작 -->
+<div class="product-category" data-category="Accessory" style="display: none;">
+    <div class="section-title">상판종류</div>
+    <div class="product-divider" style="margin-top: 0px;"></div>
+    <div class="product-item">
+      <img src="./image/4/1.jpeg" alt="SH-6549" onclick="openModal(this)">
+      <p>
+        <strong>망플비치(SH-6549)</strong><br>
+      </p>
     </div>
+
+    <div class="product-item">
+      <img src="./image/4/2.jpeg" alt="SH-1024" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>밝은대리석무늬(SH-1024)</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/3.jpeg" alt="SH-2402" onclick="openModal(this)">
+      <p>
+        <strong>대리석무늬(SH-2402)</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/4-1.png" alt="SH-9001" onclick="openModal(this)">
+      <p>
+        <strong>나무무늬(SH-5174)</strong><br>
+      </p>
+    </div>
+</div>
+
+<div class="product-category" data-category="Accessory" style="display: none;">
+  <div class="section-title">등받이</div>
+  <div class="product-divider"></div>
+    <div class="product-item">
+      <img src="./image/4/5.jpeg" alt="오렌지" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>브로우-오렌지</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/8.jpeg" alt="주황" onclick="openModal(this)">
+      <p>
+        <strong>브로우-주황</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/7.jpeg" alt="빨강" onclick="openModal(this)">
+      <p>
+        <strong>브로우-빨강</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/6.jpeg" alt="연두" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>브로우-연두</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/9.jpeg" alt="짙은연두" onclick="openModal(this)">
+      <p>
+        <strong>브로우-짙은연두</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/10.jpeg" alt="회색" onclick="openModal(this)">
+      <p>
+        <strong>브로우-회색</strong><br>
+      </p>
+    </div>
+</div>
+
+<div class="product-category" data-category="Accessory" style="display: none;">
+  <div class="section-title">원형의자</div>
+  <div class="product-divider"></div>
+    <div class="product-item" style="grid-column: 1;">
+      <img src="./image/4/11.jpeg" alt="오렌지" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>원형-오렌지</strong>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/12.jpeg" alt="연두" onclick="openModal(this)">
+      <p>
+        <strong>원형-연두</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/13.jpeg" alt="와인" onclick="openModal(this)">
+      <p>
+        <strong>원형-와인</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/14.jpeg" alt="감색" onclick="openModal(this)">
+      <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
+        <strong>원형-감색</strong><br>
+      </p>
+    </div>
+
+    <div class="product-item">
+      <img src="./image/4/15.jpeg" alt="파랑" onclick="openModal(this)">
+      <p>
+        <strong>원형-파랑</strong><br>
+      </p>
+    </div>
+</div>
 </section>
-
-<section class="company-history-section" style="padding: 0px 10% 5px; background-color: #f9f9f9; display: flex; justify-content: center;">
-  <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 40px; max-width: 1100px; width: 100%;">
-    <div class="company-status" style="flex: 1; min-width: 300px; text-align: left;">
-      <h2 style="font-size: 24px; margin-bottom: 10px; text-align: left; border-bottom: 2px solid #333; padding-bottom: 6px; display: inline-block;">일반 현황</h2>
-      <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px;">
-        <li>회사명: (주)하나로오에이퍼니처</li>
-        <li>대표이사 : 정진희, 장인덕</li>
-        <li>설립연도 : 2001년 4월</li>
-        <li>사업 분야 : 이동식스툴테이블, 사물함, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;학교용 가구<span style="font-size: 14px;">(도서실, 과학실, 영어교실, 보건실, 교탁 등)</span>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OA사무용 가구 외.</li>
-        <li>소재지 : 대전광역시 대덕구 오정로 41번길 12</li>
-      </ul>
-    </div>
-
-    <div style="width: 1px; background-color: #ccc; height: auto;"></div>
-
-    <div class="company-timeline" style="flex: 1; min-width: 300px; text-align: left;">
-      <h2 style="font-size: 24px; margin-bottom: 10px; text-align: left; border-bottom: 2px solid #333; padding-bottom: 6px; display: inline-block;">주요 연혁</h2>
-      <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px;">
-        <li>2001년 4월 : 회사 설립</li>
-        <li>2010년 5월 : 중소기업청 여성기업인증</li>
-        <li>2011년 5월 : 절첩식의자 일체형테이블 특허 등록</li>
-        <li>2011년 11월 : K마크, 환경마크 인증서 획득</li>
-        <li>2012년 3월 : 조달청 우수제품지정(HOA시리즈 이동식스툴테이블)</li>
-        <li>2014년 10월 : 조달청 우수제품지정(사물함)</li>
-        <li>2015년 7월 : ISO 14001(환경경영시스템) / 9001(품질경영시스템) 인증획득)</li>
-        <li>2015년 10월 : 단체표준인증 획득</li>
-        <li>2015년 12월 : 굿디자인 선정</li>
-        <li>2016년 7월 : 2016 대한민국베스트신상품 선정</li>
-        <li>2017년 4월 : 조달청 우수제품지정(HS시리즈 이동식스툴테이블)</li>
-        <li>2018년 12월 : 대한민국환경공헌대상</li>
-        <li>2019년 3월 : 조달청 G-PASS기업 지정</li>
-        <li>2019년 6월 : 경형혁신형 중소기업 회원 지정</li>
-        <li>2023년 4월 : 조달청 우수제품지정(H시리즈 이동식스툴테이블)</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section class="company-history-section" style="padding: 0px 10% 0px; background-color: #f9f9f9; margin-bottom: 0;"></section>
-
-<section class="company-sub-images" style="padding: 20px 10% 50px; background-color: #ffffff;">
-  <h3 style="font-size: 24px; text-align: left; border-bottom: 2px solid #333; display: inline-block; margin-bottom: 40px;">우수제품지정, 기술(성능) 및 인증서</h3>
-  <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px;">
-    <img src="../image/sub-1.png" alt="서브 이미지 1" style="width: 450px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-    <img src="../image/sub-2.png" alt="서브 이미지 2" style="width: 700px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-  </div>
-</section>
-
+   
     <script>
         document.addEventListener("DOMContentLoaded", function() {
+            const isLoggedIn = sessionStorage.getItem("loggedIn");
+            if (isLoggedIn) {
+                document.querySelector('.employee-button').disabled = false;
+                document.getElementById('login-link').style.display = 'none';
+                document.getElementById('logout-link').style.display = 'flex';
+            }
+            
             // 임직원 버튼이 비활성화되어 있을 때 클릭 이벤트 막기
             const employeeBtn = document.querySelector('.employee-btn');
             if (employeeBtn) {
@@ -801,12 +1543,25 @@
                     if (button && button.disabled) {
                         e.preventDefault();
                         e.stopPropagation();
-                        alert('로그인이 필요합니다.');
                         return false;
                     }
                 });
             }
         });
+    </script>
+
+    <!-- 공통 인증 스크립트 -->
+    <script src="../js/auth.js"></script>
+
+    <script>
+        function searchContent() {
+            const query = document.getElementById('search-input').value.trim();
+            if (query) {
+                window.location.href = `/하나로오에이퍼니처/search.html?query=${encodeURIComponent(query)}`;
+            } else {
+                alert('검색어를 입력하세요.');
+            }
+        }
     </script>
 
     <script>
@@ -852,39 +1607,241 @@ document.addEventListener('DOMContentLoaded', function () {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer.classList.contains('open')) closeMenu(); });
   window.addEventListener('resize', () => { if (window.innerWidth > 1024 && drawer.classList.contains('open')) closeMenu(); });
 });
-
-/* 임직원 버튼 두 개를 함께 제어 */
 </script>
 
-<!-- 공통 인증 스크립트 -->
-<script src="../js/auth.js"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const categories = document.querySelectorAll('.product-category');
+        const navLinks = document.querySelectorAll('.secondary-navbar a');
+      const urlParams = new URLSearchParams(window.location.search);
+      const categoryParam = urlParams.get("category");
 
-    <div class="partner-logos">
-        <a href="https://www.g2b.go.kr/" target="_blank">
-            <img src="../image/logo1.png" alt="파트너 1">
-        </a>
-        <a href="https://shop.g2b.go.kr/" target="_blank">
-            <img src="../image/logo2.png" alt="파트너 2">
-        </a>
-        <a href="https://hometax.go.kr/" target="_blank">
-            <img src="../image/logo3.png" alt="파트너 3">
-        </a>
-        <a href="https://www.smpp.go.kr" target="_blank">
-            <img src="../image/logo4.png" alt="파트너 4">
-        </a>
-        <a href="https://ecosq.or.kr/" target="_blank">
-            <img src="../image/logo5.png" alt="파트너 5">
-        </a>
-        <a href="https://www.sgic.co.kr/" target="_blank">
-            <img src="../image/logo6.png" alt="파트너 6">
-        </a>
-        <a href="https://si4n.nhis.or.kr/" target="_blank">
-            <img src="../image/logo7.png" alt="파트너 7">
-        </a>
-        <a href="https://www.4insure.or.kr/" target="_blank">
-            <img src="../image/logo8.png" alt="파트너 8">
-        </a>
+        console.log('Categories found:', categories.length);
+        console.log('Nav links found:', navLinks.length);
+
+        // URL 파라미터가 있으면 해당 카테고리 표시
+        if (categoryParam) {
+    categories.forEach(cat => {
+                if (cat.dataset.category === categoryParam) {
+                    cat.style.display = 'grid';
+                } else {
+                    cat.style.display = 'none';
+                }
+    });
+
+    navLinks.forEach(link => {
+      if (link.textContent.trim() === categoryParam) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+        } else {
+            // URL 파라미터가 없으면 기본적으로 우수제품만 표시
+            categories.forEach(cat => {
+                if (cat.dataset.category === '우수제품') {
+                    cat.style.display = 'grid';
+                } else {
+                    cat.style.display = 'none';
+                }
+            });
+
+            // 기본적으로 첫 번째 링크(우수제품) 활성화
+            if (navLinks.length > 0) {
+                navLinks.forEach((link, index) => {
+                    if (index === 0) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        // 네비게이션 링크 클릭 이벤트
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const target = link.textContent.trim();
+                console.log('Clicked:', target);
+
+                // 모든 카테고리 숨기기/보이기
+                categories.forEach(cat => {
+                    if (cat.dataset.category === target) {
+                        cat.style.display = 'grid';
+                        console.log('Showing category:', cat.dataset.category);
+                    } else {
+                        cat.style.display = 'none';
+                    }
+                });
+
+                // 활성 링크 스타일 업데이트
+                navLinks.forEach(navLink => {
+                    if (navLink === link) {
+                        navLink.classList.add('active');
+                    } else {
+                        navLink.classList.remove('active');
+                    }
+                });
+            });
+        });
+        });
+    </script>
+    
+    <!-- 이미지 모달 -->
+    <div id="image-modal" class="image-modal">
+        <button class="image-modal-close" id="modal-close">&times;</button>
+        <button class="image-modal-nav image-modal-prev" id="modal-prev">‹</button>
+        <div class="image-modal-content">
+            <img id="modal-image" src="" alt="">
+        </div>
+        <button class="image-modal-nav image-modal-next" id="modal-next">›</button>
     </div>
+    
+    <script>
+        // 이미지 모달 기능
+        let currentImageIndex = 0;
+        let currentImages = [];
+        
+        function openModal(imgElement) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-image');
+            
+            // 현재 카테고리의 모든 이미지 수집
+            const productCategory = imgElement.closest('.product-category');
+            if (productCategory) {
+                currentImages = Array.from(productCategory.querySelectorAll('.product-item img'));
+                currentImageIndex = currentImages.indexOf(imgElement);
+            } else {
+                // 카테고리를 찾을 수 없는 경우 해당 이미지만 표시
+                currentImages = [imgElement];
+                currentImageIndex = 0;
+            }
+            
+            if (currentImageIndex === -1) {
+                currentImages = [imgElement];
+                currentImageIndex = 0;
+            }
+            
+            modalImg.src = imgElement.src;
+            modalImg.alt = imgElement.alt;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // 네비게이션 버튼 표시/숨김
+            updateNavButtons();
+        }
+        
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        function showNextImage() {
+            if (currentImages.length === 0) return;
+            currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+            const modalImg = document.getElementById('modal-image');
+            modalImg.src = currentImages[currentImageIndex].src;
+            modalImg.alt = currentImages[currentImageIndex].alt;
+            updateNavButtons();
+        }
+        
+        function showPrevImage() {
+            if (currentImages.length === 0) return;
+            currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
+            const modalImg = document.getElementById('modal-image');
+            modalImg.src = currentImages[currentImageIndex].src;
+            modalImg.alt = currentImages[currentImageIndex].alt;
+            updateNavButtons();
+        }
+        
+        function updateNavButtons() {
+            const prevBtn = document.getElementById('modal-prev');
+            const nextBtn = document.getElementById('modal-next');
+            
+            // 이미지가 1개일 때는 네비게이션 버튼 숨김
+            if (currentImages.length <= 1) {
+                if (prevBtn) prevBtn.style.display = 'none';
+                if (nextBtn) nextBtn.style.display = 'none';
+            } else {
+                if (prevBtn) prevBtn.style.display = 'flex';
+                if (nextBtn) nextBtn.style.display = 'flex';
+            }
+        }
+        
+        // DOMContentLoaded 후 이벤트 리스너 추가
+        document.addEventListener('DOMContentLoaded', function() {
+            // 모달 닫기 버튼 이벤트
+            const modalCloseBtn = document.getElementById('modal-close');
+            if (modalCloseBtn) {
+                modalCloseBtn.addEventListener('click', closeImageModal);
+            }
+            
+            // 모달 네비게이션 버튼 이벤트
+            const modalPrevBtn = document.getElementById('modal-prev');
+            const modalNextBtn = document.getElementById('modal-next');
+            if (modalPrevBtn) {
+                modalPrevBtn.addEventListener('click', showPrevImage);
+            }
+            if (modalNextBtn) {
+                modalNextBtn.addEventListener('click', showNextImage);
+            }
+            
+            // 모달 배경 클릭 시 닫기 (이미지 자체는 제외)
+            const imageModal = document.getElementById('image-modal');
+            if (imageModal) {
+                imageModal.addEventListener('click', function(e) {
+                    // 배경을 클릭했을 때만 닫기 (이미지나 버튼 클릭은 제외)
+                    if (e.target === imageModal) {
+                        closeImageModal();
+                    }
+                });
+            }
+            
+            // ESC 키 및 화살표 키로 모달 제어
+            document.addEventListener('keydown', function(e) {
+                const modal = document.getElementById('image-modal');
+                if (!modal || !modal.classList.contains('active')) return;
+                
+                if (e.key === 'Escape') {
+                    closeImageModal();
+                } else if (e.key === 'ArrowLeft') {
+                    showPrevImage();
+                } else if (e.key === 'ArrowRight') {
+                    showNextImage();
+                }
+            });
+});
+    </script>
+
+<div class="partner-logos">
+    <a href="https://www.g2b.go.kr/" target="_blank">
+        <img src="../image/logo1.png" alt="파트너 1">
+    </a>
+    <a href="https://shop.g2b.go.kr/" target="_blank">
+        <img src="../image/logo2.png" alt="파트너 2">
+    </a>
+    <a href="https://hometax.go.kr/" target="_blank">
+        <img src="../image/logo3.png" alt="파트너 3">
+    </a>
+    <a href="https://www.smpp.go.kr" target="_blank">
+        <img src="../image/logo4.png" alt="파트너 4">
+    </a>
+    <a href="https://ecosq.or.kr/" target="_blank">
+        <img src="../image/logo5.png" alt="파트너 5">
+    </a>
+    <a href="https://www.sgic.co.kr/" target="_blank">
+        <img src="../image/logo6.png" alt="파트너 6">
+    </a>
+    <a href="https://si4n.nhis.or.kr/" target="_blank">
+        <img src="../image/logo7.png" alt="파트너 7">
+    </a>
+    <a href="https://www.4insure.or.kr/" target="_blank">
+        <img src="../image/logo8.png" alt="파트너 8">
+    </a>
+</div>
 
     <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
       <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
@@ -893,7 +1850,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     <footer>
         <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
-        <p>주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
+        <p class="footer-info">주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
     </footer>
     
 </body>
