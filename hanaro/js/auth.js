@@ -585,22 +585,24 @@ async function register() {
     try {
         console.log('회원가입 시도:', username, email);
 
-        // 아이디 중복 확인
+        // Firebase Auth로 계정 생성 (이메일 중복은 자동으로 체크됨)
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        console.log('Firebase Auth 계정 생성 완료:', user.uid);
+
+        // 계정 생성 후 자동 로그인된 상태에서 아이디 중복 확인
         const existingUsername = await authDb.collection('users')
             .where('username', '==', username)
             .limit(1)
             .get();
         
         if (!existingUsername.empty) {
+            // 중복된 아이디가 있으면 생성한 계정 삭제
+            await user.delete();
             alert('이미 사용 중인 아이디입니다.');
             return;
         }
-
-        // Firebase Auth로 계정 생성
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-
-        console.log('Firebase Auth 계정 생성 완료:', user.uid);
 
         // Firestore에 사용자 정보 저장 (비밀번호 제외!)
         await authDb.collection('users').doc(user.uid).set({
