@@ -1616,6 +1616,9 @@
             // 게시글 로드
             loadAllPosts();
             switchBoard('notice');
+            
+            // 작성 버튼 표시 여부 초기화
+            updateWriteButtonVisibility();
         });
 
         // Firebase Firestore에서 게시글 로드
@@ -1740,8 +1743,37 @@
 
             document.getElementById('board-title').textContent = titles[boardType];
             
+            // 공지사항일 때 작성 버튼 표시 여부 결정
+            updateWriteButtonVisibility();
+            
             // 게시글 렌더링
             renderPosts();
+        }
+        
+        // 작성 버튼 표시 여부 업데이트
+        function updateWriteButtonVisibility() {
+            const writeBtn = document.querySelector('.write');
+            if (!writeBtn) return;
+            
+            // 공지사항은 관리자만 작성 가능
+            if (currentBoard === 'notice') {
+                const loggedInUser = sessionStorage.getItem('loggedInUser');
+                if (loggedInUser) {
+                    try {
+                        const userData = JSON.parse(loggedInUser);
+                        const isAdmin = userData.isAdmin || userData.username === 'admin';
+                        writeBtn.style.display = isAdmin ? 'block' : 'none';
+                    } catch (e) {
+                        console.error('사용자 정보 파싱 오류:', e);
+                        writeBtn.style.display = 'none';
+                    }
+                } else {
+                    writeBtn.style.display = 'none';
+                }
+            } else {
+                // 다른 게시판은 모두 작성 가능
+                writeBtn.style.display = 'block';
+            }
         }
 
         function renderPosts() {
@@ -1777,6 +1809,57 @@
         }
 
         function deletePost(index) {
+            // 현재 사용자 정보 가져오기
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            if (!loggedInUser) {
+                alert('로그인이 필요합니다.');
+                return;
+            }
+            
+            const userData = JSON.parse(loggedInUser);
+            const post = allPosts[currentBoard][index];
+            const isAdmin = userData.isAdmin || userData.username === 'admin';
+            
+            // 삭제 권한 체크
+            let canDelete = false;
+            let errorMessage = '';
+            
+            if (currentBoard === 'notice') {
+                // 공지사항: 관리자만 삭제 가능
+                if (isAdmin) {
+                    canDelete = true;
+                } else {
+                    errorMessage = '공지사항은 관리자만 삭제할 수 있습니다.';
+                }
+            } else if (currentBoard === 'staff' || currentBoard === 'suggestion' || currentBoard === 'as-result') {
+                // 직원게시판, 제안활동, A/S 처리결과: 작성자 또는 관리자만 삭제 가능
+                const isAuthor = post.author === userData.name || 
+                                post.author === userData.username ||
+                                (post.uid && post.uid === userData.uid);
+                
+                if (isAdmin || isAuthor) {
+                    canDelete = true;
+                } else {
+                    errorMessage = '작성자 또는 관리자만 삭제할 수 있습니다.';
+                }
+            } else {
+                // 기타 게시판: 기본적으로 작성자 또는 관리자만 삭제 가능
+                const isAuthor = post.author === userData.name || 
+                                post.author === userData.username ||
+                                (post.uid && post.uid === userData.uid);
+                
+                if (isAdmin || isAuthor) {
+                    canDelete = true;
+                } else {
+                    errorMessage = '작성자 또는 관리자만 삭제할 수 있습니다.';
+                }
+            }
+            
+            if (!canDelete) {
+                alert(errorMessage);
+                return;
+            }
+            
             if (confirm("정말 삭제하시겠습니까?")) {
                 allPosts[currentBoard].splice(index, 1);
                 savePosts(currentBoard).then(() => {
@@ -1845,6 +1928,29 @@
         }
 
         function showWriteForm() {
+            // 공지사항은 관리자만 작성 가능
+            if (currentBoard === 'notice') {
+                const loggedInUser = sessionStorage.getItem('loggedInUser');
+                if (!loggedInUser) {
+                    alert('로그인이 필요합니다.');
+                    return;
+                }
+                
+                try {
+                    const userData = JSON.parse(loggedInUser);
+                    const isAdmin = userData.isAdmin || userData.username === 'admin';
+                    
+                    if (!isAdmin) {
+                        alert('공지사항은 관리자만 작성할 수 있습니다.');
+                        return;
+                    }
+                } catch (e) {
+                    console.error('사용자 정보 파싱 오류:', e);
+                    alert('사용자 정보를 확인할 수 없습니다.');
+                    return;
+                }
+            }
+            
             const writeForm = document.getElementById('write-form');
             const overlay = document.getElementById('overlay');
             
@@ -1874,6 +1980,29 @@
         }
 
         function submitPost() {
+            // 공지사항은 관리자만 작성 가능
+            if (currentBoard === 'notice') {
+                const loggedInUser = sessionStorage.getItem('loggedInUser');
+                if (!loggedInUser) {
+                    alert('로그인이 필요합니다.');
+                    return;
+                }
+                
+                try {
+                    const userData = JSON.parse(loggedInUser);
+                    const isAdmin = userData.isAdmin || userData.username === 'admin';
+                    
+                    if (!isAdmin) {
+                        alert('공지사항은 관리자만 작성할 수 있습니다.');
+                        return;
+                    }
+                } catch (e) {
+                    console.error('사용자 정보 파싱 오류:', e);
+                    alert('사용자 정보를 확인할 수 없습니다.');
+                    return;
+                }
+            }
+            
             const titleInput = document.getElementById('write-title');
             const authorInput = document.getElementById('write-author');
             const contentInput = document.getElementById('write-content');
@@ -1893,11 +2022,31 @@
                 return;
             }
 
+            // 현재 사용자 정보 가져오기 (작성자 확인용)
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            let uid = null;
+            let username = null;
+            let name = null;
+            
+            if (loggedInUser) {
+                try {
+                    const userData = JSON.parse(loggedInUser);
+                    uid = userData.uid;
+                    username = userData.username;
+                    name = userData.name;
+                } catch (e) {
+                    console.error('사용자 정보 파싱 오류:', e);
+                }
+            }
+            
             const newPost = {
                 title: title,
                 author: author,
                 content: content,
-                date: new Date().toLocaleDateString('ko-KR')
+                date: new Date().toLocaleDateString('ko-KR'),
+                uid: uid,  // 작성자 UID 저장
+                username: username,  // 작성자 username 저장
+                name: name  // 작성자 name 저장
             };
 
             if (!allPosts[currentBoard]) {
@@ -1924,8 +2073,37 @@
             `;
             document.getElementById('post-content').textContent = post.content;
             
-            // 삭제 버튼 표시
-            document.getElementById('post-delete-btn').style.display = 'block';
+            // 삭제 버튼 표시 여부 결정
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            const deleteBtn = document.getElementById('post-delete-btn');
+            
+            if (loggedInUser) {
+                const userData = JSON.parse(loggedInUser);
+                const isAdmin = userData.isAdmin || userData.username === 'admin';
+                
+                let canDelete = false;
+                
+                if (currentBoard === 'notice') {
+                    // 공지사항: 관리자만 삭제 가능
+                    canDelete = isAdmin;
+                } else if (currentBoard === 'staff' || currentBoard === 'suggestion' || currentBoard === 'as-result') {
+                    // 직원게시판, 제안활동, A/S 처리결과: 작성자 또는 관리자만 삭제 가능
+                    const isAuthor = post.author === userData.name || 
+                                    post.author === userData.username ||
+                                    (post.uid && post.uid === userData.uid);
+                    canDelete = isAdmin || isAuthor;
+                } else {
+                    // 기타 게시판: 기본적으로 작성자 또는 관리자만 삭제 가능
+                    const isAuthor = post.author === userData.name || 
+                                    post.author === userData.username ||
+                                    (post.uid && post.uid === userData.uid);
+                    canDelete = isAdmin || isAuthor;
+                }
+                
+                deleteBtn.style.display = canDelete ? 'block' : 'none';
+            } else {
+                deleteBtn.style.display = 'none';
+            }
             
             document.getElementById('post-modal').style.display = 'block';
             document.getElementById('overlay').style.display = 'block';
