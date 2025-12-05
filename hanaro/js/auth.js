@@ -1,838 +1,1457 @@
-// Firebase 설정
-const firebaseConfig = {
-    apiKey: "AIzaSyD-FTnZJKNXJHz-FTzuLXPk4n7uTbVrA68",
-    authDomain: "hanarooa-f227d.firebaseapp.com",
-    projectId: "hanarooa-f227d",
-    storageBucket: "hanarooa-f227d.firebasestorage.app",
-    messagingSenderId: "224725591655",
-    appId: "1:224725591655:web:946b6b462c2ad06a8f56c2",
-    measurementId: "G-ELZBEYYQDB"
-};
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="하나로오에이퍼니처 - 조달 우수제품과 일반제품 소개">
+    <meta name="keywords" content="하나로오에이퍼니처, 조달 우수제품, MAS, 가구, 사무가구">
+    <title>하나로오에이퍼니처</title>
 
-// Firebase 초기화
-let authDb = null;
-let auth = null;
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-function initFirebase() {
-try {
-    if (typeof firebase !== 'undefined') {
-        if (firebase.apps.length === 0) {
-            firebase.initializeApp(firebaseConfig);
+    <link rel="icon" href="./image/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="./image/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="./image/favicon.png">
+    
+    <!-- 공통 디자인 시스템 CSS -->
+    <link rel="stylesheet" href="./hanaro/css/common.css">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #ffffff;
+            color: #000000;
+            text-align: center;
+            overflow-x: auto;
         }
-        authDb = firebase.firestore();
-            auth = firebase.auth();
-            console.log('Firebase 초기화 완료');
-        } else {
-            console.warn('Firebase SDK가 로드되지 않았습니다.');
-    }
-} catch (error) {
-    console.warn('Firebase 초기화 실패:', error);
-}
-}
 
-// 즉시 초기화 시도
-initFirebase();
+        .navbar {
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 5px 5px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+            height: 78px;
+            transition: all 0.3s ease;
+        }
 
-// 페이지 로드 시 인증 상태 확인
-document.addEventListener('DOMContentLoaded', function() {
-    // 활동 감지 리스너 설정
-    setupActivityListeners();
-    
-    if (!auth) {
-        initFirebase();
-    }
-    
-    // Firebase Auth 상태 변경 감지
-    if (auth) {
-        auth.onAuthStateChanged(async function(user) {
-            if (user) {
-                // 로그인된 상태 - Firestore에서 사용자 정보 확인
-                try {
-                    const userDoc = await authDb.collection('users').doc(user.uid).get();
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        if (userData.status === 'approved' || userData.isAdmin) {
-                            setLoggedInState(true, userData);
-                            sessionStorage.setItem("loggedInUser", JSON.stringify({
-                                uid: user.uid,
-                                email: user.email,
-                                ...userData
-                            }));
-                        } else {
-                            // 승인되지 않은 사용자는 로그아웃
-                            setLoggedInState(false);
-                        }
-                    }
-                } catch (error) {
-                    console.error('사용자 정보 로드 오류:', error);
-                }
-            } else {
-                // 로그아웃 상태
-                setLoggedInState(false);
-                sessionStorage.removeItem("loggedInUser");
+        .navbar > .logo {
+            margin-right: auto; /* 로고와 나머지 항목 간 여백 */
+        }
+        
+        .navbar .logo a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #000;
+        }
+        
+        .navbar .logo img {
+            height: 75px;
+        }
+        
+        .navbar .logo a {
+            pointer-events: none;
+            cursor: default;
+        }
+        
+        .navbar .logo span {
+            font-size: 18px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .navbar > div {
+            position: relative;
+        }
+
+        .navbar > div > a {
+            margin: 13px 4px !important;
+            font-size: 18px !important;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            text-decoration: none;
+            color: #212529;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+            white-space: nowrap;
+            position: relative;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .navbar > div > a:hover {
+            color: #44aa6b;
+            background: rgba(68, 170, 107, 0.08);
+        }
+
+        .body {
+            overflow-x: auto; /* 수평 스크롤 활성화 */
+        }
+
+        .main2-section {
+            position: relative;
+            width: 100%;
+            height: 70vh;
+            min-height: 500px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            text-align: center;
+        }
+
+        .main2-section video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            opacity: 0.7;
+            background: #000;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .main2-section video.fade-out {
+            opacity: 0;
+        }
+
+        .main2-section video.fade-in {
+            opacity: 0.7;
+        }
+
+        .main2-section::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 2;
+        }
+
+        .main2-section .video-fade-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 2;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            pointer-events: none;
+        }
+
+        .main2-section .video-fade-overlay.active {
+            opacity: 1;
+        }
+
+        .main2-content {
+            position: absolute;
+            top: calc(50% - 50px);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .main2-title {
+            font-size: 56px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 2px 2px 12px rgba(0, 0, 0, 0.6),
+                         0 0 30px rgba(255, 255, 255, 0.3);
+            letter-spacing: 4px;
+            text-align: center;
+            animation: fadeIn 1s ease;
+            margin: 0 0 -5px 0;
+            line-height: 1.1;
+        }
+
+        .main2-subtitle {
+            font-size: 24px;
+            font-weight: 400;
+            color: #fff;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5),
+                         0 0 20px rgba(255, 255, 255, 0.2);
+            letter-spacing: 2px;
+            text-align: center;
+            animation: fadeIn 1.2s ease;
+            margin: 0;
+            font-style: italic;
+            line-height: 1.2;
+        }
+
+
+        .main2-buttons {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3;
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+
+        .product-button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: #fff;
+            text-decoration: none;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(68, 170, 107, 0.3);
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .product-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .product-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .product-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(68, 170, 107, 0.4);
+        }
+
+        .product-button:active {
+            transform: translateY(-1px);
+        }
+
+
+        @media (max-width: 768px) {
+            .main2-section {
+                height: 60vh;
+                min-height: 400px;
             }
-        });
-    } else {
-        // Firebase가 없는 경우 세션 스토리지 확인
-    const loggedInUser = sessionStorage.getItem("loggedInUser");
-    if (loggedInUser) {
-            setLoggedInState(true, JSON.parse(loggedInUser));
-        }
-    }
-});
 
-// 자동 로그아웃 타이머 관리
-let autoLogoutTimer = null;
-let autoLogoutWarningTimer = null;
-let lastActivityTime = null;
-const AUTO_LOGOUT_TIME = 15 * 60 * 1000; // 15분 (밀리초)
-const WARNING_TIME = 12 * 60 * 1000; // 12분 (3분 전 알림)
-let warningShown = false;
+            .main2-title {
+                font-size: 32px;
+                letter-spacing: 2px;
+                margin-bottom: -3px;
+                line-height: 1.1;
+            }
 
-// 사용자 활동 감지
-function resetAutoLogoutTimer() {
-    if (!sessionStorage.getItem("loggedIn")) {
-        return; // 로그인되지 않은 경우 타이머 시작 안 함
-    }
-    
-    lastActivityTime = Date.now();
-    
-    // 경고 모달이 표시되어 있으면 제거
-    const warningModal = document.getElementById('auto-logout-warning');
-    if (warningModal) {
-        warningModal.remove();
-        warningShown = false;
-    }
-    
-    // 기존 타이머 클리어
-    if (autoLogoutTimer) {
-        clearTimeout(autoLogoutTimer);
-        autoLogoutTimer = null;
-    }
-    if (autoLogoutWarningTimer) {
-        clearTimeout(autoLogoutWarningTimer);
-        autoLogoutWarningTimer = null;
-    }
-    
-    // 3분 전 알림 타이머 설정
-    autoLogoutWarningTimer = setTimeout(() => {
-        showAutoLogoutWarning();
-    }, WARNING_TIME);
-    
-    // 자동 로그아웃 타이머 설정
-    autoLogoutTimer = setTimeout(() => {
-        autoLogout();
-    }, AUTO_LOGOUT_TIME);
-    
-    updateLogoutTimer();
-}
-
-// 자동 로그아웃 경고 표시
-function showAutoLogoutWarning() {
-    if (warningShown) return;
-    warningShown = true;
-    
-    // 경고 모달 생성
-    const warningModal = document.createElement('div');
-    warningModal.id = 'auto-logout-warning';
-    warningModal.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
-        padding: 30px;
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        z-index: 10002;
-        text-align: center;
-        min-width: 320px;
-        max-width: 400px;
-        animation: scaleIn 0.3s ease;
-    `;
-    
-    warningModal.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px;">⏰</div>
-        <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #212529;">자동 로그아웃 알림</h3>
-        <p style="margin: 0 0 24px 0; font-size: 15px; color: #6c757d; line-height: 1.6;">
-            3분 후 자동으로 로그아웃됩니다.<br>
-            계속 사용하시려면 아무 곳이나 클릭해주세요.
-        </p>
-        <button id="warning-confirm-btn" 
-                style="padding: 12px 24px; background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%); 
-                       color: white; border: none; border-radius: 12px; cursor: pointer; 
-                       font-weight: 600; font-size: 15px; width: 100%;">
-            확인
-        </button>
-    `;
-    
-    document.body.appendChild(warningModal);
-    
-    // 확인 버튼 클릭 이벤트
-    const confirmBtn = document.getElementById('warning-confirm-btn');
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', function() {
-            warningModal.remove();
-            resetAutoLogoutTimer();
-        });
-    }
-    
-    // 3분 후 자동으로 모달 제거
-    setTimeout(() => {
-        if (warningModal.parentElement) {
-            warningModal.remove();
-        }
-    }, 3 * 60 * 1000);
-}
-
-// 자동 로그아웃 실행
-async function autoLogout() {
-    // 경고 모달 제거
-    const warningModal = document.getElementById('auto-logout-warning');
-    if (warningModal) {
-        warningModal.remove();
-    }
-    
-    // 타이머 표시 제거
-    const timerDisplay = document.getElementById('logout-timer');
-    if (timerDisplay) {
-        timerDisplay.remove();
-    }
-    
-    // 로그아웃 실행
-    await logout();
-    alert('15분간 활동이 없어 자동으로 로그아웃되었습니다.');
-}
-
-// 로그아웃 타이머 표시 업데이트
-function updateLogoutTimer() {
-    if (!lastActivityTime || !sessionStorage.getItem("loggedIn")) {
-        const timerDisplay = document.getElementById('logout-timer');
-        if (timerDisplay) {
-            timerDisplay.remove();
-        }
-        return;
-    }
-    
-    const elapsed = Date.now() - lastActivityTime;
-    const remaining = AUTO_LOGOUT_TIME - elapsed;
-    
-    if (remaining <= 0) {
-        return;
-    }
-    
-    const minutes = Math.floor(remaining / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
-    
-    let timerDisplay = document.getElementById('logout-timer');
-    if (!timerDisplay) {
-        // 타이머 표시 요소 생성
-        const logoutLink = document.getElementById('logout-link');
-        if (logoutLink) {
-            // 타이머 생성 (로그아웃 글씨에 붙게)
-            timerDisplay = document.createElement('span');
-            timerDisplay.id = 'logout-timer';
-            timerDisplay.style.cssText = `
-                display: inline-flex;
-                align-items: center;
-                padding: 4px 8px;
-                margin-left: 6px;
-                background: rgba(255, 255, 255, 0.95);
-                border: 1px solid #dee2e6;
-                border-radius: 6px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-                font-size: 11px;
-                color: #6c757d;
-                font-weight: 500;
+            .main2-subtitle {
+                font-size: 18px;
+                letter-spacing: 1px;
                 line-height: 1.2;
-                text-align: center;
-                white-space: nowrap;
-                vertical-align: middle;
-            `;
-            // 로그아웃 링크 내부에 추가 (텍스트 바로 옆)
-            // 로그아웃 링크 구조: <a><img> 로그아웃</a>
-            // 텍스트 노드를 찾아서 그 다음에 삽입
-            let inserted = false;
-            for (let node of logoutLink.childNodes) {
-                if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() === '로그아웃') {
-                    logoutLink.insertBefore(timerDisplay, node.nextSibling);
-                    inserted = true;
-                    break;
-                }
             }
-            // 텍스트 노드를 찾지 못한 경우 링크 끝에 추가
-            if (!inserted) {
-                logoutLink.appendChild(timerDisplay);
+
+
+            .main2-buttons {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 10px;
+                bottom: 80px !important;
+                left: 50%;
+                transform: translateX(-50%);
+                max-width: 100%;
+                padding: 0 10px;
             }
-        } else {
-            return;
-        }
-    }
-    
-    // 3분 이하일 때 빨간색으로 표시
-    if (remaining <= 3 * 60 * 1000) {
-        timerDisplay.style.color = '#ff6b6b';
-        timerDisplay.style.fontWeight = '600';
-        timerDisplay.style.borderColor = '#ff6b6b';
-        timerDisplay.style.background = 'rgba(255, 107, 107, 0.1)';
-    } else {
-        timerDisplay.style.color = '#6c757d';
-        timerDisplay.style.fontWeight = '500';
-        timerDisplay.style.borderColor = '#dee2e6';
-        timerDisplay.style.background = 'rgba(255, 255, 255, 0.95)';
-    }
-    
-    timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    
-    // 1초마다 업데이트
-    setTimeout(updateLogoutTimer, 1000);
-}
 
-// 활동 감지 이벤트 리스너 설정
-function setupActivityListeners() {
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    events.forEach(event => {
-        document.addEventListener(event, resetAutoLogoutTimer, { passive: true });
-    });
-}
+            .product-button {
+                width: auto;
+                min-width: 80px;
+                max-width: 120px;
+                padding: 10px 16px;
+                font-size: 14px;
+                margin: 0;
+            }
 
-// 로그인 상태 설정
-function setLoggedInState(isLoggedIn, userData = null) {
-    // 임직원 버튼 상태 설정 (임직원만 활성화)
-    const isEmployee = isLoggedIn && userData && (userData.userType === 'employee' || userData.isAdmin);
-    document.querySelectorAll('.employee-button, #employee-button, #employee-button-mobile').forEach(btn => {
-        btn.disabled = !isEmployee;
-    });
-    
-    // 로그인/로그아웃 링크 표시
-    const loginLink = document.getElementById('login-link');
-    const logoutLink = document.getElementById('logout-link');
-    
-    if (loginLink) loginLink.style.display = isLoggedIn ? 'none' : 'flex';
-    if (logoutLink) logoutLink.style.display = isLoggedIn ? 'flex' : 'none';
-    
-    // 세션 스토리지 업데이트
-    if (isLoggedIn && userData) {
-        sessionStorage.setItem("loggedIn", "true");
-        // 자동 로그아웃 타이머 시작
-        resetAutoLogoutTimer();
-    } else if (!isLoggedIn) {
-        sessionStorage.removeItem("loggedIn");
-        // 타이머 정리
-        if (autoLogoutTimer) {
-            clearTimeout(autoLogoutTimer);
-            autoLogoutTimer = null;
-        }
-        if (autoLogoutWarningTimer) {
-            clearTimeout(autoLogoutWarningTimer);
-            autoLogoutWarningTimer = null;
-        }
-        const timerDisplay = document.getElementById('logout-timer');
-        if (timerDisplay) {
-            timerDisplay.remove();
-        }
-        const warningModal = document.getElementById('auto-logout-warning');
-        if (warningModal) {
-            warningModal.remove();
-        }
-    }
-}
-
-// 탭 전환
-function showAuthTab(tab) {
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    const tabs = document.querySelectorAll('.auth-tab');
-    
-    if (!loginForm || !registerForm) return;
-    
-    tabs.forEach(t => t.classList.remove('active'));
-    
-    if (tab === 'login') {
-        loginForm.style.display = 'block';
-        registerForm.style.display = 'none';
-        if (tabs[0]) tabs[0].classList.add('active');
-    } else {
-        loginForm.style.display = 'none';
-        registerForm.style.display = 'block';
-        if (tabs[1]) tabs[1].classList.add('active');
-    }
-}
-
-// 로그인 모달 표시
-function showLogin() {
-    // 이미 로그인된 상태 확인
-    if (auth && auth.currentUser) {
-        const confirmLogout = confirm('이미 다른 계정으로 로그인되어 있습니다.\n로그아웃 후 다시 로그인하시겠습니까?');
-        if (confirmLogout) {
-            logout();
-            setTimeout(() => {
-                showLogin();
-            }, 500);
-        }
-        return;
-    }
-    
-    // 세션 스토리지에서도 확인
-    const loggedInUser = sessionStorage.getItem('loggedInUser');
-    if (loggedInUser) {
-        const userData = JSON.parse(loggedInUser);
-        const confirmLogout = confirm(`이미 ${userData.name || userData.username}님으로 로그인되어 있습니다.\n로그아웃 후 다시 로그인하시겠습니까?`);
-        if (confirmLogout) {
-            logout();
-            setTimeout(() => {
-                showLogin();
-            }, 500);
-        }
-        return;
-    }
-    
-    const overlay = document.getElementById('overlay');
-    const loginContainer = document.getElementById('login-container');
-    
-    if (overlay) overlay.style.display = 'block';
-    if (loginContainer) loginContainer.style.display = 'block';
-    showAuthTab('login');
-}
-
-// 로그인 모달 숨기기
-function hideLogin() {
-    const overlay = document.getElementById('overlay');
-    const loginContainer = document.getElementById('login-container');
-    
-    if (overlay) overlay.style.display = 'none';
-    if (loginContainer) loginContainer.style.display = 'none';
-    
-    // 폼 초기화
-    const fields = ['username', 'password', 'reg-username', 'reg-password', 'reg-password-confirm', 'reg-name', 'reg-email', 'reg-phone'];
-    fields.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-}
-
-// 로그인 함수
-async function login() {
-    const usernameEl = document.getElementById('username');
-    const passwordEl = document.getElementById('password');
-    
-    if (!usernameEl || !passwordEl) {
-        alert('로그인 입력 필드를 찾을 수 없습니다.');
-        return;
-    }
-    
-    const emailOrUsername = usernameEl.value.trim();
-    const password = passwordEl.value;
-
-    if (!emailOrUsername || !password) {
-        alert('아이디와 비밀번호를 입력해주세요.');
-        return;
-    }
-
-    // Firebase 재초기화 시도
-    if (!auth || !authDb) {
-        initFirebase();
-    }
-
-    if (!auth) {
-        alert('서버 연결에 실패했습니다.\n페이지를 새로고침 후 다시 시도해주세요.');
-        return;
-    }
-
-    try {
-        // 이메일 형식이 아닌 경우 이메일로 변환 시도
-        let email = emailOrUsername;
-        if (!emailOrUsername.includes('@')) {
-            // username으로 이메일 찾기 (권한 오류 처리)
-            try {
-                const usersSnapshot = await authDb.collection('users')
-                    .where('username', '==', emailOrUsername)
-                    .limit(1)
-                    .get();
-                
-                if (usersSnapshot.empty) {
-                    alert('존재하지 않는 아이디입니다.');
-                    return;
-                }
-                email = usersSnapshot.docs[0].data().email;
-            } catch (queryError) {
-                console.error('사용자 정보 조회 오류:', queryError);
-                if (queryError.code === 'permission-denied') {
-                    alert('로그인 전에는 username으로 로그인할 수 없습니다.\n이메일 주소로 로그인해주세요.');
-                    return;
-                }
-                throw queryError;
+            .main2-content {
+                padding: 0 15px;
+                gap: 30px;
             }
         }
 
-        // Firebase Auth로 로그인 (타임아웃 추가)
-        let userCredential;
-        try {
-            const loginPromise = auth.signInWithEmailAndPassword(email, password);
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('로그인 시간 초과')), 15000)
-            );
-            userCredential = await Promise.race([loginPromise, timeoutPromise]);
-        } catch (authError) {
-            throw authError;
+        .main-section {
+            position: relative;
+            background-image: url('우수제품.png');
+            background-size: cover;
+            background-position: center;
+            padding: 600px 20px 50px;
+            color: #fff;
+            text-align: center;
         }
-        const user = userCredential.user;
 
-        // Firestore에서 사용자 정보 확인
-        const userDoc = await authDb.collection('users').doc(user.uid).get();
+        .main-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            text-align: center;
+        }
+
+        .main-section h1 {
+            font-size: 2rem;
+            color: #000;
+            margin-bottom: 20px;
+            animation: fadeIn 0.8s ease;
+        }
+
+        .main-section p {
+            font-size: 1.2rem;
+            line-height: 2;
+            margin: 10px 0;
+            animation: fadeIn 0.8s ease 0.2s both;
+        }
+
+        .cta-button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: #fff;
+            text-decoration: none;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(68, 170, 107, 0.3);
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .cta-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(68, 170, 107, 0.4);
+        }
+
+        .cta-button:active {
+            transform: translateY(-1px);
+        }
+
+        .video-button {
+            display: inline-block;
+            margin-top: 20px;
+            margin-left: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: #fff;
+            text-decoration: none;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .video-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .video-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(255, 107, 107, 0.4);
+        }
+
+        .video-button:active {
+            transform: translateY(-1px);
+        }
+
+        .MAS-section {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 60px 40px;
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+            margin: 20px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeIn 0.8s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .MAS-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(68, 170, 107, 0.05), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .MAS-section:hover::before {
+            left: 100%;
+        }
+
+        .MAS-section:hover {
+            box-shadow: 0 16px 48px rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.08);
+            transform: translateY(-6px) scale(1.01);
+        }
+
+        .MAS-section h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            animation: slideUp 0.6s ease 0.2s both;
+        }
+
+        .MAS-section p {
+            font-size: 16px;
+            color: #495057;
+            line-height: 1.6;
+        }
         
-        if (!userDoc.exists) {
-            await auth.signOut();
-            alert('사용자 정보를 찾을 수 없습니다.');
-            return;
+        .gallery-section {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            background-size: contain;
+            background-position: center;
+            padding: 60px 40px;
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+            margin: 20px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 400px;
+            animation: fadeIn 0.8s ease 0.1s both;
+            position: relative;
+            overflow: hidden;
         }
 
-        const userData = userDoc.data();
-
-        // 승인 상태 확인
-        if (userData.status === 'pending') {
-            await auth.signOut();
-            alert('가입 승인 대기 중입니다.\n관리자 승인 후 로그인이 가능합니다.');
-            return;
+        .gallery-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(68, 170, 107, 0.05), transparent);
+            transition: left 0.5s ease;
         }
 
-        if (userData.status === 'rejected') {
-            await auth.signOut();
-            alert('가입이 거절되었습니다.\n관리자에게 문의해주세요.');
-            return;
+        .gallery-section:hover::before {
+            left: 100%;
         }
 
-        if (userData.status !== 'approved' && !userData.isAdmin) {
-            await auth.signOut();
-            alert('로그인할 수 없는 계정입니다.');
-            return;
+        .gallery-section:hover {
+            box-shadow: 0 16px 48px rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.08);
+            transform: translateY(-6px) scale(1.01);
         }
 
-        // 로그인 성공
-        hideLogin();
-        const fullUserData = {
-            uid: user.uid,
-            email: user.email,
-            ...userData
-        };
-        sessionStorage.setItem("loggedInUser", JSON.stringify(fullUserData));
-        sessionStorage.setItem("loggedIn", "true");
-        setLoggedInState(true, fullUserData);
-        
-        // 자동 로그아웃 타이머 시작
-        resetAutoLogoutTimer();
-        
-        setTimeout(() => {
-            alert(`${userData.name || userData.username}님, 환영합니다!`);
-        }, 100);
+        .gallery-section h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            animation: slideUp 0.6s ease 0.3s both;
+        }
 
-    } catch (error) {
-        console.error('로그인 오류:', error);
-        console.error('오류 코드:', error.code);
-        console.error('오류 메시지:', error.message);
-        
-        if (error.code === 'auth/user-not-found') {
-            alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
-        } else if (error.code === 'auth/wrong-password') {
-            alert('비밀번호가 일치하지 않습니다.');
-        } else if (error.code === 'auth/invalid-credential') {
-            // auth/invalid-credential 오류 처리 - 회원가입 여부 확인
-            try {
-                // 이메일로 사용자 찾기 시도
-                let email = emailOrUsername;
-                if (!emailOrUsername.includes('@')) {
-                    // username으로 이메일 찾기
-                    try {
-                        const usersSnapshot = await authDb.collection('users')
-                            .where('username', '==', emailOrUsername)
-                            .limit(1)
-                            .get();
-                        
-                        if (usersSnapshot.empty) {
-                            alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
-                            return;
-                        }
-                        email = usersSnapshot.docs[0].data().email;
-                    } catch (queryError) {
-                        // Firestore 조회 실패 시 회원가입 필요 메시지
-                        alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
-                        return;
-                    }
-                }
-                
-                // 이메일로 Firebase Auth에서 사용자 존재 여부 확인
-                // Firebase Auth는 직접 조회할 수 없으므로, Firestore에서 확인
-                try {
-                    const usersSnapshot = await authDb.collection('users')
-                        .where('email', '==', email)
-                        .limit(1)
-                        .get();
-                    
-                    if (usersSnapshot.empty) {
-                        alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
-                    } else {
-                        alert('비밀번호가 일치하지 않습니다.\n비밀번호를 확인해주세요.');
-                    }
-                } catch (queryError) {
-                    // Firestore 조회 실패 시 일반적인 오류 메시지
-                    alert('로그인 정보가 올바르지 않습니다.\n회원가입이 필요할 수 있습니다.');
-                }
-            } catch (checkError) {
-                // 확인 과정에서 오류 발생 시 기본 메시지
-                alert('존재하지 않는 계정이거나 로그인 정보가 올바르지 않습니다.\n회원가입이 필요할 수 있습니다.');
+        .gallery-section p {
+            font-size: 16px;
+            color: #495057;
+            line-height: 1.6;
+        }
+
+        footer {
+            background-color: #ccc8c8; /* 배경색 */
+            color: #696868;           /* 텍스트 색상 */
+            padding: 10px 20px 10px 20px;
+            margin-top: 10px;
+            text-align: center;
+            padding-bottom: 20px;             /* 선과 텍스트 간격 */
+        }
+
+        footer p, footer .footer-info {
+           font-size: 12px;
+           line-height: 1.0;
+           margin: 4px 0;  /* 위아래 간격 최소화 */
+        }
+
+        footer::before {
+            content: "";
+            display: block;
+            width: 68%;
+            margin: 0 auto;        /* 중앙 정렬 */
+            border-top: 1px solid #ccc;
+            margin-bottom: 15px; /* 선과 텍스트 간격 */
+        }
+
+        .login-container {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 32px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            z-index: 1001;
+            min-width: 360px;
+            max-width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -48%) scale(0.98);
             }
-        } else if (error.code === 'auth/invalid-email') {
-            alert('올바른 이메일 형식을 입력해주세요.');
-        } else if (error.code === 'auth/too-many-requests') {
-            alert('로그인 시도가 너무 많습니다.\n잠시 후 다시 시도해주세요.');
-        } else if (error.code === 'permission-denied' || error.message?.includes('permission')) {
-            alert('권한 오류가 발생했습니다.\nFirestore 보안 규칙을 확인해주세요.');
-        } else if (error.message === '로그인 시간 초과') {
-            alert('로그인 시간이 초과되었습니다.\n네트워크 연결을 확인하고 다시 시도해주세요.');
-        } else {
-            const errorMsg = error.message || '알 수 없는 오류';
-            alert('로그인 중 오류가 발생했습니다.\n' + errorMsg);
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
         }
-    }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 24px;
+            border-radius: 12px;
+            background: #e9ecef;
+            padding: 4px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: #6c757d;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .auth-tab.active {
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
+        }
+
+        .auth-tab:hover:not(.active) {
+            color: #44aa6b;
+        }
+
+        .auth-form {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-container h2 {
+            margin: 0 0 24px 0;
+            font-size: 24px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .login-container input {
+            margin: 8px 0;
+            padding: 12px 16px;
+            width: calc(100% - 32px);
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .login-container input:focus {
+            outline: none;
+            border-color: #44aa6b;
+            box-shadow: 0 0 0 4px rgba(68, 170, 107, 0.1);
+        }
+
+        .login-container button:not(.auth-tab) {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            margin-top: 16px;
+            width: 100%;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(68, 170, 107, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-container button:not(.auth-tab)::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .login-container button:not(.auth-tab):hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .login-container button:not(.auth-tab):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.4);
+        }
+
+        .auth-notice {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.5;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            animation: overlayFadeIn 0.2s ease-out;
+        }
+
+        @keyframes overlayFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .footer-top {
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            background-color: #ffffff;
+            color: #ffffff;
+            padding: 5px;
+            font-size: 12px;
+            gap: 10px;
+        }
+
+        .footer-top button:disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .footer-top button {
+            background-color: #ffffff;
+            color: #7a7878;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 5px 5px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer-top button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer-top button img {
+            height: 16px;
+            width: 16px;
+        }
+
+        .partner-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .partner-logos-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .partner-logos a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        
+        .partner-logos a::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(68, 170, 107, 0.1) 0%, rgba(58, 143, 90, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .partner-logos a:hover {
+            transform: translateY(-4px) scale(1.15);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.25);
+        }
+        
+        .partner-logos a:hover::before {
+            opacity: 1;
+        }
+
+        .partner-logos img {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .partner-logos a:hover img {
+            transform: scale(1.2);
+        }
+
+        .hamburger { display: none; background: transparent; border: 0; padding: 8px; cursor: pointer; }
+        .hamburger .bar { display: block; width: 22px; height: 2px; margin: 4px 0; background: #000; transition: transform 0.3s, opacity 0.3s; }
+        .mobile-drawer { display: none !important; }
+
+        .mas-gallery-container {
+           display: flex;
+           gap: 10px;
+        }
+
+.login {
+    display: flex;
+    align-items: center;
+    gap: 8px;       /* 로그인/로그아웃/임직원 사이 간격 */
+    flex-direction: row;
 }
 
-// 회원가입 함수
-async function register() {
-    const username = document.getElementById('reg-username').value.trim();
-    const password = document.getElementById('reg-password').value;
-    const passwordConfirm = document.getElementById('reg-password-confirm').value;
-    const name = document.getElementById('reg-name').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const phone = document.getElementById('reg-phone').value.trim();
-    const userType = document.getElementById('reg-user-type') ? document.getElementById('reg-user-type').value : 'general';
-
-    // 유효성 검사
-    if (!username || !password || !name || !email) {
-        alert('필수 항목을 모두 입력해주세요.\n(아이디, 비밀번호, 이름, 이메일)');
-        return;
-    }
-
-    if (username.length < 4) {
-        alert('아이디는 4자 이상이어야 합니다.');
-        return;
-    }
-
-    if (password.length < 6) {
-        alert('비밀번호는 6자 이상이어야 합니다.');
-        return;
-    }
-
-    if (password !== passwordConfirm) {
-        alert('비밀번호가 일치하지 않습니다.');
-        return;
-    }
-
-    if (!email.includes('@')) {
-        alert('올바른 이메일 형식을 입력해주세요.');
-        return;
-    }
-
-    if (username === 'admin') {
-        alert('사용할 수 없는 아이디입니다.');
-        return;
-    }
-
-    // Firebase 재초기화 시도
-    if (!auth || !authDb) {
-        initFirebase();
-    }
-    
-    if (!auth || !authDb) {
-        alert('서버 연결에 실패했습니다.\n페이지를 새로고침 후 다시 시도해주세요.');
-        return;
-    }
-
-    try {
-        console.log('회원가입 시도:', username, email);
-
-        // Firebase Auth로 계정 생성 (이메일 중복은 자동으로 체크됨)
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-
-        console.log('Firebase Auth 계정 생성 완료:', user.uid);
-
-        // 계정 생성 후 자동 로그인된 상태에서 아이디 중복 확인
-        const existingUsername = await authDb.collection('users')
-            .where('username', '==', username)
-            .limit(1)
-            .get();
-        
-        if (!existingUsername.empty) {
-            // 중복된 아이디가 있으면 생성한 계정 삭제
-            await user.delete();
-            alert('이미 사용 중인 아이디입니다.');
-            return;
-        }
-
-        // Firestore에 사용자 정보 저장 (비밀번호 제외!)
-        await authDb.collection('users').doc(user.uid).set({
-            uid: user.uid,
-            username: username,
-            name: name,
-            email: email,
-            phone: phone || '',
-            userType: userType,  // 'employee' 또는 'general'
-            status: 'pending',  // 승인 대기
-            createdAt: new Date().toISOString(),
-            isAdmin: false
-        });
-
-        console.log('Firestore 사용자 정보 저장 완료');
-
-        // 회원가입 후 즉시 로그아웃 (승인 전까지 로그인 불가)
-        await auth.signOut();
-
-        alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 로그인이 가능합니다.');
-        hideLogin();
-
-    } catch (error) {
-        console.error('회원가입 오류:', error);
-        
-        if (error.code === 'auth/email-already-in-use') {
-            alert('이미 사용 중인 이메일입니다.');
-        } else if (error.code === 'auth/invalid-email') {
-            alert('올바른 이메일 형식을 입력해주세요.');
-        } else if (error.code === 'auth/weak-password') {
-            alert('비밀번호가 너무 약합니다.\n6자 이상 입력해주세요.');
-        } else if (error.code === 'permission-denied') {
-            alert('권한이 없습니다.\n관리자에게 문의해주세요.');
-        } else {
-            alert('회원가입 중 오류가 발생했습니다.\n' + (error.message || '잠시 후 다시 시도해주세요.'));
-        }
-    }
+.employee-btn {
+    display: flex;  /* 항상 표시 */
+    align-items: center;
 }
 
-// 로그아웃 함수
-async function logout() {
-    try {
-        // 타이머 정리
-        if (autoLogoutTimer) {
-            clearTimeout(autoLogoutTimer);
-            autoLogoutTimer = null;
-        }
-        if (autoLogoutWarningTimer) {
-            clearTimeout(autoLogoutWarningTimer);
-            autoLogoutWarningTimer = null;
-        }
-        
-        // 경고 모달 제거
-        const warningModal = document.getElementById('auto-logout-warning');
-        if (warningModal) {
-            warningModal.remove();
-        }
-        
-        if (auth) {
-            await auth.signOut();
-        }
-    sessionStorage.removeItem("loggedInUser");
-    sessionStorage.removeItem("loggedIn");
-    setLoggedInState(false);
-        
-        // 자동 로그아웃이 아닌 경우에만 알림 표시
-        if (!warningShown || Date.now() - lastActivityTime < AUTO_LOGOUT_TIME) {
-    alert('로그아웃되었습니다.');
-        }
-        
-        // 스태프 페이지에서 로그아웃한 경우 홈으로 리다이렉트
-        const currentPath = window.location.pathname;
-        if (currentPath.includes('staff.html')) {
-            // 홈 페이지로 리다이렉트
-            const homePath = currentPath.includes('/hanaro/staff/') 
-                ? '../../index.html' 
-                : currentPath.includes('/staff/')
-                ? '../../../index.html'
-                : '/index.html';
-            window.location.href = homePath;
-            return;
-        }
-    } catch (error) {
-        console.error('로그아웃 오류:', error);
-        // 오류가 발생해도 로컬 상태는 초기화
-        sessionStorage.removeItem("loggedInUser");
-        sessionStorage.removeItem("loggedIn");
-        setLoggedInState(false);
-        
-        // 스태프 페이지에서 로그아웃한 경우 홈으로 리다이렉트
-        const currentPath = window.location.pathname;
-        if (currentPath.includes('staff.html')) {
-            const homePath = currentPath.includes('/hanaro/staff/') 
-                ? '../../index.html' 
-                : currentPath.includes('/staff/')
-                ? '../../../index.html'
-                : '/index.html';
-            window.location.href = homePath;
-            return;
-        }
-    }
+.employee-btn button {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
-// 브라우저 창이 닫힐 때 자동 로그아웃
-window.addEventListener('beforeunload', function(event) {
-    // 로그인 상태 확인
-    const isLoggedIn = sessionStorage.getItem("loggedIn");
-    if (isLoggedIn === "true") {
-        try {
-            // sessionStorage 즉시 정리
-            sessionStorage.removeItem("loggedInUser");
-            sessionStorage.removeItem("loggedIn");
+.employee-btn button:not(:disabled) {
+    background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
+}
+
+.employee-btn button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(68, 170, 107, 0.4);
+}
+
+.employee-btn button:disabled {
+    background-color: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+}
+
+/* 로그인 아이콘 스타일 */
+.login-icon {
+    height: 20px;
+    width: auto;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.navbar > .logo {
+    margin-right: auto;
+}
+
+    @media (max-width: 1024px) {
+        .navbar {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            height: 59px;
+            padding: 0 8px;
+        }
+
+        .navbar .login a {
+            margin: 0 !important;
+        }
+
+        .navbar .login {
+            grid-column: 3;
+            margin-left: auto;
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .employee-btn {
+            display: flex !important;
+        }
+        
+        .employee-btn button {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .navbar > div:not(.logo):not(.login):not(.mobile-only) {
+            display: none;
+        }
+        .employee-btn { display: block; }
+        .footer-top { display: none; }
+        .login-icon { display: none; }
+        .navbar > .logo { margin-right: 0; }
+
+        .hamburger {
+            grid-column: 1;
+            display: inline-flex;
+            width: 28px; height: 24px;
+            position: relative;
+            justify-self: start;
+            padding: 0; border: 0; background: transparent;
+        }
+
+        .hamburger .bar {
+            position: absolute; left: 0; right: 0;
+            height: 2px; background: #000; margin: 0;
+        }
+        
+        .hamburger .bar:nth-child(1) { top: 2px; }
+        .hamburger .bar:nth-child(2) { top: 11px; }
+        .hamburger .bar:nth-child(3) { bottom: 2px; }
+
+        .navbar .logo {
+            grid-column: 2;
+            justify-self: start;
+            align-self: center;
+            position: static;
+            transform: none;
+            z-index: 1;
+            margin-top: 0;
+            margin-left: 12px;
+        }
+
+        .navbar .logo img {
+            height: 55px;
+        }
+        
+        .navbar .logo span {
+            font-size: 14px !important;
+            font-weight: bold;
+        }
+
+        .navbar > div:not(.logo):not(.login):not(.mobile-only) { display: none; }
+
+        .mobile-drawer {
+            position: fixed;
+            top: 59px;
+            left: 0;
+            width: 80%;
+            max-width: 340px;
+            height: calc(100vh - 59px);
+            background: #fff;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            display: flex !important;
+            flex-direction: column;
+            padding: 16px 20px;
+            gap: 8px;
+            z-index: 1001;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .mobile-drawer a {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            font-weight: bold;
+            color: #000;
+            text-decoration: none;
+        }
+
+        .mobile-drawer.open { transform: translateX(0); }
+
+        .body.menu-open { overflow: hidden; }
+        .overlay.menu-open { display: block !important; }
+
+        .mas-gallery-container {
+            display: flex;
+            flex-direction: column;  /* 세로 배치 */
+            gap: 20px;              /* 위아래 간격 */
+        }
+
+        .mas-gallery-container section {
+            flex: none;
+            width: 100%;
+        }
+
+        .MAS-section h2 { margin-top: -10px; margin-left: -30px; font-size: 1.2rem; }
+        .gallery-section h2 { margin-top: -8px; margin-left: -30px; font-size: 1.2rem; }
+
+      /* 설명 문구 */
+        .MAS-section p { margin-top: 5px; margin-left: -30px; font-size: 0.9rem; }
+        .gallery-section p { margin-top: 5px; margin-left: -30px; font-size: 0.9rem; }
+
+      /* 버튼 */
+        .MAS-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
+        .gallery-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
+        .main-section .cta-button { margin-top: 12px; font-size: 16px; padding: 8px 20px; }
+        .main-section .video-button { margin-top: 12px; margin-left: 10px; font-size: 16px; padding: 8px 20px; }
+
+      /* 모바일에서 애니메이션 및 효과 제거 - 메인2처럼 일반적으로 표시 */
+        .MAS-section {
+            animation: none !important;
+            transition: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 60px 20px !important;
+            height: 60vh !important;
+            min-height: 400px !important;
+            position: relative !important;
+            overflow: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .MAS-section::before {
+            display: none !important;
+        }
+        .MAS-section:hover {
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .MAS-section h2 {
+            animation: none !important;
+        }
+        .gallery-section {
+            animation: none !important;
+            transition: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 60px 20px !important;
+            height: 60vh !important;
+            min-height: 400px !important;
+            position: relative !important;
+            overflow: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .gallery-section::before {
+            display: none !important;
+        }
+        .gallery-section:hover {
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .gallery-section h2 {
+            animation: none !important;
+        }
+        
+        /* MAS와 갤러리 섹션의 배경 이미지 크기 조정 */
+        .MAS-section[style*="background-image"],
+        .gallery-section[style*="background-image"] {
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+        }
+
+        footer { 
+            padding: 14px 12px 18px;    /* 안쪽 여백 축소 */
+        }
+        footer::before{
+            width: 90%;                 /* 구분선 길이 살짝 늘림 */
+            margin-bottom: 10px;
+        }
+            footer p, footer .footer-info{
+                font-size: 10px;            /* 글자 크기 */
+                line-height: 1.35;          /* 줄간격 */
+                letter-spacing: 0;          /* 자간 */
+                text-align: left;           /* 정렬 */
+                margin: 4px 0;
+            }
             
-            // Firebase 로그아웃은 비동기이므로 beforeunload에서는 처리하기 어려움
-            // 하지만 sessionStorage가 정리되면 다음 접속 시 로그인 상태가 유지되지 않음
-            // Firebase Auth의 세션은 서버 측에서 관리되므로 브라우저를 닫으면 자동으로 만료됨
-        } catch (error) {
-            console.error('자동 로그아웃 오류:', error);
-        }
-    }
-});
-
-// 페이지 언로드 시 (탭 닫기, 새로고침 등) - 추가 보안
-window.addEventListener('unload', function(event) {
-    // 로그인 상태 확인
-    const isLoggedIn = sessionStorage.getItem("loggedIn");
-    if (isLoggedIn === "true") {
-        // sessionStorage 정리
-        sessionStorage.removeItem("loggedInUser");
-        sessionStorage.removeItem("loggedIn");
-    }
-});
-
-// 페이지 가시성 변경 시 (탭 전환 등)
-document.addEventListener('visibilitychange', function() {
-    // 페이지가 숨겨질 때는 처리하지 않음 (탭 전환은 정상 동작)
-    // beforeunload와 unload 이벤트로 충분함
-});
-
-// 현재 로그인된 사용자 정보 가져오기
-function getCurrentUser() {
-    const userStr = sessionStorage.getItem("loggedInUser");
-    if (userStr) {
-        return JSON.parse(userStr);
-    }
-    return null;
-}
-
-// 관리자 여부 확인
-function isAdmin() {
-    const user = getCurrentUser();
-    return user && user.isAdmin === true;
-}
-
-// 오버레이 클릭 시 로그인 창 닫기
-document.addEventListener('DOMContentLoaded', function() {
-    const overlay = document.getElementById('overlay');
-    if (overlay) {
-        overlay.addEventListener('click', function(e) {
-            const loginContainer = document.getElementById('login-container');
-            const drawer = document.getElementById('mobile-nav');
-            if (loginContainer && loginContainer.style.display === 'block' && 
-                (!drawer || !drawer.classList.contains('open'))) {
-                hideLogin();
+            .partner-logos {
+                gap: 16px;
+                padding: 25px 15px;
             }
+            
+            .partner-logos a {
+                width: 35px;
+                height: 35px;
+                min-width: 35px;
+                padding: 6px;
+            }
+            
+            .partner-logos img {
+                max-width: 100%;
+                max-height: 100%;
+            }
+        }
+    </style>
+</head>
+
+    <body>
+    <div class="overlay" id="overlay"></div>
+
+    <div class="login-container" id="login-container">
+        <!-- 탭 버튼 -->
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="showAuthTab('login')">로그인</button>
+            <button class="auth-tab" onclick="showAuthTab('register')">회원가입</button>
+        </div>
+        
+        <!-- 로그인 폼 -->
+        <div id="login-form" class="auth-form">
+            <input type="text" id="username" placeholder="아이디">
+            <input type="password" id="password" placeholder="비밀번호">
+            <button onclick="login()">로그인</button>
+        </div>
+        
+        <!-- 회원가입 폼 -->
+        <div id="register-form" class="auth-form" style="display: none;">
+            <input type="text" id="reg-username" placeholder="아이디 (4자 이상)">
+            <input type="password" id="reg-password" placeholder="비밀번호 (6자 이상)">
+            <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인">
+            <input type="text" id="reg-name" placeholder="이름">
+            <input type="email" id="reg-email" placeholder="이메일">
+            <input type="tel" id="reg-phone" placeholder="연락처">
+            <select id="reg-user-type" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                <option value="general">일반회원</option>
+                <option value="employee">임직원</option>
+            </select>
+            <button onclick="register()">회원가입 신청</button>
+            <p class="auth-notice">* 회원가입 후 관리자 승인이 필요합니다.</p>
+        </div>
+    </div>
+
+    <header class="navbar">
+      <button class="hamburger" id="hamburger" aria-label="메뉴 열기" aria-controls="mobile-nav" aria-expanded="false">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+      </button>
+
+      <div class="logo">
+              <img src="./hanaro/image/logo-nav.png" alt="로고" style="height: 40px;">
+      </div>
+
+      <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
+          <a href="./index.html">홈</a>
+          <a href="./hanaro/company/company.html">회사소개</a>
+          <a href="./hanaro/product/product.html">제품소개</a>
+          <a href="./hanaro/school/school.html">납품학교 리스트</a>
+          <a href="./hanaro/Gallery/Gallery.html">갤러리</a>
+          <a href="./hanaro/AS/AS.html">A/S신청</a>
+          <a href="#">고객지원</a>
+      </nav>
+
+        <div>
+            <a href="./index.html">홈</a>
+        </div>
+
+        <div>
+            <a href="./hanaro/company/company.html">회사소개</a>
+        </div>
+
+        <div>
+            <a href="./hanaro/product/product.html">제품소개</a>
+        </div>
+        
+        <div>
+            <a href="./hanaro/school/school.html">납품학교 리스트</a>
+        </div>
+
+        <div>
+            <a href="./hanaro/Gallery/Gallery.html">갤러리</a>
+        </div>
+
+        <div>
+            <a href="./hanaro/AS/AS.html">A/S신청</a>
+        </div>
+
+        <div>
+            <a href="#">고객지원</a>
+        </div>
+        
+<div class="login">
+    <a href="#" onclick="showLogin()" id="login-link" class="login-item">
+        <img src="./hanaro/image/login.png" alt="로그인" class="login-icon"> 로그인
+    </a>
+    <a href="#" onclick="logout()" id="logout-link" class="login-item" style="display:none;">
+        <img src="./hanaro/image/logout.png" alt="로그아웃" class="login-icon"> 로그아웃
+    </a>
+  <a href="./hanaro/staff/staff.html" class="employee-btn">
+    <button class="employee-button" disabled>임직원</button>
+  </a>
+</div>
+    </header>
+
+    <section class="main2-section">
+        <video autoplay muted loop playsinline preload="auto" id="main-video" crossorigin="anonymous">
+            <source src="./image/main ch.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div class="video-fade-overlay" id="video-fade-overlay"></div>
+        <div class="main2-content">
+            <h1 class="main2-title">HANARO OA FURNITURE</h1>
+            <p class="main2-subtitle">a better future for children</p>
+        </div>
+        <div class="main2-buttons">
+            <a href="./hanaro/product/product.html?category=일반제품" class="product-button">일반제품</a>
+            <a href="./hanaro/product/product.html?category=우수제품" class="product-button">우수제품</a>
+            <a href="./hanaro/product/product.html?category=사물함" class="product-button">사물함</a>
+            <a href="./hanaro/product/product.html?category=Accessory" class="product-button">Accessory</a>
+        </div>
+    </section>
+
+    <div style="height: 10px;"></div>
+
+    <section class="main-section" style="background-image: url('./hanaro/image/ccc.png'); background-size: cover; background-position: center;">
+        <div class="main-content" style="position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); text-align: center;">
+            <div style="height: 200px;"></div>
+            <a href="./hanaro/product/product.html?category=우수제품" class="cta-button">제품보기</a>
+            <a href="https://youtu.be/BCFoUwoQyVo?si=FD8xSulI00cRH1LS" target="_blank" class="video-button">영상보기</a>
+        </div>
+    </section>
+
+    <div style="height: 10px;"></div>
+
+    <div class="mas-gallery-container">
+        <section class="MAS-section" style="background-image: url('./image/mas.png'); background-size: cover; background-position: center; flex: 1; padding: 60px 20px;">
+            <div style="height: 350px;"></div>
+            <h2>일반제품(MAS)</h2>
+            <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
+                더 우수한 품질과 내구성
+            </p>
+            <a href="./hanaro/product/product.html?category=일반제품#" class="cta-button">제품보기</a>
+        </section>
+
+        <section class="gallery-section" style="background-image: url('./image/aaa.png'); background-size: cover; background-position: center; flex: 1; padding: 60px 20px;">
+            <div style="height: 350px;"></div>
+            <h2>갤러리</h2>
+            <p style="font-weight: bold; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);">
+                전국 학교의 급식실 전경을 살펴보세요
+            </p>
+            <a href="./hanaro/Gallery/Gallery.html" class="cta-button">갤러리 보기</a>
+        </section>
+    </div>
+
+    <div class="partner-logos">
+        <a href="https://www.g2b.go.kr/" target="_blank">
+            <img src="./image/logo1.png" alt="파트너 1">
+        </a>
+        <a href="https://shop.g2b.go.kr/" target="_blank">
+            <img src="./image/logo2.png" alt="파트너 2">
+        </a>
+        <a href="https://hometax.go.kr/" target="_blank">
+            <img src="./image/logo3.png" alt="파트너 3">
+        </a>
+        <a href="https://www.smpp.go.kr" target="_blank">
+            <img src="./image/logo4.png" alt="파트너 4">
+        </a>
+        <a href="https://ecosq.or.kr/" target="_blank">
+            <img src="./image/logo5.png" alt="파트너 5">
+        </a>
+        <a href="https://www.sgic.co.kr/" target="_blank">
+            <img src="./image/logo6.png" alt="파트너 6">
+        </a>
+        <a href="https://si4n.nhis.or.kr/" target="_blank">
+            <img src="./image/logo7.png" alt="파트너 7">
+        </a>
+        <a href="https://www.4insure.or.kr/" target="_blank">
+            <img src="./image/logo8.png" alt="파트너 8">
+        </a>
+    </div>
+
+    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
+      <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
+      <p style="text-indent: 20px;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
+    </div>
+
+    <footer>
+        <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
+        <p class="footer-info">주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
+    </footer>
+
+    <!-- 공통 인증 스크립트 -->
+    <script src="./hanaro/js/auth.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const categoryParam = urlParams.get("category");
+
+            if (categoryParam) {
+                const categories = document.querySelectorAll('.product-category');
+                const navLinks = document.querySelectorAll('.secondary-navbar a');
+
+                categories.forEach(cat => {
+                    cat.style.display = cat.dataset.category === categoryParam ? 'grid' : 'none';
+                });
+
+                navLinks.forEach(link => {
+                    if (link.textContent.trim() === categoryParam) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
+        });
+    </script>
+
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const burger = document.getElementById('hamburger');
+  const drawer = document.getElementById('mobile-nav');
+  const overlay = document.getElementById('overlay');
+  if (!burger || !drawer || !overlay) return;
+
+  let prevFocus = null;
+  function setState(open) {
+    burger.setAttribute('aria-expanded', String(open));
+    burger.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
+    drawer.classList.toggle('open', open);
+    document.body.classList.toggle('menu-open', open);
+    overlay.classList.toggle('menu-open', open);
+  }
+  function openMenu() {
+    // 로그인 창이 열려 있으면 닫기
+    const login = document.getElementById('login-container');
+    if (login && login.style.display === 'block' && typeof hideLogin === 'function') hideLogin();
+    prevFocus = document.activeElement;
+    setState(true);
+    const first = drawer.querySelector('a');
+    if (first) first.focus();
+  }
+  function closeMenu() {
+    setState(false);
+    if (prevFocus && prevFocus.focus) prevFocus.focus();
+    prevFocus = null;
+  }
+  function toggleMenu() {
+    const isOpen = drawer.classList.contains('open');
+    isOpen ? closeMenu() : openMenu();
+  }
+
+  burger.addEventListener('click', toggleMenu);
+  overlay.addEventListener('click', () => { if (drawer.classList.contains('open')) closeMenu(); });
+  drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer.classList.contains('open')) closeMenu(); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 1024 && drawer.classList.contains('open')) closeMenu(); });
+});
+
+// 비디오 로드 및 재생 보장
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('main-video');
+    if (video) {
+        // 비디오 로드 시도
+        video.load();
+        
+        // 재생 시도
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.log('비디오 자동 재생 실패:', error);
+                // 자동 재생이 실패해도 비디오는 표시됨
+            });
+        }
+        
+        // 자연스러운 루프를 위한 처리 (검은색 페이드 아웃)
+        let isRestarting = false;
+        const fadeOverlay = document.getElementById('video-fade-overlay');
+        video.addEventListener('timeupdate', function() {
+            // 비디오가 거의 끝나갈 때 (마지막 1초 전) 부드럽게 다시 시작
+            if (!isRestarting && video.duration && video.currentTime >= video.duration - 1.0) {
+                isRestarting = true;
+                // 검은색 페이드 아웃 효과
+                if (fadeOverlay) {
+                    fadeOverlay.classList.add('active');
+                }
+                
+                setTimeout(() => {
+                    video.currentTime = 0;
+                    // 페이드인 없이 바로 검은색 오버레이 제거
+                    if (fadeOverlay) {
+                        fadeOverlay.classList.remove('active');
+                    }
+                    isRestarting = false;
+                }, 1000);
+            }
+        });
+        
+        // 비디오가 실제로 끝났을 때도 처리 (백업)
+        video.addEventListener('ended', function() {
+            if (!isRestarting) {
+                video.currentTime = 0;
+                video.play();
+            }
+        });
+        
+        // 에러 처리
+        video.addEventListener('error', function(e) {
+            console.error('비디오 로드 오류:', e);
+            // 비디오 로드 실패 시 배경 이미지로 대체
+            const section = video.closest('.main2-section');
+            if (section) {
+                section.style.backgroundImage = 'url("./image/bbb.png")';
+                section.style.backgroundSize = 'cover';
+                section.style.backgroundPosition = 'center';
+                video.style.display = 'none';
+            }
+        });
+        
+        // 비디오가 로드되었는지 확인
+        video.addEventListener('loadeddata', function() {
+            console.log('비디오 로드 완료');
         });
     }
 });
+</script>
+
+</body>
+</html>
+
