@@ -1050,6 +1050,9 @@
             min-height: 400px !important;
             position: relative !important;
             overflow: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
         }
         .MAS-section::before {
             display: none !important;
@@ -1072,6 +1075,9 @@
             min-height: 400px !important;
             position: relative !important;
             overflow: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
         }
         .gallery-section::before {
             display: none !important;
@@ -1082,6 +1088,14 @@
         }
         .gallery-section h2 {
             animation: none !important;
+        }
+        
+        /* MAS와 갤러리 섹션의 배경 이미지 크기 조정 */
+        .MAS-section[style*="background-image"],
+        .gallery-section[style*="background-image"] {
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
         }
 
         footer { 
