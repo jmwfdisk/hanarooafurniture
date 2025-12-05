@@ -1317,36 +1317,73 @@
     </footer>
 
     <!-- 공통 인증 스크립트 -->
-    <script src="./hanaro/js/auth.js"></script>
-
     <script>
+        // auth.js 로드 확인 및 오류 처리
+        const authScript = document.createElement('script');
+        authScript.src = './hanaro/js/auth.js';
+        authScript.onerror = function() {
+            console.error('auth.js 파일을 로드할 수 없습니다. 파일 경로를 확인하세요.');
+            alert('인증 스크립트를 로드할 수 없습니다. 페이지를 새로고침해주세요.');
+        };
+        authScript.onload = function() {
+            console.log('auth.js 로드 완료');
+            // 로드 완료 후 이벤트 리스너 설정
+            setupAuthButtons();
+        };
+        document.head.appendChild(authScript);
+        
         // 로그인/로그아웃 버튼 이벤트 리스너 설정
-        document.addEventListener("DOMContentLoaded", function () {
+        function setupAuthButtons() {
             const loginLink = document.getElementById('login-link');
             const logoutLink = document.getElementById('logout-link');
             
             if (loginLink) {
-                loginLink.addEventListener('click', function(e) {
+                // 기존 이벤트 리스너 제거 (중복 방지)
+                const newLoginLink = loginLink.cloneNode(true);
+                loginLink.parentNode.replaceChild(newLoginLink, loginLink);
+                
+                newLoginLink.addEventListener('click', function(e) {
                     e.preventDefault();
                     if (typeof showLogin === 'function') {
                         showLogin();
                     } else {
-                        console.error('showLogin 함수가 정의되지 않았습니다.');
+                        console.error('showLogin 함수가 정의되지 않았습니다. auth.js가 제대로 로드되었는지 확인하세요.');
+                        alert('로그인 기능을 사용할 수 없습니다. 페이지를 새로고침해주세요.');
                     }
                 });
             }
             
             if (logoutLink) {
-                logoutLink.addEventListener('click', function(e) {
+                // 기존 이벤트 리스너 제거 (중복 방지)
+                const newLogoutLink = logoutLink.cloneNode(true);
+                logoutLink.parentNode.replaceChild(newLogoutLink, logoutLink);
+                
+                newLogoutLink.addEventListener('click', function(e) {
                     e.preventDefault();
                     if (typeof logout === 'function') {
                         logout();
                     } else {
-                        console.error('logout 함수가 정의되지 않았습니다.');
+                        console.error('logout 함수가 정의되지 않았습니다. auth.js가 제대로 로드되었는지 확인하세요.');
                     }
                 });
             }
+        }
+        
+        // DOMContentLoaded에서도 설정 (auth.js가 이미 로드된 경우 대비)
+        document.addEventListener('DOMContentLoaded', function() {
+            // auth.js가 이미 로드되었는지 확인
+            if (typeof showLogin === 'function' && typeof logout === 'function') {
+                setupAuthButtons();
+            } else {
+                // 아직 로드되지 않았으면 잠시 후 재시도
+                setTimeout(function() {
+                    if (typeof showLogin === 'function' && typeof logout === 'function') {
+                        setupAuthButtons();
+                    }
+                }, 500);
+            }
         });
+    </script>
 
         document.addEventListener("DOMContentLoaded", function () {
             const urlParams = new URLSearchParams(window.location.search);
