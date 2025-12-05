@@ -532,9 +532,55 @@ async function login() {
         console.error('오류 메시지:', error.message);
         
         if (error.code === 'auth/user-not-found') {
-            alert('존재하지 않는 계정입니다.');
+            alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
         } else if (error.code === 'auth/wrong-password') {
             alert('비밀번호가 일치하지 않습니다.');
+        } else if (error.code === 'auth/invalid-credential') {
+            // auth/invalid-credential 오류 처리 - 회원가입 여부 확인
+            try {
+                // 이메일로 사용자 찾기 시도
+                let email = emailOrUsername;
+                if (!emailOrUsername.includes('@')) {
+                    // username으로 이메일 찾기
+                    try {
+                        const usersSnapshot = await authDb.collection('users')
+                            .where('username', '==', emailOrUsername)
+                            .limit(1)
+                            .get();
+                        
+                        if (usersSnapshot.empty) {
+                            alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
+                            return;
+                        }
+                        email = usersSnapshot.docs[0].data().email;
+                    } catch (queryError) {
+                        // Firestore 조회 실패 시 회원가입 필요 메시지
+                        alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
+                        return;
+                    }
+                }
+                
+                // 이메일로 Firebase Auth에서 사용자 존재 여부 확인
+                // Firebase Auth는 직접 조회할 수 없으므로, Firestore에서 확인
+                try {
+                    const usersSnapshot = await authDb.collection('users')
+                        .where('email', '==', email)
+                        .limit(1)
+                        .get();
+                    
+                    if (usersSnapshot.empty) {
+                        alert('존재하지 않는 계정입니다.\n회원가입이 필요합니다.');
+                    } else {
+                        alert('비밀번호가 일치하지 않습니다.\n비밀번호를 확인해주세요.');
+                    }
+                } catch (queryError) {
+                    // Firestore 조회 실패 시 일반적인 오류 메시지
+                    alert('로그인 정보가 올바르지 않습니다.\n회원가입이 필요할 수 있습니다.');
+                }
+            } catch (checkError) {
+                // 확인 과정에서 오류 발생 시 기본 메시지
+                alert('존재하지 않는 계정이거나 로그인 정보가 올바르지 않습니다.\n회원가입이 필요할 수 있습니다.');
+            }
         } else if (error.code === 'auth/invalid-email') {
             alert('올바른 이메일 형식을 입력해주세요.');
         } else if (error.code === 'auth/too-many-requests') {
