@@ -1217,10 +1217,10 @@
         </div>
         
 <div class="login">
-    <a href="#" onclick="showLogin()" id="login-link" class="login-item">
+    <a href="#" id="login-link" class="login-item">
         <img src="./hanaro/image/login.png" alt="로그인" class="login-icon"> 로그인
     </a>
-    <a href="#" onclick="logout()" id="logout-link" class="login-item" style="display:none;">
+    <a href="#" id="logout-link" class="login-item" style="display:none;">
         <img src="./hanaro/image/logout.png" alt="로그아웃" class="login-icon"> 로그아웃
     </a>
   <a href="./hanaro/staff/staff.html" class="employee-btn">
@@ -1320,6 +1320,34 @@
     <script src="./hanaro/js/auth.js"></script>
 
     <script>
+        // 로그인/로그아웃 버튼 이벤트 리스너 설정
+        document.addEventListener("DOMContentLoaded", function () {
+            const loginLink = document.getElementById('login-link');
+            const logoutLink = document.getElementById('logout-link');
+            
+            if (loginLink) {
+                loginLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof showLogin === 'function') {
+                        showLogin();
+                    } else {
+                        console.error('showLogin 함수가 정의되지 않았습니다.');
+                    }
+                });
+            }
+            
+            if (logoutLink) {
+                logoutLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof logout === 'function') {
+                        logout();
+                    } else {
+                        console.error('logout 함수가 정의되지 않았습니다.');
+                    }
+                });
+            }
+        });
+
         document.addEventListener("DOMContentLoaded", function () {
             const urlParams = new URLSearchParams(window.location.search);
             const categoryParam = urlParams.get("category");
