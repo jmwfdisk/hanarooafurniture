@@ -294,8 +294,9 @@
             }
 
             .product-button {
-                width: auto;
+                width: 50%;
                 min-width: 140px;
+                max-width: 200px;
             }
 
             .main2-content {
@@ -1027,6 +1028,44 @@
       /* 버튼 */
         .MAS-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
         .gallery-section .cta-button { margin-top: 12px; margin-left: -30px; font-size: 16px; padding: 8px 20px; }
+
+      /* 모바일에서 애니메이션 및 효과 제거 - 메인2처럼 일반적으로 표시 */
+        .MAS-section {
+            animation: none !important;
+            transition: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 60px 20px !important;
+        }
+        .MAS-section::before {
+            display: none !important;
+        }
+        .MAS-section:hover {
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .MAS-section h2 {
+            animation: none !important;
+        }
+        .gallery-section {
+            animation: none !important;
+            transition: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 60px 20px !important;
+        }
+        .gallery-section::before {
+            display: none !important;
+        }
+        .gallery-section:hover {
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .gallery-section h2 {
+            animation: none !important;
+        }
 
         footer { 
             padding: 14px 12px 18px;    /* 안쪽 여백 축소 */
