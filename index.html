@@ -285,16 +285,16 @@
 
 
             .main2-buttons {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                grid-template-rows: repeat(2, 1fr);
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
                 gap: 10px;
                 bottom: 80px !important;
                 left: 50%;
                 transform: translateX(-50%);
                 max-width: 100%;
                 padding: 0 10px;
-                justify-items: center;
             }
 
             .product-button {
