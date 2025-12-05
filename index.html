@@ -285,18 +285,23 @@
 
 
             .main2-buttons {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                grid-template-rows: repeat(2, 1fr);
-                gap: 10px;
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 5px;
                 bottom: 20px;
-                max-width: 600px;
+                max-width: 100%;
+                padding: 0 10px;
             }
 
             .product-button {
-                width: 50%;
-                min-width: 140px;
-                max-width: 200px;
+                width: auto;
+                min-width: 80px;
+                max-width: 120px;
+                padding: 10px 16px;
+                font-size: 14px;
+                margin: 0;
             }
 
             .main2-content {
