@@ -771,6 +771,42 @@ async function logout() {
     }
 }
 
+// 브라우저 창이 닫힐 때 자동 로그아웃
+window.addEventListener('beforeunload', function(event) {
+    // 로그인 상태 확인
+    const isLoggedIn = sessionStorage.getItem("loggedIn");
+    if (isLoggedIn === "true") {
+        try {
+            // sessionStorage 즉시 정리
+            sessionStorage.removeItem("loggedInUser");
+            sessionStorage.removeItem("loggedIn");
+            
+            // Firebase 로그아웃은 비동기이므로 beforeunload에서는 처리하기 어려움
+            // 하지만 sessionStorage가 정리되면 다음 접속 시 로그인 상태가 유지되지 않음
+            // Firebase Auth의 세션은 서버 측에서 관리되므로 브라우저를 닫으면 자동으로 만료됨
+        } catch (error) {
+            console.error('자동 로그아웃 오류:', error);
+        }
+    }
+});
+
+// 페이지 언로드 시 (탭 닫기, 새로고침 등) - 추가 보안
+window.addEventListener('unload', function(event) {
+    // 로그인 상태 확인
+    const isLoggedIn = sessionStorage.getItem("loggedIn");
+    if (isLoggedIn === "true") {
+        // sessionStorage 정리
+        sessionStorage.removeItem("loggedInUser");
+        sessionStorage.removeItem("loggedIn");
+    }
+});
+
+// 페이지 가시성 변경 시 (탭 전환 등)
+document.addEventListener('visibilitychange', function() {
+    // 페이지가 숨겨질 때는 처리하지 않음 (탭 전환은 정상 동작)
+    // beforeunload와 unload 이벤트로 충분함
+});
+
 // 현재 로그인된 사용자 정보 가져오기
 function getCurrentUser() {
     const userStr = sessionStorage.getItem("loggedInUser");
