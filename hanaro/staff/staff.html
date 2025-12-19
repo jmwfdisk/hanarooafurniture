@@ -61,7 +61,8 @@
         }
         
         .navbar .logo img {
-            height: 75px;
+            height: 50px;
+            overflow: visible;
         }
         
         .navbar .logo a {
@@ -1267,7 +1268,8 @@
         }
 
         .navbar .logo img {
-            height: 55px;
+            height: 50px;
+            overflow: visible;
         }
 
         .navbar .logo span {
@@ -1513,14 +1515,14 @@
         </button>
 
         <div class="logo">
-            <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
+            <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
         </div>
 
         <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
             <a href="../../index.html">홈</a>
             <a href="../company/company.html">회사소개</a>
             <a href="../product/product.html">제품소개</a>
-            <a href="../school/school.html">납품학교 리스트</a>
+            <a href="../../index.html#/school">납품학교 리스트</a>
             <a href="../Gallery/Gallery.html">갤러리</a>
             <a href="../AS/AS.html">A/S신청</a>
         </nav>
@@ -1538,7 +1540,7 @@
         </div>
 
         <div>
-            <a href="../school/school.html">납품학교 리스트</a>
+            <a href="../../index.html#/school">납품학교 리스트</a>
         </div>
 
         <div>
@@ -1583,17 +1585,45 @@
         // Firebase Firestore 참조 (auth.js에서 초기화된 것 사용)
         let db = null;
         
-        // auth.js 로드 후 db 설정
+        // auth.js 로드 후 db 설정 (안전하게)
         function initStaffDB() {
+            // auth.js의 전역 변수 사용
             if (typeof authDb !== 'undefined' && authDb) {
                 db = authDb;
-            } else if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-                db = firebase.firestore();
+                console.log('[Staff DB] authDb에서 가져옴');
+                return true;
+            }
+            
+            // firebase.apps에서 직접 가져오기 (싱글톤 보장)
+            if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+                const app = firebase.app();
+                db = app.firestore();
+                console.log('[Staff DB] firebase.app()에서 가져옴 - App:', app.name);
+                return true;
+            }
+            
+            console.warn('[Staff DB] Firebase 초기화되지 않음');
+            return false;
+        }
+        
+        // 즉시 시도 (auth.js가 로드될 때까지 대기)
+        let dbInitAttempts = 0;
+        function tryInitStaffDB() {
+            dbInitAttempts++;
+            if (initStaffDB()) {
+                console.log(`[Staff DB] 초기화 성공 (시도 #${dbInitAttempts})`);
+            } else {
+                // 최대 20번까지 재시도 (2초)
+                if (dbInitAttempts < 20) {
+                    setTimeout(tryInitStaffDB, 100);
+                } else {
+                    console.error('[Staff DB] 초기화 실패 - 최대 시도 횟수 초과');
+                }
             }
         }
         
         // 즉시 시도
-        initStaffDB();
+        tryInitStaffDB();
 
         let currentBoard = 'notice';
         let currentPage = {};
@@ -1611,28 +1641,15 @@
             currentPage[board] = 1;
         });
 
-        document.addEventListener("DOMContentLoaded", function() {
-            // 스태프 페이지 접속 권한 확인 (임직원만 접속 가능)
-            const loggedInUser = sessionStorage.getItem('loggedInUser');
-            if (!loggedInUser) {
-                alert('로그인이 필요합니다.');
-                window.location.href = '../../index.html';
-                return;
-            }
+        // 스태프 페이지 접속 권한 확인 함수
+        // user가 확정된 이후에만 호출됨 (onAuthStateChanged에서)
+        // 이 함수는 Firestore 리스너를 시작하는 유일한 진입점
+        function checkStaffAccess() {
+            console.log('[Staff 페이지] checkStaffAccess() 호출 - Firestore 리스너 시작');
             
-            try {
-                const userData = JSON.parse(loggedInUser);
-                const isEmployee = userData.userType === 'employee' || userData.isAdmin;
-                
-                if (!isEmployee) {
-                    alert('임직원만 접속할 수 있습니다.');
-                    window.location.href = '../../index.html';
-                    return;
-                }
-            } catch (e) {
-                console.error('사용자 정보 파싱 오류:', e);
-                alert('사용자 정보를 확인할 수 없습니다.');
-                window.location.href = '../../index.html';
+            // 접근 권한이 없으면 실행하지 않음
+            if (!staffAccessGranted) {
+                console.warn('[Staff 페이지] checkStaffAccess() - 접근 권한 없음, 실행 안 함');
                 return;
             }
             
@@ -1641,20 +1658,108 @@
                 initStaffDB();
             }
             
+            // user가 확정된 이후에만 Firestore 리스너 시작
             // 게시글 로드
             loadAllPosts();
             switchBoard('notice');
             
             // 작성 버튼 표시 여부 초기화
             updateWriteButtonVisibility();
+        }
+        
+        // Firestore 리스너 시작 함수 (user 확정 후에만 호출)
+        // 모든 Firestore Listen은 이 함수 내부에서만 시작
+        function startStaffListeners(user) {
+            console.log('[Staff 페이지] startStaffListeners() 호출 - user:', user ? user.uid : 'null');
+            
+            if (!user) {
+                console.error('[Staff 페이지] startStaffListeners() - user가 null이므로 리스너 시작 불가');
+                return;
+            }
+            
+            if (!db) {
+                console.error('[Staff 페이지] startStaffListeners() - db가 초기화되지 않음');
+                return;
+            }
+            
+            // 여기서부터 Firestore 리스너 시작
+            // loadAllPosts는 이미 checkStaffAccess()에서 호출되므로
+            // 추가 리스너가 필요하면 여기에 추가
+            console.log('[Staff 페이지] Firestore 리스너 시작 완료');
+        }
+
+        // 접근 제어 플래그 (onAuthStateChanged에서만 설정)
+        let staffAccessGranted = false;
+        
+        // staff 페이지 접근 제어 함수 (onAuthStateChanged에서만 호출)
+        // 전역 함수로 등록하여 auth.js에서 호출 가능하도록 함
+        // user가 확정된 이후에만 호출됨
+        window.checkStaffAccess = function(user, userData) {
+            console.log('[STAFF AUTH] user:', user ? user.uid : 'null', '| userData:', userData ? '있음' : '없음');
+            
+            // 이미 접근이 허용되었으면 중복 실행 방지
+            if (staffAccessGranted) {
+                console.log('[Staff 페이지] 이미 접근 허용됨, 중복 실행 방지');
+                return;
+            }
+            
+            // user가 없으면 접근 차단 (하지만 signOut은 호출하지 않음)
+            if (!user) {
+                console.log('[Staff 페이지] user가 null, 접근 차단 (signOut 호출 안 함)');
+                // UI로만 접근 차단 처리 - 로그인 모달 표시 또는 리다이렉트
+                alert('로그인이 필요합니다.\n로그인 후 다시 시도해주세요.');
+                window.location.href = '../../index.html';
+                return;
+            }
+            
+            // userData가 없으면 접근 차단
+            if (!userData) {
+                console.log('[Staff 페이지] userData 없음, 접근 차단');
+                alert('사용자 정보를 불러올 수 없습니다.\n페이지를 새로고침해주세요.');
+                window.location.href = '../../index.html';
+                return;
+            }
+            
+            // 임직원 여부 확인 (userData는 이미 Firestore에서 조회된 데이터)
+            const isEmployee = userData.userType === 'employee' || userData.isAdmin === true;
+            
+            if (!isEmployee) {
+                console.log('[Staff 페이지] 임직원이 아님, 접근 차단');
+                alert('임직원만 접속할 수 있습니다.');
+                window.location.href = '../../index.html';
+                return;
+            }
+            
+            // 권한 확인 완료 - 여기서부터 Firestore 리스너 시작
+            console.log('[Staff 페이지] 권한 확인 완료, Firestore 리스너 시작');
+            staffAccessGranted = true;
+            
+            // Firestore 리스너 시작 (user 확정 후)
+            checkStaffAccess(); // loadAllPosts 등 Firestore 접근 시작
+            startStaffListeners(user); // 추가 리스너가 필요하면 여기서 시작
+        };
+
+        // DOMContentLoaded에서는 접근 제어를 수행하지 않음
+        // onAuthStateChanged에서만 접근 제어 수행
+        document.addEventListener("DOMContentLoaded", function() {
+            console.log('[Staff 페이지] DOMContentLoaded - onAuthStateChanged 대기 중');
+            // 접근 제어는 onAuthStateChanged에서만 수행
         });
 
-        // Firebase Firestore에서 게시글 로드
+        // Firebase Firestore에서 게시글 로드 (user 확정 후에만 호출)
         async function loadAllPosts() {
+            // user가 확정되지 않았으면 실행하지 않음
+            if (!staffAccessGranted) {
+                console.warn('[Staff 페이지] loadAllPosts() - 접근 권한 없음, 실행 안 함');
+                loadFromLocalStorage(); // localStorage만 사용
+                return;
+            }
+            
             if (db) {
                 // Firebase Firestore 사용
                 try {
                     for (const board of Object.keys(allPosts)) {
+                        // 문서 단건 getDoc만 사용 (users 컬렉션 list/query 금지)
                         const snapshot = await db.collection('staffPosts').doc(board).get();
                         if (snapshot.exists) {
                             allPosts[board] = snapshot.data().posts || [];
@@ -1669,7 +1774,11 @@
                         }
                     }
                 } catch (error) {
-                    console.error('Firebase 로드 실패:', error);
+                    console.error('[Staff 페이지] Firebase 로드 실패:', error);
+                    // permission-denied 시 signOut 호출하지 않음
+                    if (error.code === 'permission-denied') {
+                        alert('게시글을 불러올 권한이 없습니다.');
+                    }
                     // 실패 시 localStorage 사용
                     loadFromLocalStorage();
                 }
@@ -1722,7 +1831,14 @@
             const photoSection = document.getElementById('photo-gallery-section');
             
             if (boardType === 'member-management') {
-                // 관리자 권한 확인
+                // 접근 권한 확인 (staffAccessGranted 사용)
+                if (!staffAccessGranted) {
+                    alert('로그인이 필요합니다.');
+                    switchBoard('notice');
+                    return;
+                }
+                
+                // 관리자 권한 확인 (sessionStorage는 UI용으로만 사용)
                 const loggedInUser = sessionStorage.getItem('loggedInUser');
                 if (!loggedInUser) {
                     alert('로그인이 필요합니다.');
@@ -1739,12 +1855,12 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'block';
                 if (photoSection) photoSection.style.display = 'none';
+                // user 확정 후에만 Firestore 접근
                 loadMembers();
                 return;
             } else if (boardType === 'photo-gallery') {
-                // 로그인 확인
-                const loggedInUser = sessionStorage.getItem('loggedInUser');
-                if (!loggedInUser) {
+                // 접근 권한 확인 (staffAccessGranted 사용)
+                if (!staffAccessGranted) {
                     alert('로그인이 필요합니다.');
                     switchBoard('notice');
                     return;
@@ -1753,6 +1869,7 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'none';
                 if (photoSection) photoSection.style.display = 'block';
+                // user 확정 후에만 Firestore 접근
                 loadPhotos();
                 return;
             } else {
@@ -2753,8 +2870,14 @@
             storage = firebase.storage();
         }
 
-        // 사진 목록 로드
+        // 사진 목록 로드 (user 확정 후에만 호출)
         async function loadPhotos() {
+            // user가 확정되지 않았으면 실행하지 않음
+            if (!staffAccessGranted) {
+                console.warn('[Staff 페이지] loadPhotos() - 접근 권한 없음, 실행 안 함');
+                return;
+            }
+            
             if (!db) {
                 initStaffDB();
             }
@@ -2764,6 +2887,8 @@
             }
 
             try {
+                // users 컬렉션 list/query 금지, 문서 단건만 사용
+                // activityPhotos는 임직원만 접근 가능하므로 권한 확인 후 조회
                 const snapshot = await db.collection('activityPhotos')
                     .orderBy('createdAt', 'desc')
                     .get();
@@ -2775,7 +2900,13 @@
 
                 renderPhotoGrid();
             } catch (error) {
-                console.error('사진 로드 오류:', error);
+                console.error('[Staff 페이지] 사진 로드 오류:', error);
+                // permission-denied 시 signOut 호출하지 않음
+                if (error.code === 'permission-denied') {
+                    alert('사진을 불러올 권한이 없습니다.');
+                } else {
+                    alert('사진을 불러오는 중 오류가 발생했습니다.');
+                }
             }
         }
 
@@ -3247,30 +3378,38 @@
         let memberCurrentPage = 1;
         const membersPerPage = 10;
 
-        // 회원 목록 로드
+        // 회원 목록 로드 (user 확정 후에만 호출)
         async function loadMembers() {
+            // user가 확정되지 않았으면 실행하지 않음
+            if (!staffAccessGranted) {
+                console.warn('[Staff 페이지] loadMembers() - 접근 권한 없음, 실행 안 함');
+                allMembers = [];
+                updatePendingCount();
+                renderMembers();
+                return;
+            }
+            
             if (!db) {
                 initStaffDB();
             }
             if (!db) {
                 console.warn('Firebase 미연결');
-                return;
-            }
-            try {
-                const snapshot = await db.collection('users').get();
                 allMembers = [];
-                snapshot.forEach(doc => {
-                    if (doc.id !== 'admin') {
-                        allMembers.push({ id: doc.id, ...doc.data() });
-                    }
-                });
-                // 최신순 정렬
-                allMembers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                 updatePendingCount();
                 renderMembers();
-            } catch (error) {
-                console.error('회원 로드 오류:', error);
+                return;
             }
+            
+            // users 컬렉션 전체 조회는 보안 규칙상 불가능
+            // 관리자 기능은 별도 구현 필요 (Cloud Functions 등)
+            console.warn('[Staff 페이지] users 컬렉션 전체 조회는 보안 규칙상 불가능합니다.');
+            console.warn('[Staff 페이지] 관리자 기능은 Cloud Functions를 통해 구현해야 합니다.');
+            allMembers = [];
+            updatePendingCount();
+            renderMembers();
+            
+            // TODO: 관리자 기능을 위한 Cloud Functions 구현 필요
+            // 또는 관리자가 직접 Firestore Console에서 관리
         }
 
         // 대기 중 회원 수 업데이트
@@ -3747,6 +3886,16 @@
                 width: 90%;
                 max-width: 320px;
             }
+            
+            /* 계산기 버튼 더블탭 확대 방지 */
+            .calc-btn {
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .calculator {
+                touch-action: manipulation;
+            }
 
             .drawing-content {
                 width: 95%;
@@ -3771,10 +3920,22 @@
             document.getElementById('calculator-modal').style.display = 'flex';
             calcDisplay = '';
             document.getElementById('calc-display').value = '0';
+            
+            // 모바일에서 더블탭 확대 방지
+            const viewport = document.querySelector('meta[name="viewport"]');
+            if (viewport && window.innerWidth <= 768) {
+                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            }
         }
 
         function closeCalculator() {
             document.getElementById('calculator-modal').style.display = 'none';
+            
+            // 모바일에서 viewport 복원
+            const viewport = document.querySelector('meta[name="viewport"]');
+            if (viewport && window.innerWidth <= 768) {
+                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+            }
         }
 
         function appendCalc(value) {
