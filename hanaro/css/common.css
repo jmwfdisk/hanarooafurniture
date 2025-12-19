@@ -379,3 +379,23 @@
     }
 }
 
+/* 로그인/로그아웃 버튼 초기 상태 최적화 (깜빡임 방지, 성능 최적화) */
+.login-item {
+    will-change: opacity; /* GPU 가속 */
+}
+
+/* JavaScript가 로드되기 전 깜빡임 방지 (더 빠른 렌더링) */
+#login-link:not([data-initialized]),
+#logout-link:not([data-initialized]) {
+    opacity: 0;
+    visibility: hidden;
+    content-visibility: auto; /* 성능 최적화 */
+}
+
+#login-link[data-initialized],
+#logout-link[data-initialized] {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.05s ease; /* 빠른 전환 */
+}
+
