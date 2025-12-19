@@ -85,7 +85,8 @@
         }
         
         .navbar .logo img {
-            height: 75px;
+            height: 50px;
+            overflow: visible;
         }
         
         .navbar .logo a {
@@ -370,12 +371,33 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
+            background-color: rgba(0, 0, 0, 1);
             backdrop-filter: blur(8px);
             z-index: 2000;
             justify-content: center;
             align-items: center;
             animation: modalFadeIn 0.3s ease-out;
+        }
+        
+        /* 모달이 열릴 때 배경의 모든 BEST 이미지 완전히 숨기기 */
+        .image-modal.active {
+            display: flex;
+        }
+        
+        .image-modal.active ~ *,
+        body:has(.image-modal.active) #product-section {
+            pointer-events: none;
+        }
+        
+        body:has(.image-modal.active) .product-item p img[src*="best.png"],
+        body:has(.image-modal.active) .product-item p img[alt="베스트"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
         @keyframes modalFadeIn {
@@ -387,9 +409,6 @@
             }
         }
         
-        .image-modal.active {
-            display: flex;
-        }
         
         .image-modal-content {
             position: relative;
@@ -408,6 +427,25 @@
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             animation: imageZoomIn 0.3s ease-out;
+        }
+        
+        /* 사물함 카테고리 모달 이미지 확대 */
+        .image-modal-content img.locker-image {
+            width: 1600px !important;
+            height: auto !important;
+            min-width: 1200px !important;
+            max-width: 95vw !important;
+            max-height: 95vh !important;
+            object-fit: contain;
+            transform-origin: center center;
+            border-radius: 0;
+        }
+        
+        /* 사물함 이미지일 때 부모 컨테이너도 확대 */
+        .image-modal-content:has(img.locker-image) {
+            max-width: 95vw !important;
+            max-height: 95vh !important;
+            width: auto !important;
         }
         
         @keyframes imageZoomIn {
@@ -533,6 +571,23 @@
             flex-direction: row;
         }
 
+        /* 숨겨진 로그인/로그아웃 버튼이 공간을 차지하지 않도록 */
+        .login-item[style*="display: none"],
+        #login-link[style*="display: none"],
+        #logout-link[style*="display: none"] {
+            display: none !important;
+            width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .login-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .employee-btn {
             display: flex;
             align-items: center;
@@ -595,8 +650,35 @@
                 margin-left: auto;
                 display: flex;
                 flex-direction: row;
-                gap: 8px;
+                gap: 2px;  /* 간격을 8px에서 2px로 줄임 */
                 align-items: center;
+            }
+            
+            .employee-btn {
+                display: flex !important;
+            }
+            
+            .employee-btn button {
+                padding: 4.2px 8.4px !important;  /* 30% 감소: 6px -> 4.2px, 12px -> 8.4px */
+                font-size: 8.4px !important;  /* 30% 감소: 12px -> 8.4px */
+            }
+            
+            /* 로그인 버튼도 30% 작게 */
+            .login a,
+            .login-item {
+                font-size: 11.2px !important;  /* 30% 감소 (기본 16px 기준) */
+                padding: 4.2px 8.4px !important;  /* 30% 감소 */
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            
+            .login-icon {
+                height: 14px !important;  /* 30% 감소: 20px -> 14px */
+                width: auto !important;
+                margin-right: 3.5px !important;  /* 30% 감소: 5px -> 3.5px */
+                display: inline-block !important;
+                vertical-align: middle !important;
             }
             
             .employee-btn {
@@ -622,7 +704,10 @@
                 pointer-events: none !important;
             }
             .footer-top { display: none; }
-            .login-icon { display: none; }
+            .login-icon { 
+                display: inline-block !important;  /* 모바일에서도 아이콘 표시 */
+                height: 14px !important;  /* 30% 감소된 크기 유지 */
+            }
             .navbar > .logo { 
                 margin-right: 0;
             }
@@ -672,7 +757,8 @@
             }
 
             .navbar .logo img {
-                height: 55px;
+                height: 50px;
+                overflow: visible;
             }
             
             .navbar .logo span {
@@ -930,7 +1016,7 @@
       </button>
 
         <div class="logo">
-            <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
+            <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
         </div>
 
       <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
@@ -1703,31 +1789,53 @@ document.addEventListener('DOMContentLoaded', function () {
         // 이미지 모달 기능
         let currentImageIndex = 0;
         let currentImages = [];
+        let bestImagesOriginalStyles = new Map(); // BEST 이미지의 원래 스타일 저장
         
         function openModal(imgElement) {
+            // 사물함 카테고리 확인 - 사물함이면 모달 열지 않음
+            const productCategory = imgElement.closest('.product-category');
+            const isLockerCategory = productCategory && productCategory.dataset.category === '사물함';
+            
+            if (isLockerCategory) {
+                alert('사물함 확대기능은 추후 제공예정 입니다.');
+                return; // 사물함 카테고리는 모달 열지 않음
+            }
+            
             const modal = document.getElementById('image-modal');
             const modalImg = document.getElementById('modal-image');
             
-            // 현재 카테고리의 모든 이미지 수집
-            const productCategory = imgElement.closest('.product-category');
-            if (productCategory) {
-                currentImages = Array.from(productCategory.querySelectorAll('.product-item img'));
-                currentImageIndex = currentImages.indexOf(imgElement);
-            } else {
-                // 카테고리를 찾을 수 없는 경우 해당 이미지만 표시
-                currentImages = [imgElement];
-                currentImageIndex = 0;
-            }
-            
-            if (currentImageIndex === -1) {
-                currentImages = [imgElement];
-                currentImageIndex = 0;
-            }
+            // 클릭한 이미지만 표시 (다른 이미지 수집하지 않음)
+            currentImages = [imgElement];
+            currentImageIndex = 0;
             
             modalImg.src = imgElement.src;
             modalImg.alt = imgElement.alt;
+            modalImg.classList.remove('locker-image');
+            
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
+            
+            // BEST 메달 이미지 숨기기 (원래 스타일 저장)
+            const bestImages = document.querySelectorAll('.product-item p img[src*="best.png"], .product-item p img[alt="베스트"]');
+            bestImages.forEach(img => {
+                // 원래 인라인 스타일 전체를 저장
+                if (!bestImagesOriginalStyles.has(img)) {
+                    // 인라인 스타일이 있으면 전체를 저장, 없으면 빈 문자열
+                    const originalStyleText = img.getAttribute('style') || '';
+                    bestImagesOriginalStyles.set(img, originalStyleText);
+                }
+                // 숨기기 (display만 none으로 설정, 나머지 스타일은 유지)
+                const currentStyle = img.getAttribute('style') || '';
+                img.setAttribute('style', currentStyle + '; display: none;');
+            });
+            
+            // 제품 섹션 숨기기 (배경이 보이지 않도록)
+            const productSection = document.getElementById('product-section');
+            if (productSection) {
+                productSection.style.opacity = '0';
+                productSection.style.pointerEvents = 'none';
+            }
             
             // 네비게이션 버튼 표시/숨김
             updateNavButtons();
@@ -1735,8 +1843,44 @@ document.addEventListener('DOMContentLoaded', function () {
         
         function closeImageModal() {
             const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-image');
             modal.classList.remove('active');
             document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
+            
+            // 사물함 이미지 클래스 제거
+            modalImg.classList.remove('locker-image');
+            
+            // BEST 메달 이미지 원래 스타일로 복원
+            const bestImages = document.querySelectorAll('.product-item p img[src*="best.png"], .product-item p img[alt="베스트"]');
+            bestImages.forEach(img => {
+                const originalStyle = bestImagesOriginalStyles.get(img);
+                if (originalStyle !== undefined) {
+                    // 원래 스타일 복원
+                    if (originalStyle) {
+                        img.setAttribute('style', originalStyle);
+                    } else {
+                        // 원래 스타일이 없었으면 style 속성 제거
+                        img.removeAttribute('style');
+                    }
+                } else {
+                    // 저장된 스타일이 없으면 display만 제거 (나머지는 유지)
+                    const currentStyle = img.getAttribute('style') || '';
+                    const newStyle = currentStyle.replace(/display\s*:\s*none\s*;?/gi, '').trim();
+                    if (newStyle) {
+                        img.setAttribute('style', newStyle);
+                    } else {
+                        img.removeAttribute('style');
+                    }
+                }
+            });
+            
+            // 제품 섹션 다시 표시
+            const productSection = document.getElementById('product-section');
+            if (productSection) {
+                productSection.style.opacity = '';
+                productSection.style.pointerEvents = '';
+            }
         }
         
         function showNextImage() {
