@@ -327,7 +327,13 @@ function setupAuthStateListener() {
         } else {
             // user가 null인 경우
             // 중요: 페이지 로드 시 Firebase Auth 복원이 완료되기 전에 user=null이 호출될 수 있음
-            // sessionStorage를 먼저 확인하여 실제 로그아웃 상태인지 확인
+            // sessionStorage와 auth.currentUser를 먼저 확인하여 실제 로그아웃 상태인지 확인
+            
+            // auth.currentUser를 직접 확인 (더 정확한 상태 확인)
+            if (auth && auth.currentUser) {
+                console.log(`[Auth 리스너] user=null이지만 auth.currentUser 존재 (UID: ${auth.currentUser.uid}) - false 설정 안 함`);
+                return; // auth.currentUser가 있으면 false로 설정하지 않음
+            }
             
             const currentLoggedInUser = sessionStorage.getItem("loggedInUser");
             const currentLoggedIn = sessionStorage.getItem("loggedIn");
