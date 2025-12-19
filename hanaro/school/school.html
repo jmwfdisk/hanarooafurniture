@@ -72,8 +72,13 @@
         }
         
         .navbar .logo a {
-            pointer-events: none;
-            cursor: default;
+            display: block;
+            text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .navbar .logo a:hover {
+            opacity: 0.8;
         }
         
         .navbar .logo span {
@@ -861,7 +866,9 @@
       </button>
 
         <div class="logo">
+            <a href="../../index.html" style="display: block; text-decoration: none;">
                 <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
+            </a>
         </div>
 
       <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
