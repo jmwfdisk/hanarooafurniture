@@ -309,9 +309,12 @@ function setupAuthStateListener() {
             
             // staff 페이지 접근 제어
             if (typeof window.checkStaffAccess === 'function') {
-                window.checkStaffAccess(user, userData).catch(error => {
-                    logError('[Auth 리스너] staff 페이지 접근 제어 오류:', error);
-                });
+                const checkResult = window.checkStaffAccess(user, userData);
+                if (checkResult && typeof checkResult.catch === 'function') {
+                    checkResult.catch(error => {
+                        logError('[Auth 리스너] staff 페이지 접근 제어 오류:', error);
+                    });
+                }
             }
             
             // 로그인 성공 메시지 (한 번만, 새로 로그인한 경우에만)
