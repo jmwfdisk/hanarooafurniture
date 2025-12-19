@@ -655,7 +655,7 @@
         }
     }
     
-    // 전역: 로그인 상태 복원 시 안내 모달 자동 닫기
+    // 전역: 로그인 상태 복원 시 안내 모달 자동 닫기 및 스쿨 섹션 재초기화
     function setupAuthStateListener() {
         if (window.schoolAuthStateListenerSetup) {
             return;
@@ -667,9 +667,26 @@
                 const loggedInUser = sessionStorage.getItem('loggedInUser');
                 const loggedIn = sessionStorage.getItem('loggedIn');
                 if (loggedInUser && loggedIn === "true") {
+                    // 로그인 모달 닫기
                     closeLoginModal();
+                    
+                    // 현재 스쿨 섹션이 활성화되어 있는지 확인
+                    const schoolSection = document.getElementById('section-school');
+                    const modal = getLoginModal();
+                    const isSchoolSectionActive = schoolSection && schoolSection.style.display === 'block';
+                    const isModalOpen = modal && modal.classList.contains('active');
+                    
+                    // 스쿨 섹션이 활성화되어 있고 모달이 열려있었으면 자동으로 엑셀 파일 로드
+                    if (isSchoolSectionActive || isModalOpen) {
+                        console.log('[Router] 인증 상태 복원됨 - 스쿨 섹션 자동 재초기화');
+                        // 권한 확인 및 엑셀 파일 로드
+                        checkUserPermission();
+                        loadExcelFile().catch(error => {
+                            console.error('[Router] 엑셀 파일 자동 로드 실패:', error);
+                        });
+                    }
                 }
-            }, 200);
+            }, 300); // 약간의 지연을 두어 sessionStorage 업데이트 완료 대기
         });
     }
     
