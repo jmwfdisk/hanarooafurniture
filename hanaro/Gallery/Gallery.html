@@ -89,7 +89,8 @@
         }
         
         .navbar .logo img {
-            height: 75px;
+            height: 50px;
+            overflow: visible;
         }
         
         .navbar .logo a {
@@ -465,6 +466,23 @@
             flex-direction: row;
         }
 
+        /* 숨겨진 로그인/로그아웃 버튼이 공간을 차지하지 않도록 */
+        .login-item[style*="display: none"],
+        #login-link[style*="display: none"],
+        #logout-link[style*="display: none"] {
+            display: none !important;
+            width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .login-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .employee-btn {
             display: flex;
             align-items: center;
@@ -527,8 +545,35 @@
                 margin-left: auto;
                 display: flex;
                 flex-direction: row;
-                gap: 8px;
+                gap: 2px;  /* 간격을 8px에서 2px로 줄임 */
                 align-items: center;
+            }
+            
+            .employee-btn {
+                display: flex !important;
+            }
+            
+            .employee-btn button {
+                padding: 4.2px 8.4px !important;  /* 30% 감소: 6px -> 4.2px, 12px -> 8.4px */
+                font-size: 8.4px !important;  /* 30% 감소: 12px -> 8.4px */
+            }
+            
+            /* 로그인 버튼도 30% 작게 */
+            .login a,
+            .login-item {
+                font-size: 11.2px !important;  /* 30% 감소 (기본 16px 기준) */
+                padding: 4.2px 8.4px !important;  /* 30% 감소 */
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            
+            .login-icon {
+                height: 14px !important;  /* 30% 감소: 20px -> 14px */
+                width: auto !important;
+                margin-right: 3.5px !important;  /* 30% 감소: 5px -> 3.5px */
+                display: inline-block !important;
+                vertical-align: middle !important;
             }
             
             .employee-btn {
@@ -554,7 +599,10 @@
                 pointer-events: none !important;
             }
             .footer-top { display: none; }
-            .login-icon { display: none; }
+            .login-icon { 
+                display: inline-block !important;  /* 모바일에서도 아이콘 표시 */
+                height: 14px !important;  /* 30% 감소된 크기 유지 */
+            }
             .navbar > .logo { 
                 margin-right: 0;
             }
@@ -594,7 +642,8 @@
             }
 
             .navbar .logo img {
-                height: 55px;
+                height: 50px;
+                overflow: visible;
             }
             
             .navbar .logo span {
@@ -767,14 +816,14 @@
       </button>
 
         <div class="logo">
-            <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
+            <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
         </div>
 
       <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
           <a href="../../index.html">홈</a>
           <a href="../company/company.html">회사소개</a>
           <a href="../product/product.html">제품소개</a>
-          <a href="../school/school.html">납품학교 리스트</a>
+          <a href="../../index.html#/school">납품학교 리스트</a>
           <a href="../Gallery/Gallery.html">갤러리</a>
           <a href="../AS/AS.html">A/S신청</a>
           <a href="#">고객지원</a>
@@ -793,7 +842,7 @@
         </div>
         
         <div>
-            <a href="../school/school.html">납품학교 리스트</a>
+            <a href="../../index.html#/school">납품학교 리스트</a>
         </div>
 
         <div>
