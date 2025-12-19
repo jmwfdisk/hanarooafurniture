@@ -630,6 +630,90 @@
             transform: translateX(2px);
         }
 
+        /* 회원관리 테이블 전용 스타일 */
+        #member-section .table-header {
+            grid-template-columns: 60px 100px 150px 150px 100px 100px 100px 100px 120px;
+        }
+
+        #member-section .table-header span:nth-child(1) {
+            text-align: center; /* 번호 */
+        }
+
+        #member-section .table-header span:nth-child(2) {
+            text-align: left; /* 아이디 */
+        }
+
+        #member-section .table-header span:nth-child(3) {
+            text-align: left; /* 이름 */
+        }
+
+        #member-section .table-header span:nth-child(4) {
+            text-align: left; /* 이메일 */
+        }
+
+        #member-section .table-header span:nth-child(5) {
+            text-align: left; /* 연락처 */
+        }
+
+        #member-section .table-header span:nth-child(6) {
+            text-align: center; /* 회원유형 */
+        }
+
+        #member-section .table-header span:nth-child(7) {
+            text-align: center; /* 신청일 */
+        }
+
+        #member-section .table-header span:nth-child(8) {
+            text-align: center; /* 승인여부 */
+        }
+
+        #member-section .table-header span:nth-child(9) {
+            text-align: right; /* 관리 */
+        }
+
+        #member-section .table-row {
+            grid-template-columns: 60px 100px 150px 150px 100px 100px 100px 100px 120px;
+        }
+
+        #member-section .table-row span:nth-child(1) {
+            text-align: center; /* 번호 */
+        }
+
+        #member-section .table-row span:nth-child(2) {
+            text-align: left; /* 아이디 */
+        }
+
+        #member-section .table-row span:nth-child(3) {
+            text-align: left; /* 이름 */
+        }
+
+        #member-section .table-row span:nth-child(4) {
+            text-align: left; /* 이메일 */
+        }
+
+        #member-section .table-row span:nth-child(5) {
+            text-align: left; /* 연락처 */
+        }
+
+        #member-section .table-row span:nth-child(6) {
+            text-align: center; /* 회원유형 */
+        }
+
+        #member-section .table-row span:nth-child(7) {
+            text-align: center; /* 신청일 */
+        }
+
+        #member-section .table-row span:nth-child(8) {
+            text-align: center; /* 승인여부 */
+        }
+
+        #member-section .table-row span:nth-child(9) {
+            text-align: right; /* 관리 */
+            display: flex;
+            justify-content: flex-end;
+            gap: 5px;
+        }
+
         .board-notice {
   font-size: 14px;
             color: #6c757d;
@@ -3596,15 +3680,15 @@
                 }
 
                 row.innerHTML = `
-                    <span>${start + index + 1}</span>
-                    <span>${member.username || member.id}</span>
-                    <span>${member.name || '-'}</span>
-                    <span style="font-size: 11px;">${member.email || '-'}</span>
-                    <span style="font-size: 11px;">${member.phone || '-'}</span>
-                    <span style="font-size: 11px; ${userTypeStyle}">${userTypeText}</span>
-                    <span style="font-size: 11px;">${date}</span>
-                    <span style="font-size: 11px; ${statusStyle}">${statusText}</span>
-                    <span>${actionButtons}</span>
+                    <span style="text-align: center;">${start + index + 1}</span>
+                    <span style="text-align: left;">${member.username || member.id}</span>
+                    <span style="text-align: left;">${member.name || '-'}</span>
+                    <span style="font-size: 11px; text-align: left;">${member.email || '-'}</span>
+                    <span style="font-size: 11px; text-align: left;">${member.phone || '-'}</span>
+                    <span style="font-size: 11px; ${userTypeStyle}; text-align: center;">${userTypeText}</span>
+                    <span style="font-size: 11px; text-align: center;">${date}</span>
+                    <span style="font-size: 11px; ${statusStyle}; text-align: center;">${statusText}</span>
+                    <span style="text-align: right; display: flex; justify-content: flex-end; gap: 5px;">${actionButtons}</span>
                 `;
                 tbody.appendChild(row);
             });
