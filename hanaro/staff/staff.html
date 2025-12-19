@@ -2420,7 +2420,7 @@
         </div>
         
         <div class="board-table">
-            <div class="table-header" style="grid-template-columns: 60px 100px 150px 150px 100px 100px 100px 120px;">
+            <div class="table-header" style="grid-template-columns: 60px 100px 150px 150px 100px 100px 100px 100px 120px;">
                 <span>번호</span>
                 <span>아이디</span>
                 <span>이름</span>
@@ -2428,6 +2428,7 @@
                 <span>연락처</span>
                 <span>회원유형</span>
                 <span>신청일</span>
+                <span>승인여부</span>
                 <span>관리</span>
             </div>
             <div id="member-tbody" class="table-body">
@@ -3400,16 +3401,72 @@
                 return;
             }
             
-            // users 컬렉션 전체 조회는 보안 규칙상 불가능
-            // 관리자 기능은 별도 구현 필요 (Cloud Functions 등)
-            console.warn('[Staff 페이지] users 컬렉션 전체 조회는 보안 규칙상 불가능합니다.');
-            console.warn('[Staff 페이지] 관리자 기능은 Cloud Functions를 통해 구현해야 합니다.');
-            allMembers = [];
-            updatePendingCount();
-            renderMembers();
+            // 관리자 권한 확인
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            if (!loggedInUser) {
+                console.warn('[Staff 페이지] 로그인 정보 없음');
+                allMembers = [];
+                updatePendingCount();
+                renderMembers();
+                return;
+            }
             
-            // TODO: 관리자 기능을 위한 Cloud Functions 구현 필요
-            // 또는 관리자가 직접 Firestore Console에서 관리
+            let userData;
+            try {
+                userData = JSON.parse(loggedInUser);
+            } catch (e) {
+                console.error('[Staff 페이지] 사용자 정보 파싱 오류:', e);
+                allMembers = [];
+                updatePendingCount();
+                renderMembers();
+                return;
+            }
+            
+            // 관리자가 아니면 조회 불가
+            if (!userData.isAdmin && userData.username !== 'admin') {
+                console.warn('[Staff 페이지] 관리자 권한 없음');
+                allMembers = [];
+                updatePendingCount();
+                renderMembers();
+                return;
+            }
+            
+            // 관리자일 때 users 컬렉션 조회
+            try {
+                const snapshot = await db.collection('users')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                allMembers = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    allMembers.push({
+                        id: doc.id,
+                        username: data.username || '',
+                        name: data.name || '',
+                        email: data.email || '',
+                        phone: data.phone || '',
+                        userType: data.userType || 'general',
+                        status: data.status || 'pending', // status 필드 확인
+                        createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : null,
+                        isAdmin: data.isAdmin || false
+                    });
+                });
+                
+                console.log(`[Staff 페이지] 회원 목록 로드 완료: ${allMembers.length}명`);
+                updatePendingCount();
+                renderMembers();
+            } catch (error) {
+                console.error('[Staff 페이지] 회원 목록 로드 오류:', error);
+                if (error.code === 'permission-denied') {
+                    alert('회원 목록을 불러올 권한이 없습니다.\n관리자 계정으로 로그인해주세요.');
+                } else {
+                    alert('회원 목록을 불러오는 중 오류가 발생했습니다.');
+                }
+                allMembers = [];
+                updatePendingCount();
+                renderMembers();
+            }
         }
 
         // 대기 중 회원 수 업데이트
@@ -3458,7 +3515,7 @@
             pageMembers.forEach((member, index) => {
                 const row = document.createElement('div');
                 row.className = 'table-row';
-                row.style.gridTemplateColumns = '60px 100px 150px 150px 100px 100px 100px 120px';
+                row.style.gridTemplateColumns = '60px 100px 150px 150px 100px 100px 100px 100px 120px';
                 
                 const date = member.createdAt ? new Date(member.createdAt).toLocaleDateString('ko-KR') : '-';
                 
@@ -3471,6 +3528,20 @@
                 } else if (member.userType === 'general') {
                     userTypeText = '일반회원';
                     userTypeStyle = 'color: #44aa6b; font-weight: 600;';
+                }
+                
+                // 승인여부 표시
+                let statusText = '-';
+                let statusStyle = '';
+                if (member.status === 'pending') {
+                    statusText = '대기';
+                    statusStyle = 'color: #ff6b6b; font-weight: 600;';
+                } else if (member.status === 'approved') {
+                    statusText = '승인';
+                    statusStyle = 'color: #44aa6b; font-weight: 600;';
+                } else if (member.status === 'rejected') {
+                    statusText = '거절';
+                    statusStyle = 'color: #999; font-weight: 600;';
                 }
                 
                 let actionButtons = '';
@@ -3496,6 +3567,7 @@
                     <span style="font-size: 11px;">${member.phone || '-'}</span>
                     <span style="font-size: 11px; ${userTypeStyle}">${userTypeText}</span>
                     <span style="font-size: 11px;">${date}</span>
+                    <span style="font-size: 11px; ${statusStyle}">${statusText}</span>
                     <span>${actionButtons}</span>
                 `;
                 tbody.appendChild(row);
