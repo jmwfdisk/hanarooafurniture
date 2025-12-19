@@ -11,6 +11,14 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    
+    <!-- SheetJS 라이브러리 (엑셀 파일 읽기용) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Tabulator.js 라이브러리 (스프레드시트 뷰용) -->
+    <link href="./hanaro/school/lib/tabulator/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="./hanaro/school/lib/tabulator/tabulator.min.js"></script>
 
     <link rel="icon" href="./image/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="./image/favicon.ico" type="image/x-icon">
@@ -56,7 +64,8 @@
         }
         
         .navbar .logo img {
-            height: 75px;
+            height: 50px;
+            overflow: visible;
         }
         
         .navbar .logo a {
@@ -549,12 +558,27 @@
             margin-top: 10px;
             text-align: center;
             padding-bottom: 20px;             /* 선과 텍스트 간격 */
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            overflow-x: hidden;
+            min-height: auto;
         }
 
         footer p, footer .footer-info {
            font-size: 12px;
-           line-height: 1.0;
-           margin: 4px 0;  /* 위아래 간격 최소화 */
+           line-height: 1.6;
+           margin: 6px 0;  /* 위아래 간격 증가 */
+           white-space: normal;
+           word-break: break-word;
+           overflow-wrap: break-word;
+           max-width: 100%;
+           box-sizing: border-box;
+           display: block;
+           width: 100%;
+           padding: 0;
         }
 
         footer::before {
@@ -858,6 +882,17 @@
     flex-direction: row;
 }
 
+/* 숨겨진 로그인/로그아웃 버튼이 공간을 차지하지 않도록 */
+.login-item[style*="display: none"],
+#login-link[style*="display: none"],
+#logout-link[style*="display: none"] {
+    display: none !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
 .employee-btn {
     display: flex;  /* 항상 표시 */
     align-items: center;
@@ -891,17 +926,33 @@
 }
 
 /* 로그인 아이콘 스타일 */
+.login-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .login-icon {
     height: 20px;
     width: auto;
     margin-right: 5px;
     vertical-align: middle;
+    display: inline-block;
 }
 
 .navbar > .logo {
     margin-right: auto;
 }
 
+    /* 중간 크기 화면에서 footer 텍스트 줄바꿈 처리 */
+    @media (max-width: 1200px) {
+        footer p, footer .footer-info {
+            word-break: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+    }
+    
     @media (max-width: 1024px) {
         .navbar {
             display: grid;
@@ -920,7 +971,7 @@
             margin-left: auto;
             display: flex;
             flex-direction: row;
-            gap: 8px;
+            gap: 2px;  /* 간격을 8px에서 2px로 줄임 */
             align-items: center;
         }
         
@@ -929,15 +980,36 @@
         }
         
         .employee-btn button {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 4.2px 8.4px !important;  /* 30% 감소: 6px -> 4.2px, 12px -> 8.4px */
+            font-size: 8.4px !important;  /* 30% 감소: 12px -> 8.4px */
+        }
+        
+        /* 로그인 버튼도 30% 작게 */
+        .login a,
+        .login-item {
+            font-size: 11.2px !important;  /* 30% 감소 (기본 16px 기준) */
+            padding: 4.2px 8.4px !important;  /* 30% 감소 */
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        .login-icon {
+            height: 14px !important;  /* 30% 감소: 20px -> 14px */
+            width: auto !important;
+            margin-right: 3.5px !important;  /* 30% 감소: 5px -> 3.5px */
+            display: inline-block !important;
+            vertical-align: middle !important;
         }
         .navbar > div:not(.logo):not(.login):not(.mobile-only) {
             display: none;
         }
         .employee-btn { display: block; }
         .footer-top { display: none; }
-        .login-icon { display: none; }
+        .login-icon { 
+            display: inline-block !important;  /* 모바일에서도 아이콘 표시 */
+            height: 14px !important;  /* 30% 감소된 크기 유지 */
+        }
         .navbar > .logo { margin-right: 0; }
 
         .hamburger {
@@ -970,7 +1042,8 @@
         }
 
         .navbar .logo img {
-            height: 55px;
+            height: 50px;
+            overflow: visible;
         }
         
         .navbar .logo span {
@@ -1100,6 +1173,12 @@
 
         footer { 
             padding: 14px 12px 18px;    /* 안쪽 여백 축소 */
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            overflow-x: hidden;
         }
         footer::before{
             width: 90%;                 /* 구분선 길이 살짝 늘림 */
@@ -1107,10 +1186,18 @@
         }
             footer p, footer .footer-info{
                 font-size: 10px;            /* 글자 크기 */
-                line-height: 1.35;          /* 줄간격 */
+                line-height: 1.7;          /* 줄간격 더 증가 */
                 letter-spacing: 0;          /* 자간 */
                 text-align: left;           /* 정렬 */
-                margin: 4px 0;
+                margin: 6px 0;
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: break-word;
+                max-width: 100%;
+                box-sizing: border-box;
+                display: block;
+                width: 100%;
+                padding: 0;
             }
             
             .partner-logos {
@@ -1130,6 +1217,203 @@
                 max-height: 100%;
             }
         }
+        
+        /* SPA 섹션 스타일 */
+        .spa-section {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 0;
+            padding-top: 0;
+        }
+        
+        /* School 섹션 특별 스타일 - 네비바 바로 아래 */
+        #section-school {
+            margin-top: 0;
+            padding-top: 0;
+        }
+        
+        /* 엑셀 데이터 표시 영역 - 네비바 바로 아래 */
+        .excel-display-area {
+            margin-top: 0;
+            padding: 20px;
+            background: #fff;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .read-only-notice {
+            padding: 10px 20px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            font-size: 14px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        /* 엑셀 업로드 버튼 (관리자만) - 동그란 오버레이 버튼 */
+        .excel-upload-btn {
+            position: fixed;
+            top: 150px;
+            right: 30px;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(68, 170, 107, 0.4);
+            transition: all 0.3s ease;
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            overflow: hidden;
+            line-height: 1.2;
+            text-align: center;
+            padding: 0;
+        }
+
+        .excel-upload-btn[style*="display: block"] {
+            display: flex !important;
+        }
+
+        .excel-upload-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.5);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .excel-upload-btn::before {
+            content: '파일\A첨부';
+            white-space: pre;
+            font-size: 10px;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        .excel-upload-btn input[type="file"] {
+            display: none;
+        }
+
+        .excel-upload-btn span {
+            display: none;
+        }
+
+        /* Tabulator 스프레드시트 스타일 */
+        #tabulator-table {
+            margin: 20px 0;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        .tabulator {
+            font-size: 14px;
+            background: #fff;
+        }
+        
+        .tabulator-table {
+            width: 100%;
+        }
+
+        .tabulator .tabulator-header {
+            background: #f8f9fa;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-header .tabulator-col {
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-cell {
+            border-right: 1px solid #dee2e6;
+            padding: 8px 12px;
+        }
+
+        .tabulator .tabulator-row {
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-row:hover {
+            background: #f8f9fa;
+        }
+
+        .tabulator .tabulator-row.tabulator-selected {
+            background: #e3f2fd;
+        }
+
+        /* 로그인 안내 모달 */
+        .login-notice-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-notice-modal.active {
+            display: flex;
+        }
+
+        .login-notice-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .login-notice-content h3 {
+            margin: 0 0 15px;
+            color: #333;
+            font-size: 20px;
+        }
+
+        .login-notice-content p {
+            margin: 0 0 20px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .login-notice-content button {
+            background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .login-notice-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
+        
+        /* 로딩 스피너 애니메이션 */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
@@ -1139,15 +1423,15 @@
     <div class="login-container" id="login-container">
         <!-- 탭 버튼 -->
         <div class="auth-tabs">
-            <button class="auth-tab active" onclick="showAuthTab('login')">로그인</button>
-            <button class="auth-tab" onclick="showAuthTab('register')">회원가입</button>
+            <button type="button" class="auth-tab active" onclick="showAuthTab('login')">로그인</button>
+            <button type="button" class="auth-tab" onclick="showAuthTab('register')">회원가입</button>
         </div>
         
         <!-- 로그인 폼 -->
         <div id="login-form" class="auth-form">
             <input type="text" id="username" placeholder="아이디">
             <input type="password" id="password" placeholder="비밀번호">
-            <button onclick="login()">로그인</button>
+            <button type="button" onclick="login()">로그인</button>
         </div>
         
         <!-- 회원가입 폼 -->
@@ -1162,7 +1446,7 @@
                 <option value="general">일반회원</option>
                 <option value="employee">임직원</option>
             </select>
-            <button onclick="register()">회원가입 신청</button>
+            <button type="button" onclick="register()">회원가입 신청</button>
             <p class="auth-notice">* 회원가입 후 관리자 승인이 필요합니다.</p>
         </div>
     </div>
@@ -1175,14 +1459,14 @@
       </button>
 
       <div class="logo">
-              <img src="./hanaro/image/logo-nav.png" alt="로고" style="height: 40px;">
+              <img src="./hanaro/image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
       </div>
 
       <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
           <a href="./index.html">홈</a>
           <a href="./hanaro/company/company.html">회사소개</a>
           <a href="./hanaro/product/product.html">제품소개</a>
-          <a href="./hanaro/school/school.html">납품학교 리스트</a>
+          <a href="#/school">납품학교 리스트</a>
           <a href="./hanaro/Gallery/Gallery.html">갤러리</a>
           <a href="./hanaro/AS/AS.html">A/S신청</a>
           <a href="#">고객지원</a>
@@ -1201,7 +1485,7 @@
         </div>
         
         <div>
-            <a href="./hanaro/school/school.html">납품학교 리스트</a>
+            <a href="#/school">납품학교 리스트</a>
         </div>
 
         <div>
@@ -1228,6 +1512,31 @@
   </a>
 </div>
     </header>
+
+    <!-- SPA 섹션 컨테이너 (네비바 바로 아래) -->
+    <div id="spa-sections">
+        <!-- School 섹션 -->
+        <div id="section-school" class="spa-section" style="display: none;">
+            <!-- 엑셀 업로드 버튼 (관리자만 표시) -->
+            <label for="excel-upload" class="excel-upload-btn" id="excel-upload-btn" style="display: none;" title="엑셀 파일 첨부">
+                <input type="file" id="excel-upload" accept=".xlsx,.xls" onchange="handleExcelUpload(event)">
+            </label>
+
+            <!-- 엑셀 데이터 표시 영역 -->
+            <div class="excel-display-area" id="excel-display-area" style="display: block;">
+                <div class="read-only-notice">
+                    ⚠️ 읽기 전용 모드입니다. 수정할 수 없습니다.
+                </div>
+                <div id="tabulator-table" style="display: none;"></div>
+                <div id="excel-content" style="display: block;">
+                    <div style="text-align: center; padding: 60px 20px;">
+                        <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #44aa6b; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+                        <p style="color: #666; font-size: 16px; margin: 0;">로딩 중입니다...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <section class="main2-section">
         <video autoplay muted loop playsinline preload="auto" id="main-video" crossorigin="anonymous">
@@ -1306,19 +1615,31 @@
         </a>
     </div>
 
-    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
-      <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
-      <p style="text-indent: 20px;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
+    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 1.6; word-break: break-word; overflow-wrap: break-word;">
+      <p style="text-indent: 20px; margin: 8px 0; line-height: 1.6; word-break: break-word; overflow-wrap: break-word; white-space: normal;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.</p>
+      <p style="text-indent: 20px; margin: 8px 0; line-height: 1.6; word-break: break-word; overflow-wrap: break-word; white-space: normal;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
     </div>
 
     <footer>
-        <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
-        <p class="footer-info">주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
+        <p style="word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 100%; box-sizing: border-box; display: block; width: 100%; margin: 6px 0; padding: 0;">Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
+        <p class="footer-info" style="word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 100%; box-sizing: border-box; display: block; width: 100%; margin: 6px 0; padding: 0;">주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
     </footer>
+    
+    <!-- 로그인 안내 모달 -->
+    <div class="login-notice-modal" id="login-notice-modal">
+        <div class="login-notice-content">
+            <h3>로그인이 필요합니다</h3>
+            <p>납품학교 리스트를 보시려면 회원가입 및 로그인이 필요합니다.</p>
+            <button onclick="closeLoginNotice(); showLogin();">로그인하기</button>
+        </div>
+    </div>
 
     <!-- 공통 인증 스크립트 -->
     <script src="./hanaro/js/auth.js"></script>
     
+    <!-- SPA 라우팅 시스템 -->
+    <script src="./hanaro/js/router.js"></script>
+
     <script>
         // 로그인/로그아웃 버튼 이벤트 리스너 설정
         function setupAuthButtons() {
@@ -1348,21 +1669,41 @@
             }
         }
         
-        // auth.js가 로드될 때까지 대기
+        // auth.js가 로드될 때까지 대기 (Firebase 준비 여부로 판단)
         function waitForAuthJS(callback, maxAttempts = 50) {
             let attempts = 0;
             const checkInterval = setInterval(function() {
                 attempts++;
-                if (typeof showLogin === 'function' && typeof logout === 'function') {
+                // Firebase가 준비되었는지 확인
+                if (typeof firebase !== 'undefined' && 
+                    firebase.apps && 
+                    firebase.apps.length > 0 && 
+                    typeof firebase.auth === 'function') {
+                    try {
+                        const auth = firebase.auth();
+                        if (auth && typeof auth.onAuthStateChanged === 'function') {
+                            clearInterval(checkInterval);
+                            callback();
+                            return;
+                        }
+                    } catch (e) {
+                        // auth() 호출 실패 시 계속 대기
+                    }
+                }
+                
+                if (attempts >= maxAttempts) {
                     clearInterval(checkInterval);
-                    callback();
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(checkInterval);
-                    console.error('auth.js가 로드되지 않았습니다. 파일 경로를 확인하세요: ./hanaro/js/auth.js');
+                    if (typeof firebase === 'undefined') {
+                        console.error('auth.js가 로드되지 않았습니다. 파일 경로를 확인하세요: ./hanaro/js/auth.js');
+                    } else if (typeof showLogin !== 'function' || typeof logout !== 'function') {
+                        console.warn('auth.js는 로드되었지만, UI 핸들러(showLogin/logout)가 전역에 노출되지 않았습니다.');
+                    } else {
+                        console.error('Firebase Auth가 준비되지 않았습니다.');
+                    }
                 }
             }, 100);
         }
-        
+
         // DOMContentLoaded 후 auth.js 로드 대기
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
@@ -1374,6 +1715,7 @@
         }
     </script>
 
+    <script>
         document.addEventListener("DOMContentLoaded", function () {
             const urlParams = new URLSearchParams(window.location.search);
             const categoryParam = urlParams.get("category");
@@ -1382,11 +1724,11 @@
                 const categories = document.querySelectorAll('.product-category');
                 const navLinks = document.querySelectorAll('.secondary-navbar a');
 
-                categories.forEach(cat => {
+                categories.forEach(function(cat) {
                     cat.style.display = cat.dataset.category === categoryParam ? 'grid' : 'none';
                 });
 
-                navLinks.forEach(link => {
+                navLinks.forEach(function(link) {
                     if (link.textContent.trim() === categoryParam) {
                         link.classList.add('active');
                     } else {
@@ -1432,12 +1774,22 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   burger.addEventListener('click', toggleMenu);
-  overlay.addEventListener('click', () => { if (drawer.classList.contains('open')) closeMenu(); });
-  drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer.classList.contains('open')) closeMenu(); });
-  window.addEventListener('resize', () => { if (window.innerWidth > 1024 && drawer.classList.contains('open')) closeMenu(); });
+  overlay.addEventListener('click', function() {
+    if (drawer.classList.contains('open')) closeMenu();
+  });
+  drawer.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', closeMenu);
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) closeMenu();
+  });
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 1024 && drawer.classList.contains('open')) closeMenu();
+  });
 });
+</script>
 
+<script>
 // 비디오 로드 및 재생 보장
 document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('main-video');
@@ -1448,7 +1800,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 재생 시도
         const playPromise = video.play();
         if (playPromise !== undefined) {
-            playPromise.catch(error => {
+            playPromise.catch(function(error) {
                 console.log('비디오 자동 재생 실패:', error);
                 // 자동 재생이 실패해도 비디오는 표시됨
             });
@@ -1466,7 +1818,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     fadeOverlay.classList.add('active');
                 }
                 
-                setTimeout(() => {
+                setTimeout(function() {
                     video.currentTime = 0;
                     // 페이드인 없이 바로 검은색 오버레이 제거
                     if (fadeOverlay) {
