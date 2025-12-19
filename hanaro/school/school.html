@@ -16,6 +16,10 @@
     <!-- SheetJS 라이브러리 (엑셀 파일 읽기용) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
+    <!-- Tabulator.js 라이브러리 (스프레드시트 뷰용) - 로컬 파일 사용 -->
+    <link href="lib/tabulator/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="lib/tabulator/tabulator.min.js"></script>
+    
     <!-- 공통 인증 CSS -->
     <link rel="stylesheet" href="../css/auth.css">
     <!-- 공통 디자인 시스템 CSS -->
@@ -63,7 +67,8 @@
         }
         
         .navbar .logo img {
-            height: 75px;
+            height: 50px;
+            overflow: visible;
         }
         
         .navbar .logo a {
@@ -285,6 +290,23 @@
             flex-direction: row;
         }
 
+        /* 숨겨진 로그인/로그아웃 버튼이 공간을 차지하지 않도록 */
+        .login-item[style*="display: none"],
+        #login-link[style*="display: none"],
+        #logout-link[style*="display: none"] {
+            display: none !important;
+            width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .login-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .employee-btn {
             display: flex;
             align-items: center;
@@ -382,35 +404,88 @@
         }
 
 
-        .excel-table {
-            width: 100%;
-            border-collapse: collapse;
+        /* Tabulator 스프레드시트 스타일 */
+        #tabulator-table {
+            margin: 20px 0;
             background: #fff;
-            font-size: 14px;
-        }
-
-        .excel-table th,
-        .excel-table td {
             border: 1px solid #dee2e6;
-            padding: 8px 12px;
-            text-align: left;
-            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 400px;
         }
 
-        .excel-table th {
+        .tabulator {
+            font-size: 14px;
+            background: #fff;
+        }
+        
+        .tabulator-table {
+            width: 100%;
+        }
+
+        .tabulator .tabulator-header {
             background: #f8f9fa;
             font-weight: 600;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            border-bottom: 2px solid #dee2e6;
         }
 
-        .excel-table tr:hover {
+        .tabulator .tabulator-header .tabulator-col {
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-cell {
+            border-right: 1px solid #dee2e6;
+            padding: 8px 12px;
+        }
+
+        .tabulator .tabulator-row {
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-row:hover {
             background: #f8f9fa;
         }
 
-        .excel-table td {
-            user-select: text;
+        .tabulator .tabulator-row.tabulator-selected {
+            background: #e3f2fd;
+        }
+
+        /* Tabulator 툴바 스타일 */
+        .tabulator-toolbar {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tabulator-toolbar input[type="text"] {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .tabulator-toolbar button {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .tabulator-toolbar button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
         }
 
         /* 읽기 전용 표시 */
@@ -510,8 +585,35 @@
                 margin-left: auto;
                 display: flex;
                 flex-direction: row;
-                gap: 8px;
+                gap: 2px;  /* 간격을 8px에서 2px로 줄임 */
                 align-items: center;
+            }
+            
+            .employee-btn {
+                display: flex !important;
+            }
+            
+            .employee-btn button {
+                padding: 4.2px 8.4px !important;  /* 30% 감소: 6px -> 4.2px, 12px -> 8.4px */
+                font-size: 8.4px !important;  /* 30% 감소: 12px -> 8.4px */
+            }
+            
+            /* 로그인 버튼도 30% 작게 */
+            .login a,
+            .login-item {
+                font-size: 11.2px !important;  /* 30% 감소 (기본 16px 기준) */
+                padding: 4.2px 8.4px !important;  /* 30% 감소 */
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            
+            .login-icon {
+                height: 14px !important;  /* 30% 감소: 20px -> 14px */
+                width: auto !important;
+                margin-right: 3.5px !important;  /* 30% 감소: 5px -> 3.5px */
+                display: inline-block !important;
+                vertical-align: middle !important;
             }
             
             .employee-btn {
@@ -537,7 +639,10 @@
                 pointer-events: none !important;
             }
             .footer-top { display: none; }
-            .login-icon { display: none; }
+            .login-icon { 
+                display: inline-block !important;  /* 모바일에서도 아이콘 표시 */
+                height: 14px !important;  /* 30% 감소된 크기 유지 */
+            }
             .navbar > .logo { 
                 margin-right: 0;
             }
@@ -593,7 +698,8 @@
             }
 
             .navbar .logo img {
-                height: 55px;
+                height: 50px;
+                overflow: visible;
             }
             
             .navbar .logo span {
@@ -755,7 +861,7 @@
       </button>
 
         <div class="logo">
-                <img src="../image/logo-nav.png" alt="로고" style="height: 40px;">
+                <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
         </div>
 
       <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
@@ -819,6 +925,7 @@
         <div class="read-only-notice">
             ⚠️ 읽기 전용 모드입니다. 수정할 수 없습니다.
         </div>
+        <div id="tabulator-table" style="display: none;"></div>
         <div id="excel-content">
             <p style="text-align: center; padding: 40px; color: #999;">엑셀 파일을 업로드해주세요.</p>
         </div>
@@ -984,6 +1091,139 @@ document.addEventListener('DOMContentLoaded', function () {
             return false;
         }
 
+        // DOM 요소 캐싱 (성능 최적화)
+        let cachedLoginLink = null;
+        let cachedLogoutLink = null;
+        let cachedLoginModal = null;
+        
+        const getLoginLink = () => {
+            if (!cachedLoginLink) cachedLoginLink = document.getElementById('login-link');
+            return cachedLoginLink;
+        };
+        
+        const getLogoutLink = () => {
+            if (!cachedLogoutLink) cachedLogoutLink = document.getElementById('logout-link');
+            return cachedLogoutLink;
+        };
+        
+        const getLoginModal = () => {
+            if (!cachedLoginModal) cachedLoginModal = document.getElementById('login-notice-modal');
+            return cachedLoginModal;
+        };
+        
+        // 안내 모달 닫기 함수 (최적화)
+        const closeLoginModal = () => {
+            const modal = getLoginModal();
+            if (modal && modal.classList.contains('active')) {
+                modal.classList.remove('active');
+            }
+        };
+        
+        // 간단한 로그인 상태 확인 (성능 최적화)
+        const checkAuthState = () => {
+            // 1. sessionStorage 우선 확인 (가장 빠름)
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            const loggedIn = sessionStorage.getItem('loggedIn');
+            
+            if (loggedInUser && loggedIn === "true") {
+                // sessionStorage에 로그인 정보가 있으면 로그인 상태
+                // authListenerReady 확인 (간단하게)
+                if (typeof window.authListenerReady !== 'undefined' && window.authListenerReady) {
+                    return true; // 완전히 초기화됨
+                }
+                return null; // 아직 초기화 중
+            }
+            
+            // 2. authListenerReady가 true이고 sessionStorage에 없으면 로그아웃
+            if (typeof window.authListenerReady !== 'undefined' && window.authListenerReady) {
+                return false; // 로그아웃 상태
+            }
+            
+            return null; // 아직 초기화되지 않음
+        };
+        
+        // 로그인 초기화 완료 대기 함수 (최적화)
+        async function waitForAuthInit(maxWaitTime = 3000) {
+            return new Promise((resolve) => {
+                let resolved = false;
+                const startTime = Date.now();
+                
+                // 이벤트 리스너: authStateRestored 이벤트 감지 (가장 빠른 방법)
+                const handleAuthRestored = () => {
+                    if (resolved) return;
+                    
+                    // 짧은 대기 후 확인 (UI 업데이트 시간)
+                    setTimeout(() => {
+                        if (resolved) return;
+                        const state = checkAuthState();
+                        if (state !== null) {
+                            resolved = true;
+                            window.removeEventListener('authStateRestored', handleAuthRestored);
+                            
+                            // 로그인 상태면 안내 모달 닫기
+                            if (state === true) {
+                                closeLoginModal();
+                            }
+                            
+                            resolve(state);
+                        }
+                    }, 200); // 200ms로 단축
+                };
+                
+                window.addEventListener('authStateRestored', handleAuthRestored);
+                
+                // 즉시 확인 (이미 초기화되었을 수 있음)
+                const immediateState = checkAuthState();
+                if (immediateState !== null) {
+                    resolved = true;
+                    window.removeEventListener('authStateRestored', handleAuthRestored);
+                    if (immediateState === true) {
+                        closeLoginModal();
+                    }
+                    resolve(immediateState);
+                    return;
+                }
+                
+                // 폴링 방식 (간격 증가로 성능 개선)
+                const pollInterval = setInterval(() => {
+                    if (resolved) {
+                        clearInterval(pollInterval);
+                        return;
+                    }
+                    
+                    const state = checkAuthState();
+                    if (state !== null) {
+                        resolved = true;
+                        window.removeEventListener('authStateRestored', handleAuthRestored);
+                        clearInterval(pollInterval);
+                        
+                        // 로그인 상태면 안내 모달 닫기
+                        if (state === true) {
+                            closeLoginModal();
+                        }
+                        
+                        resolve(state);
+                        return;
+                    }
+                    
+                    // 타임아웃 체크
+                    if (Date.now() - startTime >= maxWaitTime) {
+                        if (!resolved) {
+                            resolved = true;
+                            window.removeEventListener('authStateRestored', handleAuthRestored);
+                            clearInterval(pollInterval);
+                            
+                            // 타임아웃: sessionStorage 확인
+                            const loggedInUser = sessionStorage.getItem('loggedInUser');
+                            const loggedIn = sessionStorage.getItem('loggedIn');
+                            const finalResult = (loggedInUser && loggedIn === "true");
+                            resolve(finalResult);
+                        }
+                    }
+                }, 500); // 500ms로 증가 (성능 개선)
+            });
+        }
+
         // 엑셀 파일 업로드 처리
         async function handleExcelUpload(event) {
             const file = event.target.files[0];
@@ -1015,8 +1255,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // 업로드 시작 전 로딩 메시지
                 const excelContent = document.getElementById('excel-content');
+                const tabulatorTable = document.getElementById('tabulator-table');
                 if (excelContent) {
                     excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">파일 업로드 중...</p>';
+                    excelContent.style.display = 'block';
+                }
+                if (tabulatorTable) {
+                    tabulatorTable.style.display = 'none';
                 }
                 
                 const uploadTask = fileRef.put(file);
@@ -1028,6 +1273,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.log('업로드 진행률: ' + progress + '%');
                         if (excelContent) {
                             excelContent.innerHTML = `<p style="text-align: center; padding: 40px; color: #666;">파일 업로드 중... ${Math.round(progress)}%</p>`;
+                            excelContent.style.display = 'block';
                         }
                     },
                     (error) => {
@@ -1044,6 +1290,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         alert(errorMsg);
                         if (excelContent) {
                             excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">업로드 실패</p>';
+                            excelContent.style.display = 'block';
+                        }
+                        const tabulatorTable = document.getElementById('tabulator-table');
+                        if (tabulatorTable) {
+                            tabulatorTable.style.display = 'none';
                         }
                     },
                     async () => {
@@ -1066,8 +1317,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 event.target.value = '';
                 alert('파일 업로드 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
                 const excelContent = document.getElementById('excel-content');
+                const tabulatorTable = document.getElementById('tabulator-table');
                 if (excelContent) {
                     excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">업로드 실패</p>';
+                    excelContent.style.display = 'block';
+                }
+                if (tabulatorTable) {
+                    tabulatorTable.style.display = 'none';
                 }
             }
         }
@@ -1094,6 +1350,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.error('SheetJS 라이브러리가 로드되지 않았습니다.');
                     if (excelContent) {
                         excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">엑셀 파일 읽기 라이브러리를 불러올 수 없습니다.<br>페이지를 새로고침해주세요.</p>';
+                        excelContent.style.display = 'block';
+                    }
+                    const tabulatorTable = document.getElementById('tabulator-table');
+                    if (tabulatorTable) {
+                        tabulatorTable.style.display = 'none';
+                    }
+                    return;
+                }
+
+                // Tabulator 라이브러리 확인
+                if (typeof Tabulator === 'undefined') {
+                    console.error('Tabulator 라이브러리가 로드되지 않았습니다.');
+                    if (excelContent) {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">스프레드시트 뷰 라이브러리를 불러올 수 없습니다.<br>페이지를 새로고침해주세요.</p>';
+                        excelContent.style.display = 'block';
+                    }
+                    const tabulatorTable = document.getElementById('tabulator-table');
+                    if (tabulatorTable) {
+                        tabulatorTable.style.display = 'none';
                     }
                     return;
                 }
@@ -1172,28 +1447,150 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error('시트를 읽을 수 없습니다.');
                 }
                 
-                // HTML 테이블로 변환
-                const html = XLSX.utils.sheet_to_html(worksheet);
+                // JSON으로 변환 (첫 번째 행을 헤더로 사용)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1,  // 배열 형태로 변환
+                    defval: ''   // 빈 셀은 빈 문자열로
+                });
                 
-                if (!html || html.trim() === '') {
+                if (!jsonData || jsonData.length === 0) {
                     throw new Error('엑셀 데이터가 비어있습니다.');
                 }
                 
-                // 표시 영역에 표시
-                if (excelContent) {
-                    excelContent.innerHTML = html;
-                    
-                    // 테이블에 스타일 적용
-                    const table = excelContent.querySelector('table');
-                    if (table) {
-                        table.className = 'excel-table';
-                    } else {
-                        console.warn('테이블 요소를 찾을 수 없습니다.');
+                // 첫 번째 행을 헤더로 사용
+                const headers = jsonData[0];
+                if (!headers || headers.length === 0) {
+                    throw new Error('엑셀 파일에 헤더가 없습니다.');
+                }
+                
+                // 데이터 행 추출 (첫 번째 행 제외)
+                const dataRows = jsonData.slice(1);
+                
+                // 빈 행 필터링 (모든 셀이 비어있는 행 제거)
+                const filteredRows = dataRows.filter(row => {
+                    return row && row.some(cell => cell !== undefined && cell !== null && cell.toString().trim() !== '');
+                });
+                
+                if (filteredRows.length === 0) {
+                    throw new Error('엑셀 파일에 데이터 행이 없습니다.');
+                }
+                
+                console.log('엑셀 데이터 로드:', filteredRows.length, '행');
+                
+                // Tabulator용 데이터 형식으로 변환
+                const tabulatorData = filteredRows.map((row, index) => {
+                    const rowObj = { id: index + 1 }; // 고유 ID 추가
+                    headers.forEach((header, colIndex) => {
+                        // 헤더가 빈 문자열이면 "Column" + 인덱스로 설정
+                        const columnName = header && header.toString().trim() 
+                            ? header.toString().trim() 
+                            : `Column${colIndex + 1}`;
+                        rowObj[columnName] = row[colIndex] !== undefined && row[colIndex] !== null 
+                            ? row[colIndex].toString() 
+                            : '';
+                    });
+                    return rowObj;
+                });
+                
+                console.log('Tabulator 데이터 변환 완료:', tabulatorData.length, '행');
+                
+                // Tabulator 컬럼 정의 생성
+                const columns = headers.map((header, index) => {
+                    const columnName = header && header.toString().trim() 
+                        ? header.toString().trim() 
+                        : `Column${index + 1}`;
+                    return {
+                        title: columnName,
+                        field: columnName,
+                        headerFilter: "input",  // 헤더에 필터 추가
+                        headerSort: true,        // 정렬 기능 활성화
+                        sorter: "string",        // 문자열 정렬
+                        width: 150,              // 기본 너비
+                        minWidth: 100,           // 최소 너비
+                        resizable: true          // 컬럼 크기 조절 가능
+                    };
+                });
+                
+                // Tabulator 라이브러리 확인
+                if (typeof Tabulator === 'undefined') {
+                    throw new Error('Tabulator 라이브러리가 로드되지 않았습니다.');
+                }
+                
+                // Tabulator 테이블 생성
+                const tabulatorTable = document.getElementById('tabulator-table');
+                if (!tabulatorTable) {
+                    throw new Error('Tabulator 테이블 컨테이너를 찾을 수 없습니다.');
+                }
+                
+                // 기존 테이블이 있으면 제거
+                if (window.schoolTable) {
+                    try {
+                        window.schoolTable.destroy();
+                    } catch (e) {
+                        console.warn('기존 테이블 제거 중 오류:', e);
                     }
+                }
+                
+                console.log('Tabulator 테이블 생성 시작:', tabulatorData.length, '행', columns.length, '컬럼');
+                
+                // 새 Tabulator 인스턴스 생성
+                try {
+                    window.schoolTable = new Tabulator("#tabulator-table", {
+                        data: tabulatorData,
+                        columns: columns,
+                        layout: "fitColumns",    // 컬럼에 맞춰 자동 조절
+                        pagination: true,        // 페이지네이션 활성화
+                        paginationSize: 50,       // 페이지당 50개 행
+                        paginationSizeSelector: [25, 50, 100, 200], // 페이지 크기 선택 옵션
+                        paginationCounter: "rows", // 행 수 표시
+                        movableColumns: true,    // 컬럼 이동 가능
+                        resizableColumns: true,   // 컬럼 크기 조절 가능
+                        tooltips: true,           // 툴팁 표시
+                        placeholder: "데이터가 없습니다.",
+                        height: tabulatorData.length > 0 ? "600px" : "400px",  // 테이블 높이 (데이터가 있으면 600px, 없으면 400px)
+                        minHeight: "400px",        // 최소 높이
+                        responsiveLayout: "hide", // 반응형 레이아웃
+                        initialSort: [            // 초기 정렬 설정
+                            {column: "id", dir: "asc"}
+                        ]
+                    });
+                    
+                    console.log('Tabulator 테이블 생성 완료');
+                    
+                    // excel-content 영역 숨기기
+                    if (excelContent) {
+                        excelContent.style.display = 'none';
+                    }
+                    
+                    // tabulator-table 영역 표시
+                    tabulatorTable.style.display = 'block';
+                    
+                    // 테이블이 제대로 렌더링되었는지 확인
+                    setTimeout(() => {
+                        const tableElement = tabulatorTable.querySelector('.tabulator-table');
+                        if (!tableElement) {
+                            console.warn('Tabulator 테이블이 렌더링되지 않았습니다.');
+                        } else {
+                            console.log('Tabulator 테이블 렌더링 확인됨');
+                        }
+                    }, 100);
+                    
+                } catch (tabulatorError) {
+                    console.error('Tabulator 초기화 오류:', tabulatorError);
+                    throw new Error('Tabulator 테이블 생성 중 오류가 발생했습니다: ' + tabulatorError.message);
                 }
                 } catch (error) {
                 console.error('엑셀 파일 로드 오류:', error);
+                console.error('오류 상세:', error.stack);
+                
+                const tabulatorTable = document.getElementById('tabulator-table');
+                if (tabulatorTable) {
+                    tabulatorTable.style.display = 'none';
+                }
+                
                 if (excelContent) {
+                    excelContent.style.display = 'block';
+                    
                     if (error.code === 'storage/object-not-found' || 
                         error.code === 'storage/unauthorized' ||
                         error.message?.includes('object-not-found') ||
@@ -1217,45 +1614,137 @@ document.addEventListener('DOMContentLoaded', function () {
                         } else {
                             excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">CORS 오류가 발생했습니다.<br><br>Firebase Storage의 CORS 설정이 필요합니다.<br>프로젝트 루트의 <code>Firebase_Storage_CORS_설정_가이드.md</code> 파일을 참고하여 CORS를 설정해주세요.</p>';
                         }
+                    } else if (error.message && error.message.includes('Tabulator')) {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">스프레드시트 뷰 생성 중 오류가 발생했습니다.<br>오류: ' + error.message + '<br><br>브라우저 콘솔을 확인하거나 페이지를 새로고침해주세요.</p>';
                     } else {
-                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">엑셀 파일을 불러오는 중 오류가 발생했습니다.<br>오류: ' + (error.message || '알 수 없는 오류') + '<br>잠시 후 다시 시도해주세요.</p>';
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">엑셀 파일을 불러오는 중 오류가 발생했습니다.<br>오류: ' + (error.message || '알 수 없는 오류') + '<br><br>브라우저 콘솔(F12)을 열어 상세 오류를 확인하세요.</p>';
                     }
                 }
             }
         }
 
+        // 전역: 로그인 상태 복원 시 안내 모달 자동 닫기 (최적화)
+        function setupAuthStateListener() {
+            if (window.schoolAuthStateListenerSetup) {
+                return; // 이미 설정됨
+            }
+            
+            window.schoolAuthStateListenerSetup = true;
+            
+            // authStateRestored 이벤트 감지 (간단하게)
+            window.addEventListener('authStateRestored', function(event) {
+                // 짧은 대기 후 확인
+                setTimeout(() => {
+                    const loggedInUser = sessionStorage.getItem('loggedInUser');
+                    const loggedIn = sessionStorage.getItem('loggedIn');
+                    
+                    if (loggedInUser && loggedIn === "true") {
+                        closeLoginModal();
+                    }
+                }, 200); // 200ms로 단축
+            });
+        }
+        
+        // 페이지 로드 시 즉시 설정
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupAuthStateListener);
+        } else {
+            setupAuthStateListener();
+        }
+        
         // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', function() {
+            // Tabulator 라이브러리 로드 확인
+            if (typeof Tabulator === 'undefined') {
+                console.error('Tabulator 라이브러리가 로드되지 않았습니다.');
+                const excelContent = document.getElementById('excel-content');
+                if (excelContent) {
+                    excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">스프레드시트 뷰 라이브러리를 불러올 수 없습니다.<br>페이지를 새로고침해주세요.</p>';
+                    excelContent.style.display = 'block';
+                }
+                return;
+            }
+            
+            // 초기 상태 설정: Tabulator 테이블 숨기기, excel-content 표시
+            const tabulatorTable = document.getElementById('tabulator-table');
+            const excelContent = document.getElementById('excel-content');
+            if (tabulatorTable) {
+                tabulatorTable.style.display = 'none';
+            }
+            if (excelContent) {
+                excelContent.style.display = 'block';
+            }
+            
             // Firebase Storage 초기화
             initStorage();
             
-            // 로그인 상태 확인
-            const isLoggedIn = checkUserPermission();
-            
-            if (!isLoggedIn) {
-                // 로그인하지 않은 경우 안내 모달 표시
-                const loginModal = document.getElementById('login-notice-modal');
-                if (loginModal) {
-                    loginModal.classList.add('active');
-                }
-                // 엑셀 표시 영역 숨기기
-                const excelArea = document.getElementById('excel-display-area');
-                if (excelArea) {
-                    excelArea.style.display = 'none';
-                }
-            } else {
-                // 로그인한 경우 엑셀 파일 로드 및 표시
-                // 약간의 지연을 두어 Firebase가 완전히 초기화되도록 함
-                setTimeout(() => {
+            // 로그인 초기화 완료 대기 후 상태 확인 (최적화: 3초로 단축)
+            waitForAuthInit(3000).then(isLoggedIn => {
+                // 사용자 권한 확인 (업로드 버튼 표시용)
+                checkUserPermission();
+                
+                const modal = getLoginModal();
+                
+                if (!isLoggedIn) {
+                    // 로그인하지 않은 경우 안내 모달 표시
+                    if (modal) {
+                        modal.classList.add('active');
+                    }
+                    // 엑셀 표시 영역 숨기기
+                    const excelArea = document.getElementById('excel-display-area');
+                    if (excelArea) {
+                        excelArea.style.display = 'none';
+                    }
+                } else {
+                    // 로그인한 경우 안내 모달 닫기 (혹시 열려있다면)
+                    if (modal && modal.classList.contains('active')) {
+                        modal.classList.remove('active');
+                    }
+                    // 엑셀 파일 로드 및 표시
                     loadExcelFile();
-                }, 500);
-            }
+                }
+            }).catch(error => {
+                console.error('[School] 로그인 초기화 대기 중 오류:', error);
+                // 오류 발생 시 sessionStorage 확인
+                const isLoggedIn = checkUserPermission();
+                const modal = getLoginModal();
+                
+                if (!isLoggedIn) {
+                    if (modal) {
+                        modal.classList.add('active');
+                    }
+                    const excelArea = document.getElementById('excel-display-area');
+                    if (excelArea) {
+                        excelArea.style.display = 'none';
+                    }
+                } else {
+                    // 로그인한 경우 안내 모달 닫기
+                    if (modal && modal.classList.contains('active')) {
+                        modal.classList.remove('active');
+                    }
+                    loadExcelFile();
+                }
+            });
         });
 
-        // 로그인 안내 모달 닫기
+        // 로그인 안내 모달 닫기 (최적화)
         function closeLoginNotice() {
-            document.getElementById('login-notice-modal').classList.remove('active');
+            const modal = getLoginModal();
+            if (modal) {
+                modal.classList.remove('active');
+            }
         }
+
+        // 모달 배경 클릭 시 닫기
+        document.addEventListener('click', function(e) {
+            const modal = getLoginModal();
+            if (modal && modal.classList.contains('active')) {
+                // 클릭된 요소가 모달 배경이지 콘텐츠가 아닐 때만 닫기
+                if (e.target === modal) {
+                    closeLoginNotice();
+                }
+            }
+        });
 
         // ESC 키로 로그인 안내 모달 닫기
         document.addEventListener('keydown', function(e) {
@@ -1263,6 +1752,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 closeLoginNotice();
             }
         });
+    </script>
+    
+    <!-- 인덱스 페이지로 자동 리다이렉트 -->
+    <script>
+        // school.html에 직접 접근하면 index.html#/school로 리다이렉트
+        if (window.location.pathname.includes('school.html')) {
+            window.location.replace('../../index.html#/school');
+        }
     </script>
     
 </body>
