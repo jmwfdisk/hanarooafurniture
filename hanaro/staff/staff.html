@@ -66,8 +66,13 @@
         }
         
         .navbar .logo a {
-            pointer-events: none;
-            cursor: default;
+            display: block;
+            text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .navbar .logo a:hover {
+            opacity: 0.8;
         }
 
         .navbar .logo span {
