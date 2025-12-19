@@ -705,6 +705,7 @@
 
         #member-section .table-row span:nth-child(8) {
             text-align: center; /* 승인여부 */
+            position: relative;
         }
 
         #member-section .table-row span:nth-child(9) {
@@ -712,6 +713,26 @@
             display: flex;
             justify-content: flex-end;
             gap: 5px;
+        }
+
+        /* 승인여부 컬럼 내 오버레이 버튼 스타일 */
+        #member-section .table-row span:nth-child(8) {
+            display: inline-block;
+            min-width: 100px;
+        }
+        
+        #member-section .table-row span:nth-child(8) .reject-btn {
+            position: absolute;
+            right: -55px;
+            top: 50%;
+            transform: translateY(-50%);
+            margin: 0;
+            padding: 2px 8px;
+            font-size: 10px;
+            white-space: nowrap;
+            z-index: 10;
+            height: 20px;
+            line-height: 1;
         }
 
         .board-notice {
@@ -1599,7 +1620,9 @@
         </button>
 
         <div class="logo">
-            <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
+            <a href="../../index.html" style="display: block; text-decoration: none;">
+                <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
+            </a>
         </div>
 
         <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
@@ -3653,15 +3676,27 @@
                 // 승인여부 표시
                 let statusText = '-';
                 let statusStyle = '';
+                let statusHtml = '';
                 if (member.status === 'pending') {
                     statusText = '대기';
                     statusStyle = 'color: #ff6b6b; font-weight: 600;';
+                    statusHtml = `<span style="font-size: 11px; ${statusStyle}; text-align: center;">${statusText}</span>`;
                 } else if (member.status === 'approved') {
                     statusText = '승인';
                     statusStyle = 'color: #44aa6b; font-weight: 600;';
+                    // 승인 완료 탭에서는 탈퇴 버튼을 오버레이로 표시
+                    if (currentMemberTab === 'approved') {
+                        statusHtml = `
+                            <span style="${statusStyle}">${statusText}</span>
+                            <button class="reject-btn" onclick="rejectMember('${member.id}')">탈퇴</button>
+                        `;
+                    } else {
+                        statusHtml = `<span style="font-size: 11px; ${statusStyle}; text-align: center;">${statusText}</span>`;
+                    }
                 } else if (member.status === 'rejected') {
                     statusText = '거절';
                     statusStyle = 'color: #999; font-weight: 600;';
+                    statusHtml = `<span style="font-size: 11px; ${statusStyle}; text-align: center;">${statusText}</span>`;
                 }
                 
                 let actionButtons = '';
@@ -3671,7 +3706,8 @@
                         <button class="reject-btn" onclick="rejectMember('${member.id}')">거절</button>
                     `;
                 } else if (currentMemberTab === 'approved') {
-                    actionButtons = `<button class="reject-btn" onclick="rejectMember('${member.id}')">탈퇴</button>`;
+                    // 승인 완료 탭에서는 관리 컬럼에 버튼 없음 (오버레이로 표시됨)
+                    actionButtons = '';
                 } else {
                     actionButtons = `
                         <button class="approve-btn" onclick="approveMember('${member.id}')">복구</button>
@@ -3687,7 +3723,7 @@
                     <span style="font-size: 11px; text-align: left;">${member.phone || '-'}</span>
                     <span style="font-size: 11px; ${userTypeStyle}; text-align: center;">${userTypeText}</span>
                     <span style="font-size: 11px; text-align: center;">${date}</span>
-                    <span style="font-size: 11px; ${statusStyle}; text-align: center;">${statusText}</span>
+                    <span style="text-align: center;">${statusHtml}</span>
                     <span style="text-align: right; display: flex; justify-content: flex-end; gap: 5px;">${actionButtons}</span>
                 `;
                 tbody.appendChild(row);
