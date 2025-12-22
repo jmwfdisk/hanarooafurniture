@@ -505,6 +505,19 @@
   color: #495057;
   font-size: 14px;
   letter-spacing: 0.3px;
+  align-items: center;
+}
+
+.table-header span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.table-header span:nth-child(3) {
+  justify-content: center;
+  text-align: center;
 }
 
 .table-empty {
@@ -529,8 +542,8 @@
 }
 
 .table-row {
-  position: absolute;
-  left: 130px;
+  position: relative;
+  left: auto;
   display: grid;
   grid-template-columns: 60px 100px 1fr 120px 80px;
   font-size: 14px;
@@ -540,6 +553,8 @@
   transition: all 0.2s ease;
   border-radius: 8px;
   margin: 4px 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .table-row:hover {
@@ -551,6 +566,46 @@
 .table-row span {
   padding: 0 8px;
   color: #495057;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* NO 컬럼 - 중앙 정렬 */
+.table-row span:nth-child(1) {
+  justify-content: center;
+  text-align: center;
+}
+
+/* 유형 컬럼 - 중앙 정렬 */
+.table-row span:nth-child(2) {
+  justify-content: center;
+  text-align: center;
+}
+
+/* 제목 컬럼 - 중앙 정렬 */
+.table-row span:nth-child(3) {
+  justify-content: center;
+  text-align: center;
+}
+
+.table-row span:nth-child(3) a {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+/* 등록일 컬럼 - 중앙 정렬 */
+.table-row span:nth-child(4) {
+  justify-content: center;
+  text-align: center;
+}
+
+/* 상태 컬럼 - 중앙 정렬 */
+.table-row span:nth-child(5) {
+  justify-content: center;
+  text-align: center;
 }
 
 .table-row a {
@@ -1661,7 +1716,7 @@ if (asPosts.length === 0) {
     row.style.display = 'grid';
     row.style.gridTemplateColumns = '60px 100px 1fr 120px 80px';
     row.style.fontSize = '14px';
-    row.style.padding = '8px 0';
+    row.style.padding = '16px 20px';
     row.style.alignItems = 'center';
 
     const globalIndex = start + index;
