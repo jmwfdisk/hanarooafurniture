@@ -529,6 +529,8 @@
 }
 
 .table-row {
+  position: absolute;
+  left: 130px;
   display: grid;
   grid-template-columns: 60px 100px 1fr 120px 80px;
   font-size: 14px;
@@ -797,7 +799,7 @@
                 display: grid;
                 grid-template-columns: auto 1fr auto;
                 align-items: center;
-                height: 59px;
+                height: 85px;
                 padding: 0 8px;
             }
 
@@ -812,15 +814,6 @@
                 flex-direction: row;
                 gap: 2px;  /* 간격을 8px에서 2px로 줄임 */
                 align-items: center;
-            }
-            
-            .employee-btn {
-                display: flex !important;
-            }
-            
-            .employee-btn button {
-                padding: 4.2px 8.4px !important;  /* 30% 감소: 6px -> 4.2px, 12px -> 8.4px */
-                font-size: 8.4px !important;  /* 30% 감소: 12px -> 8.4px */
             }
             
             /* 로그인 버튼도 30% 작게 */
@@ -841,26 +834,74 @@
                 vertical-align: middle !important;
             }
             
-            .employee-btn {
-                display: flex !important;
+            /* 모바일에서 로그아웃 타이머 숨김 */
+            #logout-timer {
+                display: none !important;
             }
-            
-            .employee-btn button {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
+
             .navbar > div:not(.logo):not(.login):not(.mobile-only) {
                 display: none;
             }
-            .employee-btn { 
-                display: block;
-                pointer-events: auto;
+
+            /* 모바일에서 임직원 버튼을 네비게이션 바 하단에 직사각형으로 배치 */
+            .navbar .employee-btn,
+            .navbar .login .employee-btn {
+                position: fixed !important;
+                right: 0 !important;
+                top: 85px !important; /* 네비게이션 바 높이와 동일 */
+                z-index: 999 !important;
+                display: flex !important;
+                pointer-events: auto !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: auto !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 0 !important; /* 직사각형 */
+                border: none !important;
+                box-shadow: none !important;
+                transition: all 0.3s ease !important;
+                background: transparent !important; /* 투명한 배경 제거 */
             }
-            .employee-btn button:disabled {
+
+            .navbar .employee-btn button,
+            .navbar .login .employee-btn button {
+                width: auto !important;
+                height: auto !important;
+                padding: 8px 16px !important;
+                border-radius: 0 !important; /* 직사각형 */
+                font-size: 12px !important;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; /* 다른 색상 (보라색) */
+                color: white !important;
+                box-shadow: none !important;
+                transition: all 0.3s ease !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border: none !important;
+                line-height: 1.2 !important;
+                text-align: center !important;
+            }
+
+            .navbar .employee-btn button:not(:disabled):hover,
+            .navbar .login .employee-btn button:not(:disabled):hover {
+                transform: translateY(-2px) !important;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+            }
+
+            .navbar .employee-btn button:disabled,
+            .navbar .login .employee-btn button:disabled {
+                background: #e9ecef !important;
+                color: #adb5bd !important;
+                cursor: not-allowed !important;
                 pointer-events: none !important;
-                cursor: default;
             }
-            .employee-btn:has(button:disabled) {
+
+            .navbar .employee-btn:has(button:disabled),
+            .navbar .login .employee-btn:has(button:disabled) {
                 pointer-events: none !important;
             }
             .footer-top { display: none; }
@@ -2126,9 +2167,9 @@ function downloadFile(filename) {
 </a>
 </div>
 
-    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
-      <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
-      <p style="text-indent: 20px;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
+    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 1.6; word-break: break-word; overflow-wrap: break-word;">
+      <p style="text-indent: 20px; margin: 12px 0 !important; line-height: 1.8 !important; word-break: break-word; overflow-wrap: break-word; white-space: normal;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.</p>
+      <p style="text-indent: 20px; margin: 12px 0 !important; line-height: 1.8 !important; word-break: break-word; overflow-wrap: break-word; white-space: normal;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
     </div>
     
     <footer>
