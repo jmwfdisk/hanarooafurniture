@@ -569,8 +569,9 @@
             margin: 20px auto;
             border: 2px dashed #dee2e6;
             position: relative;
-            width: 700px;
-            max-width: 100%;
+            width: 100%;
+            max-width: 700px;
+            box-sizing: border-box;
         }
 
         .table-empty::before {
@@ -1441,7 +1442,6 @@
         }
 
         .footer-top { display: none; }
-        .login-icon { display: none; }
         
         /* 모바일에서 로그아웃 타이머 숨김 */
         #logout-timer {
@@ -1546,12 +1546,19 @@
             .secondary-navbar {
                 flex-wrap: wrap;
                 padding: 0;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                gap: 4px;
             }
 
             .secondary-navbar a {
-                padding: 12px 16px;
-                font-size: 13px;
+                padding: 14px 16px;
+                font-size: 14px;
                 border-bottom: 3px solid transparent;
+                min-height: 44px;
+                white-space: nowrap;
+                flex-shrink: 0;
+                box-sizing: border-box;
             }
             
             .secondary-navbar a:hover {
@@ -1576,73 +1583,326 @@
             }
 
             .board-section {
-                margin: 20px auto;
-                padding: 24px 16px;
+                margin: 15px auto;
+                padding: 20px 12px;
                 border-radius: 16px;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+
+            .board-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
             }
 
             .board-header h2 {
-                font-size: 20px;
+                font-size: 22px;
+                margin: 0;
             }
 
             .board-table {
-                font-size: 12px;
-                padding: 15px 0;
+                font-size: 13px;
+                padding: 10px 0;
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                position: relative;
+                box-sizing: border-box;
             }
 
             .table-header {
-                grid-template-columns: 40px 1fr 80px 80px;
-                gap: 8px;
-                font-size: 11px;
-                padding: 12px 8px;
+                grid-template-columns: 45px 1fr 70px 75px;
+                gap: 6px;
+                font-size: 12px;
+                padding: 14px 8px;
+                min-width: 100%;
+                width: max-content;
+                position: sticky;
+                top: 0;
+                background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+                z-index: 10;
+            }
+
+            .table-body {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                position: relative;
+                box-sizing: border-box;
             }
 
             .table-row {
-                grid-template-columns: 40px 1fr 80px 80px !important;
-                font-size: 12px !important;
-                padding: 12px 8px !important;
-                gap: 8px;
-            }
-
-            .table-row button {
-                font-size: 10px !important;
-                padding: 3px 6px !important;
-                min-width: 40px !important;
-                height: 22px !important;
+                grid-template-columns: 45px 1fr 70px 75px !important;
+                font-size: 13px !important;
+                padding: 14px 8px !important;
+                gap: 6px;
+                min-width: 100%;
+                width: max-content;
+                position: static !important;
+                left: auto !important;
             }
 
             .table-row span {
+                font-size: 13px !important;
+                padding: 0 6px !important;
+                line-height: 1.5 !important;
+                height: auto !important;
+                min-height: 20px;
+                word-break: break-word;
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+
+            .table-row span:nth-child(2) {
+                width: auto !important;
+                min-width: 150px !important;
+                max-width: none !important;
+                text-align: left !important;
+            }
+
+            .table-row span:nth-child(2) a {
+                display: block;
+                width: 100%;
+                word-break: break-word;
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+            }
+
+            .table-row button {
                 font-size: 11px !important;
-                padding: 0 4px !important;
+                padding: 6px 10px !important;
+                min-width: 50px !important;
+                min-height: 36px !important;
+                height: auto !important;
+                line-height: 1.4 !important;
             }
 
             .table-empty {
-                padding: 40px 15px;
-                font-size: 14px;
-                margin: 10px;
+                padding: 50px 15px;
+                font-size: 15px;
+                margin: 15px auto;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box;
+                display: block;
             }
 
             .board-footer {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 12px;
+                margin-top: 20px;
             }
 
             .search-group {
                 width: 100%;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-group select {
+                width: 100%;
+                padding: 12px 14px;
+                font-size: 15px;
+                min-height: 44px;
+                box-sizing: border-box;
             }
 
             .search-group input {
                 width: 100%;
                 flex: 1;
+                padding: 12px 16px;
+                font-size: 15px;
+                min-height: 44px;
+                box-sizing: border-box;
+            }
+
+            .search-group button {
+                width: 100%;
+                padding: 12px 20px;
+                font-size: 15px;
+                min-height: 44px;
+                box-sizing: border-box;
             }
 
             .action-buttons {
                 width: 100%;
-                justify-content: space-between;
+                flex-direction: column;
+                gap: 10px;
             }
 
             .action-buttons button {
-                flex: 1;
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 15px;
+                min-height: 44px;
+                box-sizing: border-box;
+            }
+
+            /* 회원관리 테이블 모바일 스타일 - 이름, 회원유형, 승인여부만 표시 */
+            #member-section {
+                padding: 20px 12px !important;
+                overflow-x: visible;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            #member-section .board-table {
+                width: 100%;
+                overflow-x: visible;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            #member-section .table-header {
+                grid-template-columns: 1fr 100px 120px !important;
+                min-width: 100% !important;
+                width: 100% !important;
+                font-size: 12px;
+                padding: 8px 5px;
+                gap: 4px;
+                align-items: flex-end !important;
+            }
+
+            /* 모바일에서 아이디, 이메일, 신청일, 관리 컬럼 숨김 */
+            #member-section .table-header span:nth-child(1),
+            #member-section .table-header span:nth-child(3),
+            #member-section .table-header span:nth-child(5),
+            #member-section .table-header span:nth-child(7),
+            #member-section .table-row span:nth-child(1),
+            #member-section .table-row span:nth-child(3),
+            #member-section .table-row span:nth-child(5),
+            #member-section .table-row span:nth-child(7) {
+                display: none !important;
+            }
+
+
+            #member-section .table-row {
+                grid-template-columns: 1fr 100px 120px !important;
+                min-width: 100% !important;
+                width: 100% !important;
+                font-size: 13px !important;
+                padding: 8px 5px !important;
+                gap: 4px;
+                position: static !important;
+                align-items: start !important;
+            }
+
+            /* 모바일에서 아이디, 이메일, 신청일, 관리 컬럼 숨김 (이름, 회원유형, 승인여부만 표시) */
+            #member-section .table-row span:nth-child(1),
+            #member-section .table-row span:nth-child(3),
+            #member-section .table-row span:nth-child(5),
+            #member-section .table-row span:nth-child(7) {
+                display: none !important;
+            }
+
+            #member-section .table-row span {
+                font-size: 13px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            /* 이름 컬럼 (2번째) - 중앙 정렬, 상단 정렬 */
+            #member-section .table-row span:nth-child(2) {
+                text-align: center !important;
+                display: flex !important;
+                align-items: start !important;
+                justify-content: center !important;
+                padding-top: 0 !important;
+                margin-top: 0 !important;
+                vertical-align: top !important;
+            }
+
+            /* 회원유형 컬럼 (4번째) - 중앙 정렬, 상단 정렬 */
+            #member-section .table-row span:nth-child(4) {
+                text-align: center !important;
+                display: flex !important;
+                align-items: flex-start !important;
+                justify-content: center !important;
+            }
+
+            /* 승인여부 컬럼 (6번째) - 중앙 정렬, 상단 정렬 */
+            #member-section .table-row span:nth-child(6) {
+                text-align: center !important;
+                display: flex !important;
+                align-items: start !important;
+                justify-content: center !important;
+                gap: 4px;
+                padding-top: 0 !important;
+                margin-top: 0 !important;
+            }
+
+            /* 승인완료 탭의 체크 표시 스타일 */
+            #member-section .table-row span:nth-child(6) span {
+                display: inline-block !important;
+                color: #44aa6b !important;
+                font-size: 20px !important;
+                font-weight: bold !important;
+            }
+
+            /* 승인여부 버튼 모바일에서 데스크톱 크기 유지 */
+            #member-section .table-row span:nth-child(6) .icon-btn,
+            #member-section .table-row span:nth-child(6) .approve-btn,
+            #member-section .table-row span:nth-child(6) .reject-btn {
+                width: 17px !important;
+                height: 17px !important;
+                min-width: 17px !important;
+                min-height: 17px !important;
+                padding: 0 !important;
+                font-size: 16px !important;
+                line-height: 1 !important;
+            }
+
+            /* 헤더도 상단 정렬로 맞춤 */
+            #member-section .table-header {
+                align-items: start !important;
+            }
+
+            #member-section .table-header span {
+                display: flex !important;
+                align-items: start !important;
+                justify-content: center !important;
+                text-align: center !important;
+                padding-top: 0 !important;
+                margin-top: 0 !important;
+            }
+
+            /* 헤더의 이름 컬럼은 중앙 정렬 */
+            #member-section .table-header span:nth-child(2) {
+                justify-content: center !important;
+                text-align: center !important;
+            }
+
+            /* 페이지네이션 모바일 스타일 */
+            .pagination {
+                flex-wrap: wrap;
+                gap: 6px;
+                justify-content: center;
+                padding: 10px 0;
+            }
+
+            .pagination button,
+            .pagination-dot {
+                min-width: 44px;
+                min-height: 44px;
+                padding: 10px 14px;
+                font-size: 15px;
+                box-sizing: border-box;
+            }
+
+            #pagination,
+            #member-pagination {
+                font-size: 18px !important;
+                margin-top: 20px;
+                padding: 0 10px;
             }
 
         footer { 
@@ -1663,12 +1923,99 @@
         }
 
             .write-form {
-                padding: 20px 16px;
+                padding: 24px 16px;
+                max-width: 95%;
+                width: calc(100% - 32px);
+                max-height: 90vh;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                box-sizing: border-box;
+            }
+
+            .write-form h2 {
+                font-size: 20px;
+                margin-bottom: 20px;
+            }
+
+            .write-form input,
+            .write-form textarea {
+                width: calc(100% - 32px);
+                padding: 12px 14px;
+                font-size: 16px;
+                min-height: 44px;
+                box-sizing: border-box;
+            }
+
+            .write-form textarea {
+                min-height: 200px;
+            }
+
+            .write-form button {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 15px;
+                min-height: 44px;
+                margin-right: 0;
+                margin-bottom: 10px;
+                box-sizing: border-box;
+            }
+
+            .write-form .cancel-btn {
+                width: 100%;
             }
 
             .post-modal {
-                padding: 24px;
+                padding: 20px 16px;
                 max-width: 95%;
+                width: calc(100% - 32px);
+                max-height: 90vh;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                box-sizing: border-box;
+            }
+
+            .post-modal h3 {
+                font-size: 20px;
+                margin-bottom: 16px;
+                padding-right: 30px;
+            }
+
+            .post-modal .post-meta {
+                font-size: 13px;
+                padding: 10px 12px;
+                margin-bottom: 16px;
+            }
+
+            .post-modal .post-content {
+                font-size: 14px;
+                padding: 16px;
+                line-height: 1.7;
+                word-break: break-word;
+                overflow-wrap: break-word;
+            }
+
+            .post-modal .close-btn {
+                top: 12px;
+                right: 12px;
+                font-size: 28px;
+                padding: 8px;
+                min-width: 44px;
+                min-height: 44px;
+            }
+
+            .post-modal-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .post-delete-btn {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 15px;
+                min-height: 44px;
+                box-sizing: border-box;
             }
             
             .partner-logos {
@@ -1689,9 +2036,19 @@
             }
         }
 
-        .hamburger { display: none; background: transparent; border: 0; padding: 8px; cursor: pointer; }
-        .hamburger .bar { display: block; width: 22px; height: 2px; margin: 4px 0; background: #000; transition: transform 0.3s, opacity 0.3s; }
-        .mobile-drawer { display: none !important; }
+        /* 데스크톱에서 햄버거 버튼과 모바일 드로어 숨김 */
+        @media (min-width: 1025px) {
+            .hamburger { 
+                display: none; 
+                background: transparent; 
+                border: 0; 
+                padding: 8px; 
+                cursor: pointer; 
+            }
+            .mobile-drawer { 
+                display: none !important; 
+            }
+        }
     </style>
 </head>
 
@@ -1792,13 +2149,13 @@
         <a href="#" onclick="switchBoard('as-result'); return false;" data-board="as-result">A/S 처리결과</a>
         <a href="#" onclick="switchBoard('photo-gallery'); return false;" data-board="photo-gallery">📷 활동사진첩</a>
         <a href="#" onclick="switchBoard('member-management'); return false;" data-board="member-management" style="background: rgba(255,215,0,0.2);">👥 회원관리</a>
-        <a href="#" onclick="openCalculator(); return false;" class="desktop-tool-btn" style="background: rgba(100,200,255,0.2);">🧮 계산기</a>
+        <a href="#" onclick="openCalculator(); return false;" class="desktop-tool-btn" style="background: rgba(100,200,255,0.2);"><img src="../image/calculator.png" alt="계산기" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 4px;"> 계산기</a>
         <a href="#" onclick="openDrawingBoard(); return false;" class="desktop-tool-btn" style="background: rgba(255,150,200,0.2);">🎨 그림판</a>
     </nav>
 
     <!-- 모바일용 도구 아이콘 -->
     <div class="mobile-tool-icons">
-        <button onclick="openCalculator()" class="mobile-tool-btn" title="계산기">🧮</button>
+        <button onclick="openCalculator()" class="mobile-tool-btn" title="계산기"><img src="../image/calculator.png" alt="계산기" style="width: 26px; height: 26px; display: block;"></button>
         <button onclick="openDrawingBoard()" class="mobile-tool-btn" title="그림판">🎨</button>
     </div>
 
@@ -3837,6 +4194,7 @@
                 let actionButtons = '';
 
                 // 레이아웃 스타일은 CSS에 위임, 색상 등 표현 스타일만 인라인
+                // 모바일에서는 CSS로 일부 컬럼이 숨겨짐
                 row.innerHTML = `
                     <span>${member.username || member.id}</span>
                     <span>${member.name || '-'}</span>
@@ -3952,7 +4310,7 @@
     <div id="calculator-modal" class="tool-modal" style="display: none;">
         <div class="tool-modal-content calculator-content">
             <div class="tool-modal-header">
-                <h3>🧮 계산기</h3>
+                <h3><img src="../image/calculator.png" alt="계산기" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;"> 계산기</h3>
                 <button class="tool-modal-close" onclick="closeCalculator()">&times;</button>
             </div>
             <div class="calculator">
