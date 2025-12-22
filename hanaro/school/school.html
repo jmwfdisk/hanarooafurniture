@@ -187,32 +187,51 @@
         }
 
         .partner-logos {
-            display: flex;
+            display: flex !important;
             justify-content: center;
             align-items: center;
             flex-wrap: wrap;
             gap: 20px;
-            padding: 30px 20px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px 20px !important;
+            margin: 0 !important;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
             border-top: 1px solid rgba(0, 0, 0, 0.05);
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            position: relative !important;
+            z-index: 10 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+            min-height: 100px !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+        }
+        
+        .partner-logos-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .partner-logos a {
-            display: flex;
+            display: flex !important;
             align-items: center;
             justify-content: center;
             width: 40px;
             height: 40px;
             min-width: 40px;
-            background: #ffffff;
+            background: #ffffff !important;
             border-radius: 12px;
             padding: 6px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             position: relative;
-            overflow: hidden;
+            overflow: visible !important;
             flex-shrink: 0;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         .partner-logos a::before {
@@ -222,14 +241,14 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(0, 113, 227, 0.05) 0%, rgba(0, 91, 181, 0.05) 100%);
+            background: linear-gradient(135deg, rgba(68, 170, 107, 0.1) 0%, rgba(58, 143, 90, 0.1) 100%);
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
         .partner-logos a:hover {
-            transform: translateY(-2px) scale(1.1);
-            box-shadow: 0 4px 16px rgba(0, 113, 227, 0.2);
+            transform: translateY(-4px) scale(1.15);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.25);
         }
         
         .partner-logos a:hover::before {
@@ -237,15 +256,18 @@
         }
 
         .partner-logos img {
-            width: 100%;
-            height: 100%;
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain !important;
             border-radius: 6px;
             transition: all 0.3s ease;
             position: relative;
-            z-index: 1;
+            z-index: 2 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         .partner-logos a:hover img {
@@ -257,6 +279,51 @@
             margin-top: 0;
             padding: 20px;
             background: #fff;
+            position: relative;
+            z-index: 1;
+            overflow: visible !important;
+            max-height: none !important;
+            height: auto !important;
+            margin-bottom: 40px !important; /* 파트너 로고와의 간격 확보 */
+        }
+        
+        /* 엑셀 영역이 파트너 로고를 가리지 않도록 */
+        #excel-display-area {
+            position: relative !important;
+            z-index: 1 !important;
+            margin-bottom: 40px !important; /* 파트너 로고와의 간격 확보 */
+            padding-bottom: 30px;
+        }
+        
+        /* 파트너 로고가 항상 표시되도록 강제 - 최우선 적용 */
+        div.partner-logos,
+        .partner-logos {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            z-index: 1000 !important;
+            clear: both !important;
+            margin-top: 40px !important;
+            margin-bottom: 20px !important;
+            height: auto !important;
+            min-height: 100px !important;
+            max-height: none !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+            padding: 20px 20px !important;
+            border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+        }
+        
+        /* 파트너 로고가 절대 사라지지 않도록 최종 보호 */
+        body .partner-logos,
+        html .partner-logos {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         .read-only-notice {
@@ -419,6 +486,77 @@
             min-height: 400px;
         }
 
+        /* 모바일에서 테이블 높이 제한 해제 및 가로 스크롤 활성화 */
+        @media (max-width: 1024px) {
+            #tabulator-table {
+                min-height: 500px !important;
+                height: auto !important;
+                overflow-x: scroll !important; /* scroll로 변경하여 스크롤바 항상 표시 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            #tabulator-table .tabulator {
+                min-height: 500px !important;
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Tabulator 내부 스크롤 컨테이너 */
+            #tabulator-table .tabulator-tableHolder {
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+            }
+
+            /* Tabulator 테이블 본체 - 컬럼이 사라지지 않도록 */
+            #tabulator-table .tabulator-table {
+                min-width: max-content !important; /* 컬럼 너비 합계만큼 최소 너비 보장 */
+                width: max-content !important; /* 컬럼이 모두 표시되도록 */
+                table-layout: auto !important; /* 자동 레이아웃 */
+            }
+
+            /* 모든 컬럼이 항상 표시되도록 - 절대 사라지지 않게 강제 */
+            #tabulator-table .tabulator-col,
+            #tabulator-table .tabulator-col-group,
+            #tabulator-table .tabulator-header .tabulator-col {
+                display: table-cell !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: auto !important;
+                min-width: 120px !important;
+                max-width: none !important;
+            }
+
+            /* 컬럼이 숨겨지지 않도록 강제 */
+            #tabulator-table .tabulator-col[style*="display: none"],
+            #tabulator-table .tabulator-col[style*="visibility: hidden"] {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            /* 셀 텍스트 전체 표시 (스와이프로 볼 수 있도록) */
+            #tabulator-table .tabulator-cell {
+                white-space: nowrap !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                min-width: 120px !important; /* 최소 너비 보장 */
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            /* 행이 사라지지 않도록 */
+            #tabulator-table .tabulator-row {
+                display: table-row !important;
+                visibility: visible !important;
+            }
+        }
+
         .tabulator {
             font-size: 14px;
             background: #fff;
@@ -572,7 +710,7 @@
                 display: grid;
                 grid-template-columns: auto 1fr auto;
                 align-items: center;
-                height: 59px;
+                height: 85px;
                 padding: 0 8px;
                 transition: all 0.3s ease;
             }
@@ -594,15 +732,6 @@
                 align-items: center;
             }
             
-            .employee-btn {
-                display: flex !important;
-            }
-            
-            .employee-btn button {
-                padding: 4.2px 8.4px !important;  /* 30% 감소: 6px -> 4.2px, 12px -> 8.4px */
-                font-size: 8.4px !important;  /* 30% 감소: 12px -> 8.4px */
-            }
-            
             /* 로그인 버튼도 30% 작게 */
             .login a,
             .login-item {
@@ -621,26 +750,74 @@
                 vertical-align: middle !important;
             }
             
-            .employee-btn {
-                display: flex !important;
+            /* 모바일에서 로그아웃 타이머 숨김 */
+            #logout-timer {
+                display: none !important;
             }
-            
-            .employee-btn button {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
+
             .navbar > div:not(.logo):not(.login):not(.mobile-only) {
                 display: none;
             }
-            .employee-btn { 
-                display: block;
-                pointer-events: auto;
+
+            /* 모바일에서 임직원 버튼을 네비게이션 바 하단에 직사각형으로 배치 */
+            .navbar .employee-btn,
+            .navbar .login .employee-btn {
+                position: fixed !important;
+                right: 0 !important;
+                top: 85px !important; /* 네비게이션 바 높이와 동일 */
+                z-index: 999 !important;
+                display: flex !important;
+                pointer-events: auto !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: auto !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 0 !important; /* 직사각형 */
+                border: none !important;
+                box-shadow: none !important;
+                transition: all 0.3s ease !important;
+                background: transparent !important; /* 투명한 배경 제거 */
             }
-            .employee-btn button:disabled {
+
+            .navbar .employee-btn button,
+            .navbar .login .employee-btn button {
+                width: auto !important;
+                height: auto !important;
+                padding: 8px 16px !important;
+                border-radius: 0 !important; /* 직사각형 */
+                font-size: 12px !important;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; /* 다른 색상 (보라색) */
+                color: white !important;
+                box-shadow: none !important;
+                transition: all 0.3s ease !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border: none !important;
+                line-height: 1.2 !important;
+                text-align: center !important;
+            }
+
+            .navbar .employee-btn button:not(:disabled):hover,
+            .navbar .login .employee-btn button:not(:disabled):hover {
+                transform: translateY(-2px) !important;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+            }
+
+            .navbar .employee-btn button:disabled,
+            .navbar .login .employee-btn button:disabled {
+                background: #e9ecef !important;
+                color: #adb5bd !important;
+                cursor: not-allowed !important;
                 pointer-events: none !important;
-                cursor: default;
             }
-            .employee-btn:has(button:disabled) {
+
+            .navbar .employee-btn:has(button:disabled),
+            .navbar .login .employee-btn:has(button:disabled) {
                 pointer-events: none !important;
             }
             .footer-top { display: none; }
@@ -748,17 +925,224 @@
             .body.menu-open { overflow: hidden; }
             .overlay.menu-open { display: block !important; }
 
+            /* 모바일 엑셀 표시 영역 최적화 */
             .excel-display-area {
-                padding: 15px 10px;
+                padding: 10px 8px;
+                margin-top: 60px !important; /* 임직원 버튼과 파일첨부 버튼 공간 확보 */
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
             }
 
-            .excel-table {
+            /* 읽기 전용 알림 모바일 스타일 */
+            .read-only-notice {
+                padding: 8px 12px;
                 font-size: 12px;
+                margin-bottom: 12px;
+                border-left-width: 3px;
+            }
+
+            /* Tabulator 테이블 모바일 최적화 */
+            #tabulator-table {
+                margin: 10px 0;
+                border-radius: 4px;
+                overflow-x: scroll !important; /* scroll로 변경하여 스크롤바 항상 표시 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                min-height: 500px !important; /* 더 많은 행을 표시하기 위해 높이 증가 */
+                width: 100% !important;
+                max-width: 100% !important;
+                position: relative;
+                /* 스크롤바 스타일링 */
+                scrollbar-width: thin; /* Firefox */
+                scrollbar-color: #cbd5e0 #f7fafc; /* Firefox */
+            }
+
+            /* Webkit 브라우저 (Chrome, Safari) 스크롤바 스타일 */
+            #tabulator-table::-webkit-scrollbar {
+                height: 8px; /* 가로 스크롤바 높이 */
+                width: 8px; /* 세로 스크롤바 너비 */
+            }
+
+            #tabulator-table::-webkit-scrollbar-track {
+                background: #f7fafc;
+                border-radius: 4px;
+            }
+
+            #tabulator-table::-webkit-scrollbar-thumb {
+                background: #cbd5e0;
+                border-radius: 4px;
+            }
+
+            #tabulator-table::-webkit-scrollbar-thumb:hover {
+                background: #a0aec0;
+            }
+
+            /* 테이블 컨테이너 가로 스크롤 활성화 */
+            #tabulator-table .tabulator {
+                font-size: 11px !important;
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Tabulator 테이블 본체 가로 스크롤 활성화 */
+            #tabulator-table .tabulator-tableHolder {
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+            }
+
+            /* Tabulator 테이블 본체 - 컬럼이 사라지지 않도록 */
+            #tabulator-table .tabulator-table {
+                min-width: max-content !important; /* 컬럼 너비 합계만큼 최소 너비 보장 */
+                width: max-content !important; /* 컬럼이 모두 표시되도록 */
+            }
+
+            /* Tabulator 스크롤바 스타일 */
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar {
+                height: 8px;
+                width: 8px;
+            }
+
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar-track {
+                background: #f7fafc;
+                border-radius: 4px;
+            }
+
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar-thumb {
+                background: #cbd5e0;
+                border-radius: 4px;
+            }
+
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar-thumb:hover {
+                background: #a0aec0;
+            }
+
+            .tabulator .tabulator-header {
+                font-size: 11px !important;
+            }
+
+            .tabulator .tabulator-header .tabulator-col {
+                padding: 6px 4px !important;
+                font-weight: 600;
+                min-width: 120px !important; /* 최소 너비 보장 */
+                display: table-cell !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: auto !important;
+                max-width: none !important;
+            }
+
+            /* 컬럼이 숨겨지지 않도록 강제 */
+            .tabulator .tabulator-header .tabulator-col[style*="display: none"],
+            .tabulator .tabulator-header .tabulator-col[style*="visibility: hidden"] {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            .tabulator .tabulator-cell {
+                padding: 6px 4px !important;
+                font-size: 11px !important;
+                white-space: nowrap !important; /* 텍스트 줄바꿈 방지 */
+                overflow: visible !important; /* 잘림 방지 */
+                text-overflow: clip !important; /* 말줄임표 제거하여 전체 텍스트 표시 */
+                min-width: 120px !important; /* 최소 너비 보장 */
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            .tabulator .tabulator-row {
+                min-height: 36px !important; /* 행 높이 약간 증가 */
+                height: 36px !important;
+            }
+
+            /* Tabulator 툴바 모바일 최적화 */
+            .tabulator-toolbar {
+                padding: 10px 8px;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .tabulator-toolbar input[type="text"] {
+                padding: 6px 10px;
+                font-size: 12px;
+                min-width: 100%;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .tabulator-toolbar button {
+                padding: 6px 12px;
+                font-size: 12px;
+                width: 100%;
+            }
+
+            /* Tabulator 페이지네이션 모바일 최적화 */
+            .tabulator .tabulator-footer {
+                padding: 8px;
+                font-size: 11px;
+            }
+
+            .tabulator .tabulator-footer .tabulator-paginator {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .tabulator .tabulator-footer .tabulator-paginator button {
+                padding: 4px 8px;
+                font-size: 11px;
+                min-width: 32px;
+            }
+
+            .tabulator .tabulator-footer .tabulator-paginator .tabulator-page-size {
+                padding: 4px 6px;
+                font-size: 11px;
+            }
+
+            /* 엑셀 업로드 버튼 모바일 위치 조정 (임직원 버튼 아래, 네비게이션 바 하단) */
+            .excel-upload-btn {
+                position: fixed !important;
+                top: auto !important;
+                bottom: auto !important;
+                right: 0 !important;
+                left: auto !important;
+                margin-top: 0 !important;
+                /* 임직원 버튼 아래에 배치하기 위해 계산 */
+                top: calc(85px + 35px) !important; /* 네비게이션 바 높이 + 임직원 버튼 높이 */
+                width: auto !important;
+                height: auto !important;
+                border-radius: 0 !important;
+                padding: 8px 16px !important;
+                font-size: 12px !important;
+                border: none !important;
+                box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3) !important;
+                z-index: 998 !important; /* 임직원 버튼(z-index: 999)보다 낮게 */
+            }
+
+            .excel-upload-btn::before {
+                content: '📎 파일첨부' !important;
+                white-space: normal !important;
+                font-size: 12px !important;
+                line-height: 1.2 !important;
+            }
+
+            .excel-upload-btn:hover {
+                transform: translateY(-2px) !important;
+                box-shadow: 0 4px 12px rgba(68, 170, 107, 0.4) !important;
+            }
+
+
+            .excel-table {
+                font-size: 11px;
             }
 
             .excel-table th,
             .excel-table td {
-                padding: 6px 8px;
+                padding: 6px 4px;
             }
 
             footer { 
@@ -788,28 +1172,28 @@
                 padding: 6px;
             }
             
+            .partner-logos {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
             .partner-logos img {
                 max-width: 100%;
                 max-height: 100%;
             }
-
-            .excel-upload-btn {
-                top: 120px;
-                right: 15px;
-                width: 35px;
-                height: 35px;
-                font-size: 8px;
-                border-width: 1.5px;
+            
+            /* 모바일에서 푸터 문구 줄간격 조정 */
+            div[style*="padding: 15px 20px 5px 20px"] {
+                padding: 15px 20px 10px 20px !important;
+            }
+            
+            div[style*="padding: 15px 20px 5px 20px"] p {
+                margin: 12px 0 !important;
+                line-height: 1.8 !important;
             }
 
-            .excel-upload-btn[style*="display: flex"] {
-                display: flex !important;
-            }
-
-            .excel-upload-btn::before {
-                font-size: 8px;
-                line-height: 1.1;
-            }
+            /* 엑셀 업로드 버튼 모바일 스타일은 아래에서 정의 */
 
 
             .excel-table {
@@ -938,6 +1322,34 @@
         </div>
     </div>
 
+    <!-- 파트너 로고 (엑셀 영역 바로 다음에 배치) -->
+    <div class="partner-logos" style="display: flex !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1000 !important; clear: both !important; margin-top: 40px !important; margin-bottom: 20px !important; width: 100% !important; min-height: 100px !important; padding: 20px 20px !important; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important; border-top: 1px solid rgba(0, 0, 0, 0.05) !important; border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;">
+        <a href="https://www.g2b.go.kr/" target="_blank">
+            <img src="../image/logo1.png" alt="파트너 1">
+        </a>
+        <a href="https://shop.g2b.go.kr/" target="_blank">
+            <img src="../image/logo2.png" alt="파트너 2">
+        </a>
+        <a href="https://hometax.go.kr/" target="_blank">
+            <img src="../image/logo3.png" alt="파트너 3">
+        </a>
+        <a href="https://www.smpp.go.kr" target="_blank">
+            <img src="../image/logo4.png" alt="파트너 4">
+        </a>
+        <a href="https://ecosq.or.kr/" target="_blank">
+            <img src="../image/logo5.png" alt="파트너 5">
+        </a>
+        <a href="https://www.sgic.co.kr/" target="_blank">
+            <img src="../image/logo6.png" alt="파트너 6">
+        </a>
+        <a href="https://si4n.nhis.or.kr/" target="_blank">
+            <img src="../image/logo7.png" alt="파트너 7">
+        </a>
+        <a href="https://www.4insure.or.kr/" target="_blank">
+            <img src="../image/logo8.png" alt="파트너 8">
+        </a>
+    </div>
+
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const isLoggedIn = sessionStorage.getItem("loggedIn");
@@ -1010,37 +1422,123 @@ document.addEventListener('DOMContentLoaded', function () {
 });
     </script>
 
+    <!-- 파트너 로고 강제 표시 스크립트 - 라우터 재초기화 후에도 보호 -->
+    <script>
+        function ensurePartnerLogosVisible() {
+            const partnerLogos = document.querySelectorAll('.partner-logos');
+            partnerLogos.forEach(partnerLogo => {
+                if (partnerLogo) {
+                    // 인라인 스타일로 강제 적용
+                    partnerLogo.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1000 !important; clear: both !important; margin-top: 40px !important; width: 100% !important; min-height: 100px !important; padding: 20px 20px !important; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;';
+                    
+                    // 모든 링크와 이미지도 확인
+                    const links = partnerLogo.querySelectorAll('a');
+                    links.forEach(link => {
+                        link.style.display = 'flex';
+                        link.style.visibility = 'visible';
+                        link.style.opacity = '1';
+                    });
+                    
+                    const images = partnerLogo.querySelectorAll('img');
+                    images.forEach(img => {
+                        img.style.display = 'block';
+                        img.style.visibility = 'visible';
+                        img.style.opacity = '1';
+                    });
+                    
+                    console.log('파트너 로고 강제 표시 완료:', partnerLogo);
+                }
+            });
+            
+            if (partnerLogos.length === 0) {
+                console.error('파트너 로고 요소를 찾을 수 없습니다.');
+            }
+        }
+        
+        // 즉시 실행
+        ensurePartnerLogosVisible();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            ensurePartnerLogosVisible();
+            // DOM이 준비된 후 파트너 로고 위치 확인
+            const partnerLogos = document.querySelectorAll('.partner-logos');
+            console.log('파트너 로고 요소 개수:', partnerLogos.length);
+            partnerLogos.forEach((logo, index) => {
+                const rect = logo.getBoundingClientRect();
+                console.log(`파트너 로고 #${index + 1} 위치:`, {
+                    top: rect.top,
+                    left: rect.left,
+                    width: rect.width,
+                    height: rect.height,
+                    visible: rect.width > 0 && rect.height > 0
+                });
+                const style = window.getComputedStyle(logo);
+                console.log(`파트너 로고 #${index + 1} 스타일:`, {
+                    display: style.display,
+                    visibility: style.visibility,
+                    opacity: style.opacity,
+                    zIndex: style.zIndex
+                });
+            });
+        });
+        
+        window.addEventListener('load', ensurePartnerLogosVisible);
+        
+        // 라우터 재초기화 이벤트 감지
+        window.addEventListener('authStateRestored', ensurePartnerLogosVisible);
+        
+        // 추가 확인 (약간의 지연 후)
+        setTimeout(ensurePartnerLogosVisible, 100);
+        setTimeout(ensurePartnerLogosVisible, 500);
+        setTimeout(ensurePartnerLogosVisible, 1000);
+        setTimeout(ensurePartnerLogosVisible, 2000);
+        
+        // MutationObserver로 파트너 로고가 제거되거나 숨겨지지 않도록 감시
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const target = mutation.target;
+                    if (target.classList && target.classList.contains('partner-logos')) {
+                        const style = window.getComputedStyle(target);
+                        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                            ensurePartnerLogosVisible();
+                        }
+                    }
+                }
+                if (mutation.type === 'childList') {
+                    mutation.removedNodes.forEach(function(node) {
+                        if (node.nodeType === 1 && node.classList && node.classList.contains('partner-logos')) {
+                            console.warn('파트너 로고가 제거되었습니다!');
+                            // 파트너 로고가 제거되면 다시 추가
+                            const footer = document.querySelector('footer');
+                            if (footer && !document.querySelector('.partner-logos')) {
+                                const newPartnerLogos = node.cloneNode(true);
+                                footer.parentNode.insertBefore(newPartnerLogos, footer);
+                                ensurePartnerLogosVisible();
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        
+        // 파트너 로고 감시 시작
+        document.addEventListener('DOMContentLoaded', function() {
+            const partnerLogos = document.querySelectorAll('.partner-logos');
+            partnerLogos.forEach(partnerLogo => {
+                observer.observe(partnerLogo, {
+                    attributes: true,
+                    attributeFilter: ['style', 'class'],
+                    childList: true,
+                    subtree: true
+                });
+            });
+        });
+    </script>
 
-<div class="partner-logos">
-    <a href="https://www.g2b.go.kr/" target="_blank">
-        <img src="../image/logo1.png" alt="파트너 1">
-    </a>
-    <a href="https://shop.g2b.go.kr/" target="_blank">
-        <img src="../image/logo2.png" alt="파트너 2">
-    </a>
-    <a href="https://hometax.go.kr/" target="_blank">
-        <img src="../image/logo3.png" alt="파트너 3">
-    </a>
-    <a href="https://www.smpp.go.kr" target="_blank">
-        <img src="../image/logo4.png" alt="파트너 4">
-    </a>
-    <a href="https://ecosq.or.kr/" target="_blank">
-        <img src="../image/logo5.png" alt="파트너 5">
-    </a>
-    <a href="https://www.sgic.co.kr/" target="_blank">
-        <img src="../image/logo6.png" alt="파트너 6">
-    </a>
-    <a href="https://si4n.nhis.or.kr/" target="_blank">
-        <img src="../image/logo7.png" alt="파트너 7">
-    </a>
-    <a href="https://www.4insure.or.kr/" target="_blank">
-        <img src="../image/logo8.png" alt="파트너 8">
-    </a>
-</div>
-
-    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 0.5;">
-      <p style="text-indent: 20px;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.<br></p>
-      <p style="text-indent: 20px;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
+    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 1.6; word-break: break-word; overflow-wrap: break-word;">
+      <p style="text-indent: 20px; margin: 12px 0 !important; line-height: 1.8 !important; word-break: break-word; overflow-wrap: break-word; white-space: normal;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.</p>
+      <p style="text-indent: 20px; margin: 12px 0 !important; line-height: 1.8 !important; word-break: break-word; overflow-wrap: break-word; white-space: normal;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
     </div>
 
     <footer>
@@ -1501,6 +1999,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 console.log('Tabulator 데이터 변환 완료:', tabulatorData.length, '행');
                 
+                // 모바일 여부 확인
+                const isMobile = window.innerWidth <= 1024;
+                
                 // Tabulator 컬럼 정의 생성
                 const columns = headers.map((header, index) => {
                     const columnName = header && header.toString().trim() 
@@ -1509,12 +2010,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     return {
                         title: columnName,
                         field: columnName,
-                        headerFilter: "input",  // 헤더에 필터 추가
+                        headerFilter: isMobile ? false : "input",  // 모바일에서는 필터 비활성화
                         headerSort: true,        // 정렬 기능 활성화
                         sorter: "string",        // 문자열 정렬
-                        width: 150,              // 기본 너비
-                        minWidth: 100,           // 최소 너비
-                        resizable: true          // 컬럼 크기 조절 가능
+                        width: 150,              // 고정 너비 설정 (모바일/데스크톱 동일)
+                        minWidth: 120,           // 최소 너비 보장 (컬럼이 사라지지 않도록)
+                        maxWidth: undefined,     // 최대 너비 제한 없음
+                        resizable: !isMobile,          // 모바일에서는 컬럼 크기 조절 비활성화
+                        visible: true,           // 항상 표시
+                        formatter: undefined  // 전체 텍스트 표시 (스와이프로 볼 수 있도록)
                     };
                 });
                 
@@ -1532,6 +2036,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 기존 테이블이 있으면 제거
                 if (window.schoolTable) {
                     try {
+                        // 기존 observer 정리
+                        if (window.schoolTableObserver) {
+                            window.schoolTableObserver.disconnect();
+                            window.schoolTableObserver = null;
+                        }
                         window.schoolTable.destroy();
                     } catch (e) {
                         console.warn('기존 테이블 제거 중 오류:', e);
@@ -1545,21 +2054,30 @@ document.addEventListener('DOMContentLoaded', function () {
                     window.schoolTable = new Tabulator("#tabulator-table", {
                         data: tabulatorData,
                         columns: columns,
-                        layout: "fitColumns",    // 컬럼에 맞춰 자동 조절
+                        layout: "fitColumns",    // 모든 화면 크기에서 fitColumns 사용 (컬럼이 사라지지 않도록)
                         pagination: true,        // 페이지네이션 활성화
-                        paginationSize: 50,       // 페이지당 50개 행
-                        paginationSizeSelector: [25, 50, 100, 200], // 페이지 크기 선택 옵션
+                        paginationSize: isMobile ? 20 : 50,       // 모바일에서는 페이지당 20개, 데스크톱은 50개
+                        paginationSizeSelector: isMobile ? [10, 20, 30, 50] : [25, 50, 100, 200], // 모바일 최적화 옵션
                         paginationCounter: "rows", // 행 수 표시
-                        movableColumns: true,    // 컬럼 이동 가능
-                        resizableColumns: true,   // 컬럼 크기 조절 가능
+                        movableColumns: !isMobile,    // 모바일에서는 컬럼 이동 비활성화
+                        resizableColumns: !isMobile,   // 모바일에서는 컬럼 크기 조절 비활성화
                         tooltips: true,           // 툴팁 표시
                         placeholder: "데이터가 없습니다.",
-                        height: tabulatorData.length > 0 ? "600px" : "400px",  // 테이블 높이 (데이터가 있으면 600px, 없으면 400px)
-                        minHeight: "400px",        // 최소 높이
-                        responsiveLayout: "hide", // 반응형 레이아웃
+                        height: isMobile 
+                            ? "600px"  // 모바일: 충분한 높이로 설정하여 많은 행 표시
+                            : (tabulatorData.length > 0 ? "600px" : "400px"),  // 데스크톱: 기존 높이
+                        minHeight: isMobile ? "500px" : "400px",        // 모바일 최소 높이 증가
+                        responsiveLayout: false, // 반응형 레이아웃 완전히 비활성화 (컬럼이 사라지지 않도록)
+                        rowHeight: isMobile ? 36 : undefined,  // 모바일에서 행 높이 명시적 설정 (36px)
+                        virtualDom: true,  // 가상 DOM 사용으로 성능 향상
+                        virtualDomBuffer: 300,  // 버퍼 크기 설정
+                        autoResize: false,  // 자동 크기 조절 비활성화 (컬럼이 사라지지 않도록)
                         initialSort: [            // 초기 정렬 설정
                             {column: "id", dir: "asc"}
-                        ]
+                        ],
+                        // 모바일 터치 최적화
+                        selectable: false,        // 선택 비활성화 (모바일에서 실수 방지)
+                        selectableRangeMode: "click"
                     });
                     
                     console.log('Tabulator 테이블 생성 완료');
@@ -1572,15 +2090,141 @@ document.addEventListener('DOMContentLoaded', function () {
                     // tabulator-table 영역 표시
                     tabulatorTable.style.display = 'block';
                     
-                    // 테이블이 제대로 렌더링되었는지 확인
+                    // 테이블이 제대로 렌더링되었는지 확인 및 컬럼 강제 표시
                     setTimeout(() => {
                         const tableElement = tabulatorTable.querySelector('.tabulator-table');
                         if (!tableElement) {
                             console.warn('Tabulator 테이블이 렌더링되지 않았습니다.');
                         } else {
                             console.log('Tabulator 테이블 렌더링 확인됨');
+                            
+                            // 모든 컬럼이 항상 표시되도록 강제
+                            const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                            allCols.forEach(col => {
+                                col.style.display = 'table-cell';
+                                col.style.visibility = 'visible';
+                                col.style.opacity = '1';
+                            });
+                            
+                            // 모든 셀이 항상 표시되도록 강제
+                            const allCells = tabulatorTable.querySelectorAll('.tabulator-cell');
+                            allCells.forEach(cell => {
+                                cell.style.display = 'table-cell';
+                                cell.style.visibility = 'visible';
+                            });
+                            
+                            // 모든 행이 항상 표시되도록 강제
+                            const allRows = tabulatorTable.querySelectorAll('.tabulator-row');
+                            allRows.forEach(row => {
+                                row.style.display = 'table-row';
+                                row.style.visibility = 'visible';
+                            });
+                            
+                            console.log('모든 컬럼/행 강제 표시 완료:', allCols.length, '컬럼', allRows.length, '행');
                         }
                     }, 100);
+                    
+                    // window resize 이벤트에서 테이블이 자동으로 변경되지 않도록 막기
+                    let resizeTimeout;
+                    const originalResize = window.schoolTable.redraw;
+                    window.schoolTable.redraw = function() {
+                        // redraw 호출 시 컬럼이 사라지지 않도록 보호
+                        const result = originalResize.call(this);
+                        
+                        // redraw 후 모든 컬럼이 표시되도록 강제
+                        setTimeout(() => {
+                            const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                            allCols.forEach(col => {
+                                col.style.display = 'table-cell';
+                                col.style.visibility = 'visible';
+                                col.style.opacity = '1';
+                            });
+                        }, 50);
+                        
+                        return result;
+                    };
+                    
+                    // window resize 이벤트 리스너 추가 (테이블이 자동으로 변경되지 않도록)
+                    window.addEventListener('resize', function() {
+                        clearTimeout(resizeTimeout);
+                        resizeTimeout = setTimeout(() => {
+                            // resize 후 모든 컬럼이 표시되도록 강제
+                            if (window.schoolTable && tabulatorTable) {
+                                const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                                allCols.forEach(col => {
+                                    col.style.display = 'table-cell';
+                                    col.style.visibility = 'visible';
+                                    col.style.opacity = '1';
+                                });
+                                
+                                const allCells = tabulatorTable.querySelectorAll('.tabulator-cell');
+                                allCells.forEach(cell => {
+                                    cell.style.display = 'table-cell';
+                                    cell.style.visibility = 'visible';
+                                });
+                                
+                                const allRows = tabulatorTable.querySelectorAll('.tabulator-row');
+                                allRows.forEach(row => {
+                                    row.style.display = 'table-row';
+                                    row.style.visibility = 'visible';
+                                });
+                            }
+                        }, 100);
+                    });
+                    
+                    // MutationObserver로 DOM 변경 감시하여 컬럼이 사라지면 다시 표시
+                    const observer = new MutationObserver(function(mutations) {
+                        if (!window.schoolTable || !tabulatorTable) return;
+                        
+                        let needsFix = false;
+                        const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                        allCols.forEach(col => {
+                            const style = window.getComputedStyle(col);
+                            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                                col.style.display = 'table-cell';
+                                col.style.visibility = 'visible';
+                                col.style.opacity = '1';
+                                needsFix = true;
+                            }
+                        });
+                        
+                        const allCells = tabulatorTable.querySelectorAll('.tabulator-cell');
+                        allCells.forEach(cell => {
+                            const style = window.getComputedStyle(cell);
+                            if (style.display === 'none' || style.visibility === 'hidden') {
+                                cell.style.display = 'table-cell';
+                                cell.style.visibility = 'visible';
+                                needsFix = true;
+                            }
+                        });
+                        
+                        const allRows = tabulatorTable.querySelectorAll('.tabulator-row');
+                        allRows.forEach(row => {
+                            const style = window.getComputedStyle(row);
+                            if (style.display === 'none' || style.visibility === 'hidden') {
+                                row.style.display = 'table-row';
+                                row.style.visibility = 'visible';
+                                needsFix = true;
+                            }
+                        });
+                        
+                        if (needsFix) {
+                            console.log('컬럼/행이 사라진 것을 감지하여 다시 표시했습니다.');
+                        }
+                    });
+                    
+                    // 테이블 컨테이너의 변경사항 감시
+                    if (tabulatorTable) {
+                        observer.observe(tabulatorTable, {
+                            childList: true,
+                            subtree: true,
+                            attributes: true,
+                            attributeFilter: ['style', 'class']
+                        });
+                    }
+                    
+                    // 테이블이 제거될 때 observer 정리
+                    window.schoolTableObserver = observer;
                     
                 } catch (tabulatorError) {
                     console.error('Tabulator 초기화 오류:', tabulatorError);
