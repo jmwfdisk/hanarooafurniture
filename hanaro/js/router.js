@@ -592,9 +592,15 @@
                 // 엑셀 파일 로드
                 loadExcelFile();
             } else {
-                // 로그아웃 상태
-                if (modal) {
-                    modal.classList.add('active');
+                // 로그아웃 상태 - 모달 대신 상단 안내문구에 메시지 표시
+                // 모달은 표시하지 않음
+                if (modal && modal.classList.contains('active')) {
+                    modal.classList.remove('active');
+                }
+                // 상단 안내문구 업데이트
+                const readOnlyNotice = document.querySelector('#section-school .read-only-notice');
+                if (readOnlyNotice) {
+                    readOnlyNotice.innerHTML = '⚠️ 모바일에서는 정상적으로 표시되지 않습니다 데스크탑 브라우저를 이용해주세요! 납품학교리스트를 보려면 로그인이 필요합니다 회원가입을 해주세요';
                 }
                 // excel-display-area는 표시하되 내용만 안내 메시지
                 if (excelContent) {
@@ -609,8 +615,15 @@
                 const modal = getLoginModal();
                 
                 if (!isLoggedIn) {
-                    if (modal) {
-                        modal.classList.add('active');
+                    // 로그아웃 상태 - 모달 대신 상단 안내문구에 메시지 표시
+                    // 모달은 표시하지 않음
+                    if (modal && modal.classList.contains('active')) {
+                        modal.classList.remove('active');
+                    }
+                    // 상단 안내문구 업데이트
+                    const readOnlyNotice = document.querySelector('#section-school .read-only-notice');
+                    if (readOnlyNotice) {
+                        readOnlyNotice.innerHTML = '⚠️ 모바일에서는 정상적으로 표시되지 않습니다 데스크탑 브라우저를 이용해주세요! 납품학교리스트를 보려면 로그인이 필요합니다 회원가입을 해주세요';
                     }
                     if (excelContent) {
                         excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">로그인이 필요합니다.</p>';
@@ -619,6 +632,11 @@
                 } else {
                     if (modal && modal.classList.contains('active')) {
                         modal.classList.remove('active');
+                    }
+                    // 로그인 상태일 때는 원래 안내문구로 복원
+                    const readOnlyNotice = document.querySelector('#section-school .read-only-notice');
+                    if (readOnlyNotice) {
+                        readOnlyNotice.innerHTML = '⚠️ 모바일에서는 정상적으로 표시되지 않습니다 데스크탑 브라우저를 이용해주세요!';
                     }
                     loadExcelFile();
                 }
@@ -628,8 +646,15 @@
                 const modal = getLoginModal();
                 
                 if (!isLoggedIn) {
-                    if (modal) {
-                        modal.classList.add('active');
+                    // 로그아웃 상태 - 모달 대신 상단 안내문구에 메시지 표시
+                    // 모달은 표시하지 않음
+                    if (modal && modal.classList.contains('active')) {
+                        modal.classList.remove('active');
+                    }
+                    // 상단 안내문구 업데이트
+                    const readOnlyNotice = document.querySelector('#section-school .read-only-notice');
+                    if (readOnlyNotice) {
+                        readOnlyNotice.innerHTML = '⚠️ 모바일에서는 정상적으로 표시되지 않습니다 데스크탑 브라우저를 이용해주세요! 납품학교리스트를 보려면 로그인이 필요합니다 회원가입을 해주세요';
                     }
                     if (excelContent) {
                         excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">로그인이 필요합니다.</p>';
@@ -638,6 +663,11 @@
                 } else {
                     if (modal && modal.classList.contains('active')) {
                         modal.classList.remove('active');
+                    }
+                    // 로그인 상태일 때는 원래 안내문구로 복원
+                    const readOnlyNotice = document.querySelector('#section-school .read-only-notice');
+                    if (readOnlyNotice) {
+                        readOnlyNotice.innerHTML = '⚠️ 모바일에서는 정상적으로 표시되지 않습니다 데스크탑 브라우저를 이용해주세요!';
                     }
                     loadExcelFile();
                 }
