@@ -22,7 +22,7 @@
     let cachedLoginModal = null;
     
     // 안내문구 메시지 통합 관리 (한 곳에서만 수정)
-    const SCHOOL_NOTICE_MESSAGE = '⚠️ 모바일에서는 정상적으로 표시되지 않습니다 데스크탑 브라우저를 이용해주세요!  * 납품학교리스트를 보려면 로그인이 필요합니다 회원가입을 해주세요';
+    const SCHOOL_NOTICE_MESSAGE = '⚠️ 모바일에서는 정상적으로 표시되지 않습니다. 데스크탑 브라우저를 이용해주세요!  * 납품학교리스트를 보려면 로그인이 필요합니다 회원가입을 해주세요!';
     
     // 안내문구 업데이트 함수
     function updateSchoolNotice() {
@@ -761,3 +761,4 @@
         currentRoute: () => currentRoute
     };
 })();
+
