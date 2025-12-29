@@ -10,6 +10,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <!-- 공통 인증 CSS -->
@@ -1172,6 +1173,40 @@
             min-height: 200px;
             resize: vertical;
         }
+        
+        /* 파일 업로드 스타일 */
+        #write-file-upload {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 2px dashed #ced4da;
+            border-radius: 12px;
+            background: #f8f9fa;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #write-file-upload:hover {
+            border-color: #44aa6b;
+            background: #f0fff4;
+        }
+        
+        #write-file-upload:focus {
+            outline: none;
+            border-color: #44aa6b;
+            box-shadow: 0 0 0 4px rgba(68, 170, 107, 0.1);
+        }
+        
+        #write-file-preview img {
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        #write-file-preview img:hover {
+            transform: scale(1.05);
+        }
 
         .write-form button {
             padding: 12px 24px;
@@ -2199,6 +2234,7 @@
      <script>
         // Firebase Firestore 참조 (auth.js에서 초기화된 것 사용)
         let db = null;
+        let storage = null; // Firebase Storage 참조
         
         // auth.js 로드 후 db 설정 (안전하게)
         function initStaffDB() {
@@ -2206,13 +2242,13 @@
             if (typeof authDb !== 'undefined' && authDb) {
                 db = authDb;
                 console.log('[Staff DB] authDb에서 가져옴');
-                return true;
             }
             
             // firebase.apps에서 직접 가져오기 (싱글톤 보장)
             if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
                 const app = firebase.app();
-                db = app.firestore();
+                if (!db) db = app.firestore();
+                storage = app.storage(); // Storage 초기화
                 console.log('[Staff DB] firebase.app()에서 가져옴 - App:', app.name);
                 return true;
             }
@@ -2239,6 +2275,9 @@
         
         // 즉시 시도
         tryInitStaffDB();
+        
+        // 파일 첨부 관련 변수
+        let selectedFiles = []; // 선택된 파일들을 추적하는 전역 변수
 
         let currentBoard = 'notice';
         let currentPage = {};
@@ -2738,10 +2777,28 @@
             const titleInput = document.getElementById('write-title');
             const authorInput = document.getElementById('write-author');
             const contentInput = document.getElementById('write-content');
+            const fileUploadSection = document.getElementById('file-upload-section');
+            const fileUpload = document.getElementById('write-file-upload');
+            const filePreview = document.getElementById('write-file-preview');
             
             if (titleInput) titleInput.value = '';
             if (authorInput) authorInput.value = '';
             if (contentInput) contentInput.value = '';
+            
+            // A/S 처리결과 게시판일 때만 파일 업로드 섹션 표시
+            if (currentBoard === 'as-result') {
+                if (fileUploadSection) fileUploadSection.style.display = 'block';
+                if (fileUpload) {
+                    fileUpload.value = '';
+                    fileUpload.onchange = handleFileSelect;
+                }
+            } else {
+                if (fileUploadSection) fileUploadSection.style.display = 'none';
+            }
+            
+            // 파일 미리보기 초기화
+            selectedFiles = [];
+            if (filePreview) filePreview.innerHTML = '';
         }
 
         function hideWriteForm() {
@@ -2750,6 +2807,186 @@
             
             if (writeForm) writeForm.style.display = 'none';
             if (overlay) overlay.style.display = 'none';
+            
+            // 파일 미리보기 초기화
+            selectedFiles = [];
+            const filePreview = document.getElementById('write-file-preview');
+            if (filePreview) filePreview.innerHTML = '';
+            const fileUpload = document.getElementById('write-file-upload');
+            if (fileUpload) fileUpload.value = '';
+        }
+        
+        // 파일 선택 핸들러
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            
+            // 새로 선택된 파일들을 기존 목록에 추가
+            files.forEach(file => {
+                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified)) {
+                    selectedFiles.push(file);
+                }
+            });
+            
+            updateFilePreview();
+        }
+        
+        // 파일 미리보기 업데이트
+        function updateFilePreview() {
+            const previewContainer = document.getElementById('write-file-preview');
+            if (!previewContainer) return;
+            
+            previewContainer.innerHTML = '';
+            
+            if (selectedFiles.length === 0) {
+                const fileUpload = document.getElementById('write-file-upload');
+                if (fileUpload) fileUpload.value = '';
+                return;
+            }
+            
+            selectedFiles.forEach((file, index) => {
+                const fileWrapper = document.createElement('div');
+                fileWrapper.style.position = 'relative';
+                fileWrapper.style.display = 'inline-block';
+                fileWrapper.style.margin = '8px';
+                
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.width = '120px';
+                        img.style.height = '120px';
+                        img.style.objectFit = 'cover';
+                        img.style.border = '2px solid #e9ecef';
+                        img.style.borderRadius = '12px';
+                        img.style.padding = '4px';
+                        img.style.background = '#fff';
+                        img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                        
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.innerHTML = '×';
+                        deleteBtn.style.position = 'absolute';
+                        deleteBtn.style.top = '-8px';
+                        deleteBtn.style.right = '-8px';
+                        deleteBtn.style.width = '24px';
+                        deleteBtn.style.height = '24px';
+                        deleteBtn.style.minWidth = '24px';
+                        deleteBtn.style.minHeight = '24px';
+                        deleteBtn.style.padding = '0';
+                        deleteBtn.style.margin = '0';
+                        deleteBtn.style.borderRadius = '50%';
+                        deleteBtn.style.border = 'none';
+                        deleteBtn.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)';
+                        deleteBtn.style.color = 'white';
+                        deleteBtn.style.fontSize = '16px';
+                        deleteBtn.style.fontWeight = 'bold';
+                        deleteBtn.style.cursor = 'pointer';
+                        deleteBtn.style.boxShadow = '0 2px 6px rgba(255, 107, 107, 0.4)';
+                        deleteBtn.style.display = 'flex';
+                        deleteBtn.style.alignItems = 'center';
+                        deleteBtn.style.justifyContent = 'center';
+                        deleteBtn.style.lineHeight = '1';
+                        deleteBtn.style.zIndex = '10';
+                        deleteBtn.style.boxSizing = 'border-box';
+                        deleteBtn.style.overflow = 'hidden';
+                        
+                        deleteBtn.onclick = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const fileIndex = selectedFiles.findIndex(f => 
+                                f.name === file.name && 
+                                f.size === file.size && 
+                                f.lastModified === file.lastModified
+                            );
+                            if (fileIndex !== -1) {
+                                selectedFiles.splice(fileIndex, 1);
+                                updateFilePreview();
+                                updateFileInput();
+                            }
+                        };
+                        
+                        fileWrapper.appendChild(img);
+                        fileWrapper.appendChild(deleteBtn);
+                        previewContainer.appendChild(fileWrapper);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.style.padding = '10px';
+                    fileDiv.style.background = '#f8f9fa';
+                    fileDiv.style.border = '2px solid #e9ecef';
+                    fileDiv.style.borderRadius = '8px';
+                    fileDiv.style.minWidth = '120px';
+                    fileDiv.style.textAlign = 'center';
+                    fileDiv.style.position = 'relative';
+                    
+                    const fileName = document.createElement('div');
+                    fileName.textContent = file.name;
+                    fileName.style.fontSize = '12px';
+                    fileName.style.color = '#495057';
+                    fileName.style.wordBreak = 'break-word';
+                    fileName.style.marginBottom = '8px';
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '×';
+                    deleteBtn.style.position = 'absolute';
+                    deleteBtn.style.top = '-8px';
+                    deleteBtn.style.right = '-8px';
+                    deleteBtn.style.width = '24px';
+                    deleteBtn.style.height = '24px';
+                    deleteBtn.style.minWidth = '24px';
+                    deleteBtn.style.minHeight = '24px';
+                    deleteBtn.style.padding = '0';
+                    deleteBtn.style.margin = '0';
+                    deleteBtn.style.borderRadius = '50%';
+                    deleteBtn.style.border = 'none';
+                    deleteBtn.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)';
+                    deleteBtn.style.color = 'white';
+                    deleteBtn.style.fontSize = '16px';
+                    deleteBtn.style.fontWeight = 'bold';
+                    deleteBtn.style.cursor = 'pointer';
+                    deleteBtn.style.boxShadow = '0 2px 6px rgba(255, 107, 107, 0.4)';
+                    deleteBtn.style.display = 'flex';
+                    deleteBtn.style.alignItems = 'center';
+                    deleteBtn.style.justifyContent = 'center';
+                    deleteBtn.style.lineHeight = '1';
+                    deleteBtn.style.zIndex = '10';
+                    deleteBtn.style.boxSizing = 'border-box';
+                    deleteBtn.style.overflow = 'hidden';
+                    
+                    deleteBtn.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const fileIndex = selectedFiles.findIndex(f => 
+                            f.name === file.name && 
+                            f.size === file.size && 
+                            f.lastModified === file.lastModified
+                        );
+                        if (fileIndex !== -1) {
+                            selectedFiles.splice(fileIndex, 1);
+                            updateFilePreview();
+                            updateFileInput();
+                        }
+                    };
+                    
+                    fileDiv.appendChild(fileName);
+                    fileDiv.appendChild(deleteBtn);
+                    fileWrapper.appendChild(fileDiv);
+                    previewContainer.appendChild(fileWrapper);
+                }
+            });
+        }
+        
+        // 파일 input 업데이트
+        function updateFileInput() {
+            const fileUpload = document.getElementById('write-file-upload');
+            if (!fileUpload) return;
+            
+            const dataTransfer = new DataTransfer();
+            selectedFiles.forEach(file => {
+                dataTransfer.items.add(file);
+            });
+            fileUpload.files = dataTransfer.files;
         }
 
         function submitPost() {
@@ -2812,26 +3049,208 @@
                 }
             }
             
-            const newPost = {
-                title: title,
-                author: author,
-                content: content,
-                date: new Date().toLocaleDateString('ko-KR'),
-                uid: uid,  // 작성자 UID 저장
-                username: username,  // 작성자 username 저장
-                name: name  // 작성자 name 저장
-            };
+            // A/S 처리결과 게시판일 때 파일 업로드 처리
+            if (currentBoard === 'as-result' && selectedFiles.length > 0) {
+                // 파일 크기 검증
+                const oversizedFiles = selectedFiles.filter(f => f.size > 10 * 1024 * 1024);
+                if (oversizedFiles.length > 0) {
+                    alert(`다음 파일의 크기가 너무 큽니다. (최대 10MB):\n${oversizedFiles.map(f => f.name).join('\n')}`);
+                    return;
+                }
+                
+                // Firebase Storage에 업로드
+                if (storage) {
+                    uploadFilesToFirebase(selectedFiles, title, author, content, uid, username, name);
+                } else {
+                    // Firebase가 없으면 localStorage 사용
+                    uploadFilesToLocalStorage(selectedFiles, title, author, content, uid, username, name);
+                }
+            } else {
+                // 파일이 없는 경우 바로 저장
+                const newPost = {
+                    title: title,
+                    author: author,
+                    content: content,
+                    date: new Date().toLocaleDateString('ko-KR'),
+                    uid: uid,
+                    username: username,
+                    name: name,
+                    files: [],
+                    fileData: [],
+                    fileUrls: []
+                };
 
-            if (!allPosts[currentBoard]) {
-                allPosts[currentBoard] = [];
+                if (!allPosts[currentBoard]) {
+                    allPosts[currentBoard] = [];
+                }
+                
+                allPosts[currentBoard].unshift(newPost);
+                savePosts(currentBoard).then(() => {
+                    currentPage[currentBoard] = 1;
+                    renderPosts();
+                    hideWriteForm();
+                    alert('게시글이 등록되었습니다.');
+                });
             }
+        }
+        
+        // Firebase Storage에 파일 업로드
+        async function uploadFilesToFirebase(files, title, author, content, uid, username, name) {
+            const fileUrls = [];
+            const fileData = [];
+            const fileNames = files.map(f => f.name);
             
-            allPosts[currentBoard].unshift(newPost);
-            savePosts(currentBoard).then(() => {
+            try {
+                const uploadPromises = files.map(async (file) => {
+                    const timestamp = Date.now();
+                    const fileName = `${timestamp}_${file.name}`;
+                    const storageRef = storage.ref(`as-result-files/${fileName}`);
+                    
+                    const snapshot = await storageRef.put(file);
+                    const downloadURL = await snapshot.ref.getDownloadURL();
+                    
+                    return {
+                        name: file.name,
+                        url: downloadURL,
+                        type: file.type,
+                        size: file.size
+                    };
+                });
+                
+                const uploadedFiles = await Promise.all(uploadPromises);
+                
+                uploadedFiles.forEach(file => {
+                    fileUrls.push(file.url);
+                    fileData.push({
+                        name: file.name,
+                        url: file.url,
+                        type: file.type,
+                        size: file.size
+                    });
+                });
+                
+                // 게시글 저장
+                const newPost = {
+                    title: title,
+                    author: author,
+                    content: content,
+                    date: new Date().toLocaleDateString('ko-KR'),
+                    uid: uid,
+                    username: username,
+                    name: name,
+                    files: fileNames,
+                    fileData: fileData,
+                    fileUrls: fileUrls
+                };
+
+                if (!allPosts[currentBoard]) {
+                    allPosts[currentBoard] = [];
+                }
+                
+                allPosts[currentBoard].unshift(newPost);
+                await savePosts(currentBoard);
+                
                 currentPage[currentBoard] = 1;
                 renderPosts();
                 hideWriteForm();
                 alert('게시글이 등록되었습니다.');
+                
+            } catch (error) {
+                console.error('파일 업로드 오류:', error);
+                alert('파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.\n' + error.message);
+            }
+        }
+
+        // localStorage에 파일 저장 (Firebase 미사용 시)
+        async function uploadFilesToLocalStorage(files, title, author, content, uid, username, name) {
+            const fileData = [];
+            const fileNames = files.map(f => f.name);
+            let processedFiles = 0;
+            let hasError = false;
+            
+            files.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const base64Data = e.target.result.split(',')[1];
+                        fileData.push({
+                            name: file.name,
+                            type: file.type,
+                            data: base64Data
+                        });
+                    } catch (err) {
+                        console.error('파일 처리 오류:', err);
+                        hasError = true;
+                    }
+                    processedFiles++;
+
+                    if (processedFiles === files.length) {
+                        if (!hasError) {
+                            const newPost = {
+                                title: title,
+                                author: author,
+                                content: content,
+                                date: new Date().toLocaleDateString('ko-KR'),
+                                uid: uid,
+                                username: username,
+                                name: name,
+                                files: fileNames,
+                                fileData: fileData,
+                                fileUrls: []
+                            };
+
+                            if (!allPosts[currentBoard]) {
+                                allPosts[currentBoard] = [];
+                            }
+                            
+                            allPosts[currentBoard].unshift(newPost);
+                            savePosts(currentBoard).then(() => {
+                                currentPage[currentBoard] = 1;
+                                renderPosts();
+                                hideWriteForm();
+                                alert('게시글이 등록되었습니다.');
+                            });
+                        } else {
+                            alert('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+                        }
+                    }
+                };
+                reader.onerror = function(error) {
+                    console.error('파일 읽기 오류:', error);
+                    hasError = true;
+                    processedFiles++;
+                    if (processedFiles === files.length) {
+                        if (!hasError) {
+                            const newPost = {
+                                title: title,
+                                author: author,
+                                content: content,
+                                date: new Date().toLocaleDateString('ko-KR'),
+                                uid: uid,
+                                username: username,
+                                name: name,
+                                files: fileNames,
+                                fileData: fileData,
+                                fileUrls: []
+                            };
+
+                            if (!allPosts[currentBoard]) {
+                                allPosts[currentBoard] = [];
+                            }
+                            
+                            allPosts[currentBoard].unshift(newPost);
+                            savePosts(currentBoard).then(() => {
+                                currentPage[currentBoard] = 1;
+                                renderPosts();
+                                hideWriteForm();
+                                alert('게시글이 등록되었습니다.');
+                            });
+                        } else {
+                            alert('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
             });
         }
 
@@ -2845,6 +3264,117 @@
                 <strong>작성자:</strong> ${post.author} | <strong>작성일:</strong> ${post.date}
             `;
             document.getElementById('post-content').textContent = post.content;
+            
+            // 파일 표시 (A/S 처리결과 게시판일 때만)
+            const postFiles = document.getElementById('post-files');
+            const postFileImages = document.getElementById('post-file-images');
+            
+            if (postFiles) {
+                if (post.files && post.files.length > 0) {
+                    postFiles.style.display = 'block';
+                    postFiles.innerHTML = `첨부 파일: <br>` + post.files.map((name, idx) => {
+                        return `<a href="#" onclick="downloadStaffFile(${index}, ${idx}); return false;" style="color:blue; text-decoration:underline; cursor: pointer;">${name}</a>`;
+                    }).join('<br>');
+                } else {
+                    postFiles.style.display = 'none';
+                    postFiles.innerHTML = '';
+                }
+            }
+            
+            if (postFileImages) {
+                if (post.files && post.files.length > 0) {
+                    postFileImages.style.display = 'flex';
+                } else {
+                    postFileImages.style.display = 'none';
+                }
+            }
+            
+            if (postFileImages) {
+                postFileImages.innerHTML = '';
+                if (post.files && post.files.length > 0) {
+                    post.files.forEach((name, idx) => {
+                        // Firebase Storage URL 우선 사용
+                        let fileUrl = null;
+                        
+                        // fileUrls 배열에서 찾기 (Firebase Storage)
+                        if (post.fileUrls && post.fileUrls[idx]) {
+                            fileUrl = post.fileUrls[idx];
+                        }
+                        // fileData에서 찾기 (localStorage)
+                        else if (post.fileData && post.fileData.length > 0) {
+                            const fileDataItem = post.fileData.find(f => f.name === name) || post.fileData[idx];
+                            if (fileDataItem && fileDataItem.url) {
+                                fileUrl = fileDataItem.url; // Firebase URL
+                            } else if (fileDataItem && fileDataItem.data) {
+                                fileUrl = 'data:' + fileDataItem.type + ';base64,' + fileDataItem.data; // base64
+                            }
+                        }
+                        
+                        if (name.match(/\.(jpg|jpeg|png|gif|webp)$/i) && fileUrl) {
+                            const img = document.createElement('img');
+                            img.alt = name;
+                            img.style.width = '150px';
+                            img.style.height = '150px';
+                            img.style.objectFit = 'cover';
+                            img.style.border = '2px solid #e9ecef';
+                            img.style.borderRadius = '8px';
+                            img.style.padding = '4px';
+                            img.style.margin = '5px';
+                            img.style.background = '#fff';
+                            img.style.cursor = 'pointer';
+                            img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                            img.src = fileUrl;
+                            
+                            img.onclick = function() {
+                                if (fileUrl) {
+                                    if (fileUrl.startsWith('http')) {
+                                        window.open(fileUrl, '_blank');
+                                    } else {
+                                        const link = document.createElement('a');
+                                        link.href = fileUrl;
+                                        link.download = name;
+                                        link.click();
+                                    }
+                                }
+                            };
+                            
+                            postFileImages.appendChild(img);
+                        } else if (!name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+                            // 이미지가 아닌 파일
+                            const fileDiv = document.createElement('div');
+                            fileDiv.style.padding = '10px';
+                            fileDiv.style.margin = '5px';
+                            fileDiv.style.background = '#f8f9fa';
+                            fileDiv.style.border = '2px solid #e9ecef';
+                            fileDiv.style.borderRadius = '8px';
+                            fileDiv.style.display = 'inline-block';
+                            
+                            const fileName = document.createElement('div');
+                            fileName.textContent = '📎 ' + name;
+                            fileName.style.color = '#495057';
+                            fileName.style.fontSize = '14px';
+                            
+                            if (fileUrl) {
+                                fileName.style.cursor = 'pointer';
+                                fileName.style.textDecoration = 'underline';
+                                fileName.onclick = function() {
+                                    if (fileUrl.startsWith('http')) {
+                                        window.open(fileUrl, '_blank');
+                                    } else {
+                                        const link = document.createElement('a');
+                                        link.href = fileUrl;
+                                        link.download = name;
+                                        link.click();
+                                    }
+                                };
+                            }
+                            
+                            fileDiv.appendChild(fileName);
+                            postFileImages.appendChild(fileDiv);
+                        }
+                    });
+                }
+            }
             
             // 삭제 버튼 표시 여부 결정
             const loggedInUser = sessionStorage.getItem('loggedInUser');
@@ -2881,12 +3411,59 @@
             document.getElementById('post-modal').style.display = 'block';
             document.getElementById('overlay').style.display = 'block';
         }
+        
+        // 파일 다운로드 함수
+        function downloadStaffFile(postIndex, fileIndex) {
+            const post = allPosts[currentBoard][postIndex];
+            if (!post || !post.files || !post.files[fileIndex]) {
+                alert('파일 정보를 찾을 수 없습니다.');
+                return;
+            }
+            
+            const fileName = post.files[fileIndex];
+            let fileUrl = null;
+            
+            // Firebase Storage URL 우선 사용
+            if (post.fileUrls && post.fileUrls[fileIndex]) {
+                fileUrl = post.fileUrls[fileIndex];
+            }
+            // fileData에서 찾기
+            else if (post.fileData && post.fileData.length > 0) {
+                const fileDataItem = post.fileData.find(f => f.name === fileName) || post.fileData[fileIndex];
+                if (fileDataItem && fileDataItem.url) {
+                    fileUrl = fileDataItem.url;
+                } else if (fileDataItem && fileDataItem.data) {
+                    fileUrl = 'data:' + fileDataItem.type + ';base64,' + fileDataItem.data;
+                }
+            }
+            
+            if (fileUrl) {
+                if (fileUrl.startsWith('http')) {
+                    window.open(fileUrl, '_blank');
+                } else {
+                    const link = document.createElement('a');
+                    link.href = fileUrl;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            } else {
+                alert(`파일 "${fileName}" 데이터를 찾을 수 없습니다.`);
+            }
+        }
 
         function closePostModal() {
             document.getElementById('post-modal').style.display = 'none';
             document.getElementById('overlay').style.display = 'none';
             currentPostIndex = -1; // 인덱스 초기화
             document.getElementById('post-delete-btn').style.display = 'none';
+            
+            // 파일 표시 영역 초기화
+            const postFiles = document.getElementById('post-files');
+            const postFileImages = document.getElementById('post-file-images');
+            if (postFiles) postFiles.innerHTML = '';
+            if (postFileImages) postFileImages.innerHTML = '';
         }
         
         // 모달에서 삭제 버튼 클릭 시 호출되는 함수
@@ -3015,6 +3592,14 @@
         <input type="text" id="write-title" placeholder="제목">
         <input type="text" id="write-author" placeholder="작성자">
         <textarea id="write-content" placeholder="내용"></textarea>
+        <!-- 파일 첨부 (A/S 처리결과 게시판일 때만 표시) -->
+        <div id="file-upload-section" style="display: none; margin-top: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057; font-size: 15px;"><strong>첨부 파일</strong></label>
+            <div style="position: relative; display: inline-block; width: 100%;">
+                <input type="file" id="write-file-upload" multiple style="width: 100%; padding: 12px; font-size: 14px; border: 2px dashed #ced4da; border-radius: 12px; background: #f8f9fa; color: #495057; cursor: pointer; transition: all 0.3s ease;">
+            </div>
+            <div id="write-file-preview" style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;"></div>
+        </div>
         <div style="text-align: right;">
             <button class="cancel-btn" onclick="hideWriteForm()">취소</button>
             <button onclick="submitPost()">등록</button>
@@ -3027,6 +3612,9 @@
         <h3 id="post-title"></h3>
         <div id="post-meta" class="post-meta"></div>
         <div id="post-content" class="post-content"></div>
+        <!-- 첨부파일 영역 -->
+        <div id="post-files" style="font-size: 14px; margin-top: 16px; color: #495057; padding: 12px; background: #f8f9fa; border-radius: 8px;"></div>
+        <div id="post-file-images" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 8px;"></div>
         <div class="post-modal-actions">
             <button id="post-delete-btn" class="post-delete-btn" onclick="deletePostFromModal()" style="display: none;">🗑️ 삭제</button>
         </div>
