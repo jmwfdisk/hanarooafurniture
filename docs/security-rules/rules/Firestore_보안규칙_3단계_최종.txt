@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // A/S 게시판 - 모든 사용자 접근 가능
+    match /asPosts/{document} {
+      allow read, write: if true;
+    }
+
+    // 직원 게시판
+    match /staffPosts/{board} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 사용자 정보
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null;
+    }
+
+    // 활동사진첩
+    match /activityPhotos/{photoId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null && 
+        resource.data.uploadedBy == request.auth.uid;
+    }
+  }
+}
+

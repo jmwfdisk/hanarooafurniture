@@ -1,0 +1,5 @@
+.DS_Store
+*.psd
+*.clip
+_backup/
+.cursor/

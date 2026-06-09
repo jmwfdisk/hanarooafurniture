@@ -1,0 +1,259 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========== 헬퍼 함수 ==========
+    
+    // 관리자 확인 함수
+    // 주의: users 컬렉션의 읽기 규칙에서는 순환 참조를 방지하기 위해 직접 확인
+    function isAdmin() {
+      return request.auth != null && 
+        request.auth.uid != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // 임직원 확인 함수
+    function isEmployee() {
+      return request.auth != null && 
+        request.auth.uid != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'employee' ||
+         isAdmin());
+    }
+    
+    // 인증된 사용자 확인 함수
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+    
+    // 본인 확인 함수
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // 승인된 사용자 확인 함수
+    function isApprovedUser() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
+    }
+    
+    // ========== 사용자 정보 (users) ==========
+    
+    match /users/{userId} {
+      // 읽기: 본인 또는 관리자만 가능
+      // 순환 참조를 방지하기 위해 isAdmin() 함수를 사용하지 않고 직접 확인
+      allow read: if request.auth != null && 
+        request.auth.uid != null && (
+          // 본인 정보 읽기
+          request.auth.uid == userId ||
+          // 관리자가 다른 사용자 정보 읽기 (회원관리 기능)
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+        );
+      
+      // 생성: 본인만 회원가입 시 생성 가능
+      allow create: if request.auth != null && 
+        request.auth.uid != null && 
+        request.auth.uid == userId &&
+        // 회원가입 시 필수 필드 검증
+        request.resource.data.keys().hasAll(['uid', 'username', 'name', 'email', 'status', 'createdAt']) &&
+        // UID 일치 확인
+        request.resource.data.uid == request.auth.uid &&
+        // 초기 상태는 pending이어야 함
+        request.resource.data.status == 'pending' &&
+        // 회원가입 시 isAdmin은 false여야 함 (보안)
+        request.resource.data.isAdmin == false &&
+        // username은 admin 사용 불가
+        request.resource.data.username != 'admin' &&
+        // 필수 필드 타입 검증
+        request.resource.data.uid is string &&
+        request.resource.data.username is string &&
+        request.resource.data.name is string &&
+        request.resource.data.email is string &&
+        request.resource.data.status is string &&
+        // 선택적 필드 검증
+        (!('phone' in request.resource.data) || request.resource.data.phone is string) &&
+        (!('userType' in request.resource.data) || request.resource.data.userType is string);
+      
+      // 수정: 본인 또는 관리자만 가능
+      allow update: if request.auth != null && 
+        request.auth.uid != null && (
+          // 본인 정보 수정 (일부 필드만)
+          (request.auth.uid == userId &&
+           // 본인은 isAdmin, status, uid 필드 수정 불가
+           !('isAdmin' in request.resource.data.diff(resource.data).affectedKeys()) &&
+           !('status' in request.resource.data.diff(resource.data).affectedKeys()) &&
+           !('uid' in request.resource.data.diff(resource.data).affectedKeys())) ||
+          // 관리자가 다른 사용자 정보 수정 (회원 승인/거절 등)
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+        ) &&
+        // UID는 변경 불가
+        request.resource.data.uid == resource.data.uid &&
+        // username은 admin으로 변경 불가
+        request.resource.data.username != 'admin';
+      
+      // 삭제: 관리자만 가능
+      allow delete: if request.auth != null && 
+        request.auth.uid != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // ========== A/S 게시판 (asPosts) ==========
+    // 구조: doc('posts') 단일 문서에 { posts: [...] } 형태로 저장
+    
+    match /asPosts/{document} {
+      // 읽기: 모든 사용자 가능 (공개 게시판)
+      allow read: if true;
+      
+      // 생성: 인증된 사용자만 가능 (초기 문서 생성)
+      allow create: if isAuthenticated() &&
+        // 필수 필드 검증
+        request.resource.data.keys().hasAny(['posts']) &&
+        // posts는 배열이어야 함
+        request.resource.data.posts is list;
+      
+      // 수정: 인증된 사용자만 가능 (게시글 추가/수정/삭제)
+      // 주의: 클라이언트에서 전체 posts 배열을 교체하므로, 
+      // 개별 게시글 권한 검증은 클라이언트에서 처리해야 함
+      allow update: if isAuthenticated() &&
+        // posts 필드는 배열이어야 함
+        request.resource.data.posts is list;
+      
+      // 삭제: 관리자만 가능 (전체 문서 삭제)
+      allow delete: if isAdmin();
+    }
+
+    // ========== 직원 게시판 (staffPosts) ==========
+    // 구조: doc(board) 형태로 각 게시판별 문서에 { posts: [...] } 형태로 저장
+    
+    match /staffPosts/{board} {
+      // 읽기: 임직원 또는 관리자만 가능
+      allow read: if isEmployee();
+      
+      // 생성: 임직원 또는 관리자만 가능 (게시판 초기 생성)
+      allow create: if isEmployee() &&
+        // board는 문자열이어야 함
+        board is string &&
+        // 필수 필드 검증
+        request.resource.data.keys().hasAny(['posts']) &&
+        // posts는 배열이어야 함
+        request.resource.data.posts is list;
+      
+      // 수정: 임직원 또는 관리자만 가능 (게시글 추가/수정/삭제)
+      // 주의: 클라이언트에서 전체 posts 배열을 교체하므로,
+      // 개별 게시글 권한 검증은 클라이언트에서 처리해야 함
+      allow update: if isEmployee() &&
+        // board는 문자열이어야 함
+        board is string &&
+        // posts 필드는 배열이어야 함
+        request.resource.data.posts is list;
+      
+      // 삭제: 관리자만 가능 (게시판 전체 삭제)
+      allow delete: if isAdmin();
+    }
+
+    // ========== 활동사진첩 (activityPhotos) ==========
+    // 구조: 개별 문서로 저장, 각 문서는 { filename, originalName, url, uploadedBy, uploaderName, createdAt }
+    
+    match /activityPhotos/{photoId} {
+      // 읽기: 인증된 사용자만
+      allow read: if isAuthenticated();
+      
+      // 생성: 인증된 사용자만
+      allow create: if isAuthenticated() &&
+        // 필수 필드 검증
+        request.resource.data.keys().hasAll(['filename', 'url', 'uploadedBy', 'createdAt']) &&
+        // uploadedBy는 본인 UID 또는 username이어야 함
+        (request.resource.data.uploadedBy == request.auth.uid ||
+         request.resource.data.uploadedBy == request.auth.token.email) &&
+        // 필드 타입 검증
+        request.resource.data.filename is string &&
+        request.resource.data.url is string &&
+        request.resource.data.uploadedBy is string &&
+        request.resource.data.createdAt is string &&
+        // 선택적 필드 검증
+        (!('originalName' in request.resource.data) || request.resource.data.originalName is string) &&
+        (!('uploaderName' in request.resource.data) || request.resource.data.uploaderName is string);
+      
+      // 수정: 본인이 업로드한 사진만 (관리자는 모든 사진 수정 가능)
+      allow update: if isAuthenticated() && (
+        // 관리자는 모든 사진 수정 가능
+        isAdmin() ||
+        // 본인이 업로드한 사진만 수정 가능
+        (resource.data.keys().hasAny(['uploadedBy']) &&
+         (resource.data.uploadedBy == request.auth.uid ||
+          resource.data.uploadedBy == request.auth.token.email))
+      ) &&
+        // 수정 시 uploadedBy는 변경 불가
+        (!('uploadedBy' in request.resource.data.diff(resource.data).affectedKeys()) ||
+         request.resource.data.uploadedBy == resource.data.uploadedBy);
+      
+      // 삭제: 본인이 업로드한 사진만 (관리자는 모든 사진 삭제 가능)
+      allow delete: if isAuthenticated() && (
+        // 관리자는 모든 사진 삭제 가능
+        isAdmin() ||
+        // 본인이 업로드한 사진만 삭제 가능
+        (resource.data.keys().hasAny(['uploadedBy']) &&
+         (resource.data.uploadedBy == request.auth.uid ||
+          resource.data.uploadedBy == request.auth.token.email))
+      );
+    }
+
+    // ========== 자재관리 (materials) ==========
+    // 구조: 개별 문서로 저장, 각 문서는 { sku, name, spec, unit, stock, safety, location, vendor, note, registeredAt, updatedAt, updatedBy }
+    
+    match /materials/{materialId} {
+      // 읽기: 임직원 또는 관리자만 가능
+      allow read: if isEmployee();
+      
+      // 생성: 임직원 또는 관리자만 가능
+      allow create: if isEmployee() &&
+        // 필수 필드 검증
+        request.resource.data.keys().hasAll(['sku', 'updatedAt']) &&
+        // 필드 타입 검증
+        request.resource.data.sku is string &&
+        // 선택적 필드 검증
+        (!('name' in request.resource.data) || request.resource.data.name is string) &&
+        (!('spec' in request.resource.data) || request.resource.data.spec is string) &&
+        (!('unit' in request.resource.data) || request.resource.data.unit is string) &&
+        (!('stock' in request.resource.data) || request.resource.data.stock is number) &&
+        (!('safety' in request.resource.data) || request.resource.data.safety is number) &&
+        (!('location' in request.resource.data) || request.resource.data.location is string) &&
+        (!('vendor' in request.resource.data) || request.resource.data.vendor is string) &&
+        (!('note' in request.resource.data) || request.resource.data.note is string) &&
+        (!('registeredAt' in request.resource.data) || request.resource.data.registeredAt is timestamp) &&
+        (!('updatedBy' in request.resource.data) || request.resource.data.updatedBy is string);
+      
+      // 수정: 임직원 또는 관리자만 가능
+      allow update: if isEmployee() &&
+        // sku는 변경 불가
+        (!('sku' in request.resource.data.diff(resource.data).affectedKeys()) ||
+         request.resource.data.sku == resource.data.sku) &&
+        // registeredAt는 변경 불가 (등록일은 고정)
+        (!('registeredAt' in request.resource.data.diff(resource.data).affectedKeys()) ||
+         request.resource.data.registeredAt == resource.data.registeredAt) &&
+        // 필드 타입 검증
+        (!('name' in request.resource.data) || request.resource.data.name is string) &&
+        (!('spec' in request.resource.data) || request.resource.data.spec is string) &&
+        (!('unit' in request.resource.data) || request.resource.data.unit is string) &&
+        (!('stock' in request.resource.data) || request.resource.data.stock is number) &&
+        (!('safety' in request.resource.data) || request.resource.data.safety is number) &&
+        (!('location' in request.resource.data) || request.resource.data.location is string) &&
+        (!('vendor' in request.resource.data) || request.resource.data.vendor is string) &&
+        (!('note' in request.resource.data) || request.resource.data.note is string);
+      
+      // 삭제: 임직원 또는 관리자만 가능
+      allow delete: if isEmployee();
+    }
+    
+    // ========== 기타 컬렉션 ==========
+    // 위에 명시되지 않은 모든 컬렉션은 접근 불가
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

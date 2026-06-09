@@ -1,0 +1,2417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="하나로오에이퍼니처 - 납품학교 리스트">
+    <meta name="keywords" content="하나로오에이퍼니처, 납품학교, 학교 리스트">
+    <title>하나로오에이퍼니처 납품학교 리스트</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    
+    <!-- SheetJS 라이브러리 (엑셀 파일 읽기용) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Tabulator.js 라이브러리 (스프레드시트 뷰용) - 로컬 파일 사용 -->
+    <link href="lib/tabulator/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="lib/tabulator/tabulator.min.js"></script>
+    
+    <!-- 공통 인증 CSS -->
+    <link rel="stylesheet" href="../css/auth.css">
+    <!-- 공통 디자인 시스템 CSS -->
+    <link rel="stylesheet" href="../css/common.css">
+    
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #ffffff;
+            color: #000000;
+            text-align: center;
+        }
+
+        .navbar {
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 5px 5px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+            height: 78px;
+            transition: all 0.3s ease;
+            flex-wrap: wrap;
+        }
+        
+        .navbar > div {
+            transition: all 0.3s ease;
+        }
+
+
+        .navbar > .logo {
+            margin-right: auto;
+        }
+        
+        .navbar .logo a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #000;
+        }
+        
+        .navbar .logo img {
+            height: 50px;
+            overflow: visible;
+        }
+        
+        .navbar .logo a {
+            display: block;
+            text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .navbar .logo a:hover {
+            opacity: 0.8;
+        }
+        
+        .navbar .logo span {
+            font-size: 18px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .navbar > div {
+            position: relative;
+        }
+
+        .navbar > div > a {
+            margin: 13px 4px !important;
+            font-size: 18px !important;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            text-decoration: none;
+            color: #212529;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+            white-space: nowrap;
+            position: relative;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .navbar > div > a:hover {
+            color: #44aa6b;
+            background: rgba(68, 170, 107, 0.08);
+        }
+
+        .body {
+            overflow-x: auto;
+        }
+
+        footer {
+            background-color: #ccc8c8;
+            color: #696868;
+            padding: 20px;
+            margin-top: 40px;
+            text-align: center;
+            padding-bottom: 15px;
+        }
+
+        footer p {
+            font-size: 13px;
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        footer p1 {
+            font-size: 13px;
+            text-align: left;
+        }
+
+        footer::before {
+            content: "";
+            display: block;
+            width: 68%;
+            margin: 0 auto;
+            border-top: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+
+        .footer-top {
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            background-color: #ffffff;
+            color: #ffffff;
+            padding: 5px;
+            font-size: 12px;
+            gap: 10px;
+        }
+
+        .footer-top button:disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .footer-top button {
+            background-color: #ffffff;
+            color: #7a7878;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 5px 5px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer-top button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer-top button img {
+            height: 16px;
+            width: 16px;
+        }
+
+        .partner-logos {
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px 20px !important;
+            margin: 0 !important;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            position: relative !important;
+            z-index: 10 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+            min-height: 100px !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+        }
+        
+        .partner-logos-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .partner-logos a {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background: #ffffff !important;
+            border-radius: 12px;
+            padding: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: visible !important;
+            flex-shrink: 0;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .partner-logos a::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(68, 170, 107, 0.1) 0%, rgba(58, 143, 90, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .partner-logos a:hover {
+            transform: translateY(-4px) scale(1.15);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.25);
+        }
+        
+        .partner-logos a:hover::before {
+            opacity: 1;
+        }
+
+        .partner-logos img {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain !important;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 2 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .partner-logos a:hover img {
+            transform: scale(1.2);
+        }
+
+        /* 엑셀 데이터 표시 영역 */
+        .excel-display-area {
+            margin-top: 0;
+            padding: 20px;
+            background: #fff;
+            position: relative;
+            z-index: 1;
+            overflow: visible !important;
+            max-height: none !important;
+            height: auto !important;
+            margin-bottom: 40px !important; /* 파트너 로고와의 간격 확보 */
+        }
+        
+        /* 엑셀 영역이 파트너 로고를 가리지 않도록 */
+        #excel-display-area {
+            position: relative !important;
+            z-index: 1 !important;
+            margin-bottom: 40px !important; /* 파트너 로고와의 간격 확보 */
+            padding-bottom: 30px;
+        }
+        
+        /* 파트너 로고가 항상 표시되도록 강제 - 최우선 적용 */
+        div.partner-logos,
+        .partner-logos {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            z-index: 1000 !important;
+            clear: both !important;
+            margin-top: 40px !important;
+            margin-bottom: 20px !important;
+            height: auto !important;
+            min-height: 100px !important;
+            max-height: none !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+            padding: 20px 20px !important;
+            border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+        }
+        
+        /* 파트너 로고가 절대 사라지지 않도록 최종 보호 */
+        body .partner-logos,
+        html .partner-logos {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        .read-only-notice {
+            padding: 10px 20px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .hamburger { 
+            display: none; 
+            background: transparent; 
+            border: 0; 
+            padding: 8px; 
+            cursor: pointer; 
+            position: relative;
+            width: 28px;
+            height: 24px;
+        }
+        .hamburger .bar { 
+            display: block; 
+            width: 22px; 
+            height: 2px; 
+            margin: 4px 0; 
+            background: #000; 
+            transition: transform 0.3s, opacity 0.3s; 
+        }
+        .mobile-drawer { display: none !important; }
+
+        .login {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-direction: row;
+        }
+
+        /* 숨겨진 로그인/로그아웃 버튼이 공간을 차지하지 않도록 */
+        .login-item[style*="display: none"],
+        #login-link[style*="display: none"],
+        #logout-link[style*="display: none"] {
+            display: none !important;
+            width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .login-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .employee-btn {
+            display: flex;
+            align-items: center;
+        }
+        
+        .employee-btn button {
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .employee-btn button:not(:disabled) {
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
+        }
+
+        .employee-btn button:not(:disabled):hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(68, 170, 107, 0.4);
+        }
+
+        .employee-btn button:disabled {
+            background-color: #e9ecef;
+            color: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .login-icon {
+            height: 20px;
+            width: auto;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        .navbar > .logo {
+            margin-right: auto;
+        }
+
+        /* 엑셀 업로드 버튼 (관리자만) - 동그란 오버레이 버튼 */
+        .excel-upload-btn {
+            position: fixed;
+            top: 150px;
+            right: 30px;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(68, 170, 107, 0.4);
+            transition: all 0.3s ease;
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            overflow: hidden;
+            line-height: 1.2;
+            text-align: center;
+            padding: 0;
+        }
+
+        .excel-upload-btn[style*="display: block"] {
+            display: flex !important;
+        }
+
+        .excel-upload-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(68, 170, 107, 0.5);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .excel-upload-btn::before {
+            content: '파일\A첨부';
+            white-space: pre;
+            font-size: 10px;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        .excel-upload-btn input[type="file"] {
+            display: none;
+        }
+
+        .excel-upload-btn span {
+            display: none;
+        }
+
+
+        /* Tabulator 스프레드시트 스타일 */
+        #tabulator-table {
+            margin: 20px 0;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        /* 모바일에서 테이블 높이 제한 해제 및 가로 스크롤 활성화 */
+        @media (max-width: 1024px) {
+            #tabulator-table {
+                min-height: 500px !important;
+                height: auto !important;
+                overflow-x: scroll !important; /* scroll로 변경하여 스크롤바 항상 표시 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            #tabulator-table .tabulator {
+                min-height: 500px !important;
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Tabulator 내부 스크롤 컨테이너 */
+            #tabulator-table .tabulator-tableHolder {
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+            }
+
+            /* Tabulator 테이블 본체 - 컬럼이 사라지지 않도록 */
+            #tabulator-table .tabulator-table {
+                min-width: max-content !important; /* 컬럼 너비 합계만큼 최소 너비 보장 */
+                width: max-content !important; /* 컬럼이 모두 표시되도록 */
+                table-layout: auto !important; /* 자동 레이아웃 */
+            }
+
+            /* 모든 컬럼이 항상 표시되도록 - 절대 사라지지 않게 강제 */
+            #tabulator-table .tabulator-col,
+            #tabulator-table .tabulator-col-group,
+            #tabulator-table .tabulator-header .tabulator-col {
+                display: table-cell !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: auto !important;
+                min-width: 120px !important;
+                max-width: none !important;
+            }
+
+            /* 컬럼이 숨겨지지 않도록 강제 */
+            #tabulator-table .tabulator-col[style*="display: none"],
+            #tabulator-table .tabulator-col[style*="visibility: hidden"] {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            /* 셀 텍스트 전체 표시 (스와이프로 볼 수 있도록) */
+            #tabulator-table .tabulator-cell {
+                white-space: nowrap !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                min-width: 120px !important; /* 최소 너비 보장 */
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            /* 행이 사라지지 않도록 */
+            #tabulator-table .tabulator-row {
+                display: table-row !important;
+                visibility: visible !important;
+            }
+        }
+
+        .tabulator {
+            font-size: 14px;
+            background: #fff;
+        }
+        
+        .tabulator-table {
+            width: 100%;
+        }
+
+        .tabulator .tabulator-header {
+            background: #f8f9fa;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-header .tabulator-col {
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-cell {
+            border-right: 1px solid #dee2e6;
+            padding: 8px 12px;
+        }
+
+        .tabulator .tabulator-row {
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tabulator .tabulator-row:hover {
+            background: #f8f9fa;
+        }
+
+        .tabulator .tabulator-row.tabulator-selected {
+            background: #e3f2fd;
+        }
+
+        /* Tabulator 툴바 스타일 */
+        .tabulator-toolbar {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tabulator-toolbar input[type="text"] {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .tabulator-toolbar button {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .tabulator-toolbar button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3);
+        }
+
+        /* 읽기 전용 표시 */
+        .read-only-notice {
+            padding: 10px 20px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        /* 로그인 안내 모달 */
+        .login-notice-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-notice-modal.active {
+            display: flex;
+        }
+
+        .login-notice-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .login-notice-content h3 {
+            margin: 0 0 15px;
+            color: #333;
+            font-size: 20px;
+        }
+
+        .login-notice-content p {
+            margin: 0 0 20px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .login-notice-content button {
+            background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .login-notice-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
+
+        @media (max-width: 1200px) and (min-width: 1025px) {
+            .navbar > div > a {
+                margin: 13px 2px !important;
+                font-size: 16px !important;
+                padding: 8px 10px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .navbar {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                align-items: center;
+                height: 85px;
+                padding: 0 8px;
+                transition: all 0.3s ease;
+            }
+
+            .navbar > div {
+                transition: all 0.3s ease;
+            }
+
+            .navbar .login a {
+                margin: 0 !important;
+            }
+
+            .navbar .login {
+                grid-column: 3;
+                margin-left: auto;
+                display: flex;
+                flex-direction: row;
+                gap: 2px;  /* 간격을 8px에서 2px로 줄임 */
+                align-items: center;
+            }
+            
+            /* 로그인 버튼도 30% 작게 */
+            .login a,
+            .login-item {
+                font-size: 11.2px !important;  /* 30% 감소 (기본 16px 기준) */
+                padding: 4.2px 8.4px !important;  /* 30% 감소 */
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            
+            .login-icon {
+                height: 14px !important;  /* 30% 감소: 20px -> 14px */
+                width: auto !important;
+                margin-right: 3.5px !important;  /* 30% 감소: 5px -> 3.5px */
+                display: inline-block !important;
+                vertical-align: middle !important;
+            }
+            
+            /* 모바일에서 로그아웃 타이머 숨김 */
+            #logout-timer {
+                display: none !important;
+            }
+
+            .navbar > div:not(.logo):not(.login):not(.mobile-only) {
+                display: none;
+            }
+
+            /* 모바일에서 임직원 버튼을 네비게이션 바 하단에 직사각형으로 배치 */
+            .navbar .employee-btn,
+            .navbar .login .employee-btn {
+                position: fixed !important;
+                right: 0 !important;
+                top: 85px !important; /* 네비게이션 바 높이와 동일 */
+                z-index: 999 !important;
+                display: flex !important;
+                pointer-events: auto !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: auto !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 0 !important; /* 직사각형 */
+                border: none !important;
+                box-shadow: none !important;
+                transition: all 0.3s ease !important;
+                background: transparent !important; /* 투명한 배경 제거 */
+            }
+
+            .navbar .employee-btn button,
+            .navbar .login .employee-btn button {
+                width: auto !important;
+                height: auto !important;
+                padding: 8px 16px !important;
+                border-radius: 0 !important; /* 직사각형 */
+                font-size: 12px !important;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; /* 다른 색상 (보라색) */
+                color: white !important;
+                box-shadow: none !important;
+                transition: all 0.3s ease !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border: none !important;
+                line-height: 1.2 !important;
+                text-align: center !important;
+            }
+
+            .navbar .employee-btn button:not(:disabled):hover,
+            .navbar .login .employee-btn button:not(:disabled):hover {
+                transform: translateY(-2px) !important;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+            }
+
+            .navbar .employee-btn button:disabled,
+            .navbar .login .employee-btn button:disabled {
+                background: #e9ecef !important;
+                color: #adb5bd !important;
+                cursor: not-allowed !important;
+                pointer-events: none !important;
+            }
+
+            .navbar .employee-btn:has(button:disabled),
+            .navbar .login .employee-btn:has(button:disabled) {
+                pointer-events: none !important;
+            }
+            .footer-top { display: none; }
+            .login-icon { 
+                display: inline-block !important;  /* 모바일에서도 아이콘 표시 */
+                height: 14px !important;  /* 30% 감소된 크기 유지 */
+            }
+            .navbar > .logo { 
+                margin-right: 0;
+            }
+
+            .hamburger {
+                grid-column: 1;
+                display: inline-flex;
+                width: 28px;
+                height: 24px;
+                position: relative;
+                justify-self: start;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                cursor: pointer;
+                z-index: 1003 !important;
+                flex-shrink: 0;
+                order: -1;
+                align-items: center;
+                justify-content: center;
+                margin-right: auto;
+            }
+
+            .hamburger .bar {
+                position: absolute;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: #000;
+                margin: 0;
+            }
+            
+            .hamburger .bar:nth-child(1) {
+                top: 2px;
+            }
+            .hamburger .bar:nth-child(2) {
+                top: 11px;
+            }
+            .hamburger .bar:nth-child(3) {
+                bottom: 2px;
+            }
+
+            .navbar .logo {
+                grid-column: 2;
+                justify-self: start;
+                align-self: center;
+                position: static;
+                transform: none;
+                z-index: 1;
+                margin-top: 0;
+                margin-left: 0;
+                margin-right: auto;
+            }
+
+            .navbar .logo img {
+                height: 44px;
+                overflow: visible;
+            }
+            
+            .navbar .logo span {
+                font-size: 14px !important;
+                font-weight: bold;
+            }
+
+            .navbar > div:not(.logo):not(.login):not(.mobile-only) { display: none; }
+
+            .mobile-drawer {
+                position: fixed;
+                top: 59px;
+                left: 0;
+                width: 80%;
+                max-width: 340px;
+                height: calc(100vh - 59px);
+                background: #fff;
+                box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                display: flex !important;
+                flex-direction: column;
+                padding: 16px 20px;
+                gap: 8px;
+                z-index: 1001;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .mobile-drawer a {
+                padding: 12px 0;
+                border-bottom: 1px solid #eee;
+                text-align: left;
+                font-weight: bold;
+                color: #000;
+                text-decoration: none;
+            }
+
+            .mobile-drawer.open { transform: translateX(0); }
+
+            .body.menu-open { overflow: hidden; }
+            .overlay.menu-open { display: block !important; }
+
+            /* 모바일 엑셀 표시 영역 최적화 */
+            .excel-display-area {
+                padding: 10px 8px;
+                margin-top: 60px !important; /* 임직원 버튼과 파일첨부 버튼 공간 확보 */
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* 읽기 전용 알림 모바일 스타일 */
+            .read-only-notice {
+                padding: 8px 12px;
+                font-size: 12px;
+                margin-bottom: 12px;
+                border-left-width: 3px;
+            }
+
+            /* Tabulator 테이블 모바일 최적화 */
+            #tabulator-table {
+                margin: 10px 0;
+                border-radius: 4px;
+                overflow-x: scroll !important; /* scroll로 변경하여 스크롤바 항상 표시 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                min-height: 500px !important; /* 더 많은 행을 표시하기 위해 높이 증가 */
+                width: 100% !important;
+                max-width: 100% !important;
+                position: relative;
+                /* 스크롤바 스타일링 */
+                scrollbar-width: thin; /* Firefox */
+                scrollbar-color: #cbd5e0 #f7fafc; /* Firefox */
+            }
+
+            /* Webkit 브라우저 (Chrome, Safari) 스크롤바 스타일 */
+            #tabulator-table::-webkit-scrollbar {
+                height: 8px; /* 가로 스크롤바 높이 */
+                width: 8px; /* 세로 스크롤바 너비 */
+            }
+
+            #tabulator-table::-webkit-scrollbar-track {
+                background: #f7fafc;
+                border-radius: 4px;
+            }
+
+            #tabulator-table::-webkit-scrollbar-thumb {
+                background: #cbd5e0;
+                border-radius: 4px;
+            }
+
+            #tabulator-table::-webkit-scrollbar-thumb:hover {
+                background: #a0aec0;
+            }
+
+            /* 테이블 컨테이너 가로 스크롤 활성화 */
+            #tabulator-table .tabulator {
+                font-size: 11px !important;
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Tabulator 테이블 본체 가로 스크롤 활성화 */
+            #tabulator-table .tabulator-tableHolder {
+                overflow-x: scroll !important; /* scroll로 변경 */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                width: 100% !important;
+            }
+
+            /* Tabulator 테이블 본체 - 컬럼이 사라지지 않도록 */
+            #tabulator-table .tabulator-table {
+                min-width: max-content !important; /* 컬럼 너비 합계만큼 최소 너비 보장 */
+                width: max-content !important; /* 컬럼이 모두 표시되도록 */
+            }
+
+            /* Tabulator 스크롤바 스타일 */
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar {
+                height: 8px;
+                width: 8px;
+            }
+
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar-track {
+                background: #f7fafc;
+                border-radius: 4px;
+            }
+
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar-thumb {
+                background: #cbd5e0;
+                border-radius: 4px;
+            }
+
+            #tabulator-table .tabulator-tableHolder::-webkit-scrollbar-thumb:hover {
+                background: #a0aec0;
+            }
+
+            .tabulator .tabulator-header {
+                font-size: 11px !important;
+            }
+
+            .tabulator .tabulator-header .tabulator-col {
+                padding: 6px 4px !important;
+                font-weight: 600;
+                min-width: 120px !important; /* 최소 너비 보장 */
+                display: table-cell !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: auto !important;
+                max-width: none !important;
+            }
+
+            /* 컬럼이 숨겨지지 않도록 강제 */
+            .tabulator .tabulator-header .tabulator-col[style*="display: none"],
+            .tabulator .tabulator-header .tabulator-col[style*="visibility: hidden"] {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            .tabulator .tabulator-cell {
+                padding: 6px 4px !important;
+                font-size: 11px !important;
+                white-space: nowrap !important; /* 텍스트 줄바꿈 방지 */
+                overflow: visible !important; /* 잘림 방지 */
+                text-overflow: clip !important; /* 말줄임표 제거하여 전체 텍스트 표시 */
+                min-width: 120px !important; /* 최소 너비 보장 */
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+
+            .tabulator .tabulator-row {
+                min-height: 36px !important; /* 행 높이 약간 증가 */
+                height: 36px !important;
+            }
+
+            /* Tabulator 툴바 모바일 최적화 */
+            .tabulator-toolbar {
+                padding: 10px 8px;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .tabulator-toolbar input[type="text"] {
+                padding: 6px 10px;
+                font-size: 12px;
+                min-width: 100%;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .tabulator-toolbar button {
+                padding: 6px 12px;
+                font-size: 12px;
+                width: 100%;
+            }
+
+            /* Tabulator 페이지네이션 모바일 최적화 */
+            .tabulator .tabulator-footer {
+                padding: 8px;
+                font-size: 11px;
+            }
+
+            .tabulator .tabulator-footer .tabulator-paginator {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .tabulator .tabulator-footer .tabulator-paginator button {
+                padding: 4px 8px;
+                font-size: 11px;
+                min-width: 32px;
+            }
+
+            .tabulator .tabulator-footer .tabulator-paginator .tabulator-page-size {
+                padding: 4px 6px;
+                font-size: 11px;
+            }
+
+            /* 엑셀 업로드 버튼 모바일 위치 조정 (임직원 버튼 아래, 네비게이션 바 하단) */
+            .excel-upload-btn {
+                position: fixed !important;
+                top: auto !important;
+                bottom: auto !important;
+                right: 0 !important;
+                left: auto !important;
+                margin-top: 0 !important;
+                /* 임직원 버튼 아래에 배치하기 위해 계산 */
+                top: calc(85px + 35px) !important; /* 네비게이션 바 높이 + 임직원 버튼 높이 */
+                width: auto !important;
+                height: auto !important;
+                border-radius: 0 !important;
+                padding: 8px 16px !important;
+                font-size: 12px !important;
+                border: none !important;
+                box-shadow: 0 2px 8px rgba(68, 170, 107, 0.3) !important;
+                z-index: 998 !important; /* 임직원 버튼(z-index: 999)보다 낮게 */
+            }
+
+            .excel-upload-btn::before {
+                content: '📎 파일첨부' !important;
+                white-space: normal !important;
+                font-size: 12px !important;
+                line-height: 1.2 !important;
+            }
+
+            .excel-upload-btn:hover {
+                transform: translateY(-2px) !important;
+                box-shadow: 0 4px 12px rgba(68, 170, 107, 0.4) !important;
+            }
+
+
+            .excel-table {
+                font-size: 11px;
+            }
+
+            .excel-table th,
+            .excel-table td {
+                padding: 6px 4px;
+            }
+
+            footer { 
+                padding: 14px 12px 18px;
+            }
+            footer::before{
+                width: 90%;
+                margin-bottom: 10px;
+            }
+            footer p, footer .footer-info{
+                font-size: 10px;
+                line-height: 1.35;
+                letter-spacing: 0;
+                text-align: left;
+                margin: 4px 0;
+            }
+            
+            .partner-logos {
+                gap: 16px;
+                padding: 25px 15px;
+            }
+            
+            .partner-logos a {
+                width: 35px;
+                height: 35px;
+                min-width: 35px;
+                padding: 6px;
+            }
+            
+            .partner-logos {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
+            .partner-logos img {
+                max-width: 100%;
+                max-height: 100%;
+            }
+            
+            /* 모바일에서 푸터 문구 줄간격 조정 */
+            div[style*="padding: 15px 20px 5px 20px"] {
+                padding: 15px 20px 10px 20px !important;
+            }
+            
+            div[style*="padding: 15px 20px 5px 20px"] p {
+                margin: 12px 0 !important;
+                line-height: 1.8 !important;
+            }
+
+            /* 엑셀 업로드 버튼 모바일 스타일은 아래에서 정의 */
+
+
+            .excel-table {
+                font-size: 12px;
+            }
+
+            .excel-table th,
+            .excel-table td {
+                padding: 6px 8px;
+            }
+        }
+    </style>
+</head>
+
+    <body>
+    <div class="overlay" id="overlay"></div>
+
+    <div class="login-container" id="login-container">
+        <!-- 탭 버튼 -->
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="showAuthTab('login')">로그인</button>
+            <button class="auth-tab" onclick="showAuthTab('register')">회원가입</button>
+        </div>
+        
+        <!-- 로그인 폼 -->
+        <div id="login-form" class="auth-form">
+        <input type="text" id="username" placeholder="아이디">
+        <input type="password" id="password" placeholder="비밀번호">
+        <button onclick="login()">로그인</button>
+        </div>
+        
+        <!-- 회원가입 폼 -->
+        <div id="register-form" class="auth-form" style="display: none;">
+            <input type="text" id="reg-username" placeholder="아이디 (4자 이상)">
+            <input type="password" id="reg-password" placeholder="비밀번호 (6자 이상)">
+            <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인">
+            <input type="text" id="reg-name" placeholder="이름">
+            <input type="email" id="reg-email" placeholder="이메일">
+            <input type="tel" id="reg-phone" placeholder="연락처">
+            <select id="reg-user-type" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                <option value="general">일반회원</option>
+                <option value="employee">임직원</option>
+            </select>
+            <button onclick="register()">회원가입 신청</button>
+            <p class="auth-notice">* 회원가입 후 관리자 승인이 필요합니다.</p>
+        </div>
+    </div>
+
+    <header class="navbar">
+      <button class="hamburger" id="hamburger" aria-label="메뉴 열기" aria-controls="mobile-nav" aria-expanded="false">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+      </button>
+
+        <div class="logo">
+            <a href="../../index.html" style="display: block; text-decoration: none;">
+                <img src="../image/logo-nav.png" alt="로고" style="height: 50px; overflow: visible;">
+            </a>
+        </div>
+
+      <nav id="mobile-nav" class="mobile-drawer" role="navigation" aria-label="모바일 메뉴">
+          <a href="../../index.html">홈</a>
+          <a href="../company/company.html">회사소개</a>
+          <a href="../product/product.html">제품소개</a>
+          <a href="../school/school.html">납품학교 리스트</a>
+          <a href="../Gallery/Gallery.html">갤러리</a>
+          <a href="../AS/AS.html">A/S신청</a>
+          <a href="#">고객지원</a>
+      </nav>
+
+        <div>
+            <a href="../../index.html">홈</a>
+        </div>
+
+        <div>
+            <a href="../company/company.html">회사소개</a>
+        </div>
+
+        <div>
+            <a href="../product/product.html">제품소개</a>
+        </div>
+        
+        <div>
+            <a href="../school/school.html">납품학교 리스트</a>
+        </div>
+
+        <div>
+            <a href="../Gallery/Gallery.html">갤러리</a>
+        </div>
+
+        <div>
+            <a href="../AS/AS.html">A/S신청</a>
+        </div>
+
+        <div>
+            <a href="#">고객지원</a>
+        </div>
+
+        <div class="login">
+            <a href="#" onclick="showLogin()" id="login-link" class="login-item">
+                <img src="../image/login.png" alt="로그인" class="login-icon"> 로그인
+            </a>
+            <a href="#" onclick="logout()" id="logout-link" class="login-item" style="display:none;">
+                <img src="../image/logout.png" alt="로그아웃" class="login-icon"> 로그아웃
+            </a>
+  <a href="../staff/staff.html" class="employee-btn">
+    <button class="employee-button" disabled>임직원</button>
+            </a>
+        </div>
+     </header>
+
+    <!-- 엑셀 업로드 버튼 (관리자만 표시) - 동그란 오버레이 버튼 -->
+    <label for="excel-upload" class="excel-upload-btn" id="excel-upload-btn" style="display: none;" title="엑셀 파일 첨부">
+        <input type="file" id="excel-upload" accept=".xlsx,.xls" onchange="handleExcelUpload(event)">
+    </label>
+
+    <!-- 엑셀 데이터 표시 영역 -->
+    <div class="excel-display-area" id="excel-display-area">
+        <div class="read-only-notice">
+            ⚠️ 모바일에서는 정상적으로 표시되지 않습니다 데스크탑 브라우저를 이용해주세요!  * 납품학교리스트를 보려면 로그인이 필요합니다 회원가입을 해주세요
+        </div>
+        <div id="tabulator-table" style="display: none;"></div>
+        <div id="excel-content">
+            <p style="text-align: center; padding: 40px; color: #999;">엑셀 파일을 업로드해주세요.</p>
+        </div>
+    </div>
+
+    <!-- 파트너 로고 (엑셀 영역 바로 다음에 배치) -->
+    <div class="partner-logos" style="display: flex !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1000 !important; clear: both !important; margin-top: 40px !important; margin-bottom: 20px !important; width: 100% !important; min-height: 100px !important; padding: 20px 20px !important; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important; border-top: 1px solid rgba(0, 0, 0, 0.05) !important; border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;">
+        <a href="https://www.g2b.go.kr/" target="_blank">
+            <img src="../image/logo1.png" alt="파트너 1">
+        </a>
+        <a href="https://shop.g2b.go.kr/" target="_blank">
+            <img src="../image/logo2.png" alt="파트너 2">
+        </a>
+        <a href="https://hometax.go.kr/" target="_blank">
+            <img src="../image/logo3.png" alt="파트너 3">
+        </a>
+        <a href="https://www.smpp.go.kr" target="_blank">
+            <img src="../image/logo4.png" alt="파트너 4">
+        </a>
+        <a href="https://ecosq.or.kr/" target="_blank">
+            <img src="../image/logo5.png" alt="파트너 5">
+        </a>
+        <a href="https://www.sgic.co.kr/" target="_blank">
+            <img src="../image/logo6.png" alt="파트너 6">
+        </a>
+        <a href="https://si4n.nhis.or.kr/" target="_blank">
+            <img src="../image/logo7.png" alt="파트너 7">
+        </a>
+        <a href="https://www.4insure.or.kr/" target="_blank">
+            <img src="../image/logo8.png" alt="파트너 8">
+        </a>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const isLoggedIn = sessionStorage.getItem("loggedIn");
+            if (isLoggedIn) {
+                document.querySelector('.employee-button').disabled = false;
+                document.getElementById('login-link').style.display = 'none';
+                document.getElementById('logout-link').style.display = 'flex';
+            }
+            
+            // 임직원 버튼이 비활성화되어 있을 때 클릭 이벤트 막기
+            const employeeBtn = document.querySelector('.employee-btn');
+            if (employeeBtn) {
+                employeeBtn.addEventListener('click', function(e) {
+                    const button = employeeBtn.querySelector('button');
+                    if (button && button.disabled) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                });
+            }
+        });
+    </script>
+
+    <!-- 공통 인증 스크립트 -->
+    <script src="../js/auth.js"></script>
+
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const burger = document.getElementById('hamburger');
+  const drawer = document.getElementById('mobile-nav');
+  const overlay = document.getElementById('overlay');
+  if (!burger || !drawer || !overlay) return;
+
+  let prevFocus = null;
+  function setState(open) {
+    burger.setAttribute('aria-expanded', String(open));
+    burger.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
+    drawer.classList.toggle('open', open);
+    document.body.classList.toggle('menu-open', open);
+    overlay.classList.toggle('menu-open', open);
+  }
+  function openMenu() {
+    const login = document.getElementById('login-container');
+    if (login && login.style.display === 'block' && typeof hideLogin === 'function') hideLogin();
+    prevFocus = document.activeElement;
+    setState(true);
+    const first = drawer.querySelector('a');
+    if (first) first.focus();
+  }
+  function closeMenu() {
+    setState(false);
+    if (prevFocus && prevFocus.focus) prevFocus.focus();
+    prevFocus = null;
+  }
+  function toggleMenu() {
+    const isOpen = drawer.classList.contains('open');
+    isOpen ? closeMenu() : openMenu();
+  }
+
+  burger.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleMenu();
+  });
+  overlay.addEventListener('click', () => { if (drawer.classList.contains('open')) closeMenu(); });
+  drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer.classList.contains('open')) closeMenu(); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 1024 && drawer.classList.contains('open')) closeMenu(); });
+});
+    </script>
+
+    <!-- 파트너 로고 강제 표시 스크립트 - 라우터 재초기화 후에도 보호 -->
+    <script>
+        function ensurePartnerLogosVisible() {
+            const partnerLogos = document.querySelectorAll('.partner-logos');
+            partnerLogos.forEach(partnerLogo => {
+                if (partnerLogo) {
+                    // 인라인 스타일로 강제 적용
+                    partnerLogo.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1000 !important; clear: both !important; margin-top: 40px !important; width: 100% !important; min-height: 100px !important; padding: 20px 20px !important; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;';
+                    
+                    // 모든 링크와 이미지도 확인
+                    const links = partnerLogo.querySelectorAll('a');
+                    links.forEach(link => {
+                        link.style.display = 'flex';
+                        link.style.visibility = 'visible';
+                        link.style.opacity = '1';
+                    });
+                    
+                    const images = partnerLogo.querySelectorAll('img');
+                    images.forEach(img => {
+                        img.style.display = 'block';
+                        img.style.visibility = 'visible';
+                        img.style.opacity = '1';
+                    });
+                    
+                    console.log('파트너 로고 강제 표시 완료:', partnerLogo);
+                }
+            });
+            
+            if (partnerLogos.length === 0) {
+                console.error('파트너 로고 요소를 찾을 수 없습니다.');
+            }
+        }
+        
+        // 즉시 실행
+        ensurePartnerLogosVisible();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            ensurePartnerLogosVisible();
+            // DOM이 준비된 후 파트너 로고 위치 확인
+            const partnerLogos = document.querySelectorAll('.partner-logos');
+            console.log('파트너 로고 요소 개수:', partnerLogos.length);
+            partnerLogos.forEach((logo, index) => {
+                const rect = logo.getBoundingClientRect();
+                console.log(`파트너 로고 #${index + 1} 위치:`, {
+                    top: rect.top,
+                    left: rect.left,
+                    width: rect.width,
+                    height: rect.height,
+                    visible: rect.width > 0 && rect.height > 0
+                });
+                const style = window.getComputedStyle(logo);
+                console.log(`파트너 로고 #${index + 1} 스타일:`, {
+                    display: style.display,
+                    visibility: style.visibility,
+                    opacity: style.opacity,
+                    zIndex: style.zIndex
+                });
+            });
+        });
+        
+        window.addEventListener('load', ensurePartnerLogosVisible);
+        
+        // 라우터 재초기화 이벤트 감지
+        window.addEventListener('authStateRestored', ensurePartnerLogosVisible);
+        
+        // 추가 확인 (약간의 지연 후)
+        setTimeout(ensurePartnerLogosVisible, 100);
+        setTimeout(ensurePartnerLogosVisible, 500);
+        setTimeout(ensurePartnerLogosVisible, 1000);
+        setTimeout(ensurePartnerLogosVisible, 2000);
+        
+        // MutationObserver로 파트너 로고가 제거되거나 숨겨지지 않도록 감시
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const target = mutation.target;
+                    if (target.classList && target.classList.contains('partner-logos')) {
+                        const style = window.getComputedStyle(target);
+                        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                            ensurePartnerLogosVisible();
+                        }
+                    }
+                }
+                if (mutation.type === 'childList') {
+                    mutation.removedNodes.forEach(function(node) {
+                        if (node.nodeType === 1 && node.classList && node.classList.contains('partner-logos')) {
+                            console.warn('파트너 로고가 제거되었습니다!');
+                            // 파트너 로고가 제거되면 다시 추가
+                            const footer = document.querySelector('footer');
+                            if (footer && !document.querySelector('.partner-logos')) {
+                                const newPartnerLogos = node.cloneNode(true);
+                                footer.parentNode.insertBefore(newPartnerLogos, footer);
+                                ensurePartnerLogosVisible();
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        
+        // 파트너 로고 감시 시작
+        document.addEventListener('DOMContentLoaded', function() {
+            const partnerLogos = document.querySelectorAll('.partner-logos');
+            partnerLogos.forEach(partnerLogo => {
+                observer.observe(partnerLogo, {
+                    attributes: true,
+                    attributeFilter: ['style', 'class'],
+                    childList: true,
+                    subtree: true
+                });
+            });
+        });
+    </script>
+
+    <div style="padding: 15px 20px 5px 20px; font-size: 10px; color: #bcbcbc; text-align: left; line-height: 1.6; word-break: break-word; overflow-wrap: break-word;">
+      <p style="text-indent: 20px; margin: 12px 0 !important; line-height: 1.8 !important; word-break: break-word; overflow-wrap: break-word; white-space: normal;">1. 본 홈페이지는 데스크탑 브라우저 버전에 최적화 되어있습니다. 원활한 사용을 위해 데스크탑 브라우저 환경으로 사용해주세요.</p>
+      <p style="text-indent: 20px; margin: 12px 0 !important; line-height: 1.8 !important; word-break: break-word; overflow-wrap: break-word; white-space: normal;">2. 하나로오에이퍼니처는 조달청 및 공공기관 납품 전용 가구를 전문으로 제작하는 기업 입니다. 본 홈페이지에서 소개되는 제품들은 조달청 종합쇼핑몰 판매 전용입니다.</p>
+    </div>
+
+    <footer>
+        <p>Copyright © 2025 (주)하나로오에이퍼니처. 모든 권리 보유. | 문의 : oa9500@empas.com | 전화 : 042-633-9500  |  A/S : 043-731-9511</p>
+        <p class="footer-info">주식회사 하나로오에이퍼니처 | 대표이사 : 정진희, 장인덕 | 주소 : 대전광역시 대덕구 오정로 41번길 12 | 전화 : 042-633-9500 | 사업자등록번호 : 305-81-45158</p>
+    </footer>
+
+    <!-- 로그인 안내 모달 -->
+    <div class="login-notice-modal" id="login-notice-modal">
+        <div class="login-notice-content">
+            <h3>로그인이 필요합니다</h3>
+            <p>납품학교 리스트를 보시려면 회원가입 및 로그인이 필요합니다.</p>
+            <button onclick="closeLoginNotice(); showLogin();">로그인하기</button>
+        </div>
+    </div>
+
+    
+    <script>
+        // Firebase Storage 초기화
+        let storage = null;
+        
+        // Firebase Storage 초기화 함수
+        function initStorage() {
+            if (typeof firebase !== 'undefined' && firebase.storage) {
+                try {
+                    storage = firebase.storage();
+                    console.log('Firebase Storage 초기화 완료');
+                } catch (error) {
+                    console.error('Firebase Storage 초기화 오류:', error);
+                }
+            } else {
+                console.warn('Firebase Storage SDK가 로드되지 않았습니다.');
+            }
+        }
+
+        // 사용자 권한 확인
+        function checkUserPermission() {
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            if (loggedInUser) {
+                try {
+                    const userData = JSON.parse(loggedInUser);
+                    // 관리자만 업로드 버튼 표시
+                    if (userData.isAdmin) {
+                        const uploadBtn = document.getElementById('excel-upload-btn');
+                        if (uploadBtn) {
+                            uploadBtn.style.display = 'flex';
+                        }
+                    }
+                    return true;
+                } catch (e) {
+                    console.error('사용자 정보 파싱 오류:', e);
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        // DOM 요소 캐싱 (성능 최적화)
+        let cachedLoginLink = null;
+        let cachedLogoutLink = null;
+        let cachedLoginModal = null;
+        
+        const getLoginLink = () => {
+            if (!cachedLoginLink) cachedLoginLink = document.getElementById('login-link');
+            return cachedLoginLink;
+        };
+        
+        const getLogoutLink = () => {
+            if (!cachedLogoutLink) cachedLogoutLink = document.getElementById('logout-link');
+            return cachedLogoutLink;
+        };
+        
+        const getLoginModal = () => {
+            if (!cachedLoginModal) cachedLoginModal = document.getElementById('login-notice-modal');
+            return cachedLoginModal;
+        };
+        
+        // 안내 모달 닫기 함수 (최적화)
+        const closeLoginModal = () => {
+            const modal = getLoginModal();
+            if (modal && modal.classList.contains('active')) {
+                modal.classList.remove('active');
+            }
+        };
+        
+        // 간단한 로그인 상태 확인 (성능 최적화)
+        const checkAuthState = () => {
+            // 1. sessionStorage 우선 확인 (가장 빠름)
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            const loggedIn = sessionStorage.getItem('loggedIn');
+            
+            if (loggedInUser && loggedIn === "true") {
+                // sessionStorage에 로그인 정보가 있으면 로그인 상태
+                // authListenerReady 확인 (간단하게)
+                if (typeof window.authListenerReady !== 'undefined' && window.authListenerReady) {
+                    return true; // 완전히 초기화됨
+                }
+                return null; // 아직 초기화 중
+            }
+            
+            // 2. authListenerReady가 true이고 sessionStorage에 없으면 로그아웃
+            if (typeof window.authListenerReady !== 'undefined' && window.authListenerReady) {
+                return false; // 로그아웃 상태
+            }
+            
+            return null; // 아직 초기화되지 않음
+        };
+        
+        // 로그인 초기화 완료 대기 함수 (최적화)
+        async function waitForAuthInit(maxWaitTime = 3000) {
+            return new Promise((resolve) => {
+                let resolved = false;
+                const startTime = Date.now();
+                
+                // 이벤트 리스너: authStateRestored 이벤트 감지 (가장 빠른 방법)
+                const handleAuthRestored = () => {
+                    if (resolved) return;
+                    
+                    // 짧은 대기 후 확인 (UI 업데이트 시간)
+                    setTimeout(() => {
+                        if (resolved) return;
+                        const state = checkAuthState();
+                        if (state !== null) {
+                            resolved = true;
+                            window.removeEventListener('authStateRestored', handleAuthRestored);
+                            
+                            // 로그인 상태면 안내 모달 닫기
+                            if (state === true) {
+                                closeLoginModal();
+                            }
+                            
+                            resolve(state);
+                        }
+                    }, 200); // 200ms로 단축
+                };
+                
+                window.addEventListener('authStateRestored', handleAuthRestored);
+                
+                // 즉시 확인 (이미 초기화되었을 수 있음)
+                const immediateState = checkAuthState();
+                if (immediateState !== null) {
+                    resolved = true;
+                    window.removeEventListener('authStateRestored', handleAuthRestored);
+                    if (immediateState === true) {
+                        closeLoginModal();
+                    }
+                    resolve(immediateState);
+                    return;
+                }
+                
+                // 폴링 방식 (간격 증가로 성능 개선)
+                const pollInterval = setInterval(() => {
+                    if (resolved) {
+                        clearInterval(pollInterval);
+                        return;
+                    }
+                    
+                    const state = checkAuthState();
+                    if (state !== null) {
+                        resolved = true;
+                        window.removeEventListener('authStateRestored', handleAuthRestored);
+                        clearInterval(pollInterval);
+                        
+                        // 로그인 상태면 안내 모달 닫기
+                        if (state === true) {
+                            closeLoginModal();
+                        }
+                        
+                        resolve(state);
+                        return;
+                    }
+                    
+                    // 타임아웃 체크
+                    if (Date.now() - startTime >= maxWaitTime) {
+                        if (!resolved) {
+                            resolved = true;
+                            window.removeEventListener('authStateRestored', handleAuthRestored);
+                            clearInterval(pollInterval);
+                            
+                            // 타임아웃: sessionStorage 확인
+                            const loggedInUser = sessionStorage.getItem('loggedInUser');
+                            const loggedIn = sessionStorage.getItem('loggedIn');
+                            const finalResult = (loggedInUser && loggedIn === "true");
+                            resolve(finalResult);
+                        }
+                    }
+                }, 500); // 500ms로 증가 (성능 개선)
+            });
+        }
+
+        // 엑셀 파일 업로드 처리
+        async function handleExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                event.target.value = '';
+                return;
+            }
+
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                alert('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.');
+                event.target.value = '';
+                return;
+            }
+
+            // Storage 초기화 확인
+            if (!storage) {
+                initStorage();
+                if (!storage) {
+                    alert('Firebase Storage가 초기화되지 않았습니다. 페이지를 새로고침해주세요.');
+                    event.target.value = '';
+                    return;
+                }
+            }
+
+            try {
+                // Firebase Storage에 업로드
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child('school-list/school-list.xlsx');
+                
+                // 업로드 시작 전 로딩 메시지
+                const excelContent = document.getElementById('excel-content');
+                const tabulatorTable = document.getElementById('tabulator-table');
+                if (excelContent) {
+                    excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">파일 업로드 중...</p>';
+                    excelContent.style.display = 'block';
+                }
+                if (tabulatorTable) {
+                    tabulatorTable.style.display = 'none';
+                }
+                
+                const uploadTask = fileRef.put(file);
+                
+                uploadTask.on('state_changed',
+                    (snapshot) => {
+                        // 업로드 진행률 표시
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        console.log('업로드 진행률: ' + progress + '%');
+                        if (excelContent) {
+                            excelContent.innerHTML = `<p style="text-align: center; padding: 40px; color: #666;">파일 업로드 중... ${Math.round(progress)}%</p>`;
+                            excelContent.style.display = 'block';
+                        }
+                    },
+                    (error) => {
+                        console.error('업로드 오류:', error);
+                        event.target.value = '';
+                        let errorMsg = '파일 업로드 중 오류가 발생했습니다.';
+                        if (error.code === 'storage/unauthorized') {
+                            errorMsg = '업로드 권한이 없습니다. 관리자 계정으로 로그인해주세요.';
+                        } else if (error.code === 'storage/quota-exceeded') {
+                            errorMsg = '저장 공간이 부족합니다.';
+                        } else if (error.code === 'storage/canceled') {
+                            errorMsg = '업로드가 취소되었습니다.';
+                        }
+                        alert(errorMsg);
+                        if (excelContent) {
+                            excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">업로드 실패</p>';
+                            excelContent.style.display = 'block';
+                        }
+                        const tabulatorTable = document.getElementById('tabulator-table');
+                        if (tabulatorTable) {
+                            tabulatorTable.style.display = 'none';
+                        }
+                    },
+                    async () => {
+                        try {
+                            // 업로드 완료
+                            console.log('업로드 완료');
+                            // 파일 읽기 및 표시
+                            await loadExcelFile();
+                            // 파일 input 초기화
+                            event.target.value = '';
+                        } catch (error) {
+                            console.error('파일 로드 오류:', error);
+                            alert('파일 업로드는 완료되었지만 표시 중 오류가 발생했습니다.');
+                            event.target.value = '';
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error('업로드 오류:', error);
+                event.target.value = '';
+                alert('파일 업로드 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
+                const excelContent = document.getElementById('excel-content');
+                const tabulatorTable = document.getElementById('tabulator-table');
+                if (excelContent) {
+                    excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">업로드 실패</p>';
+                    excelContent.style.display = 'block';
+                }
+                if (tabulatorTable) {
+                    tabulatorTable.style.display = 'none';
+                }
+            }
+        }
+
+        // Firebase Storage에서 엑셀 파일 로드
+        async function loadExcelFile() {
+            const excelContent = document.getElementById('excel-content');
+            
+            try {
+                // Storage 초기화 확인
+                if (!storage) {
+                    initStorage();
+                    if (!storage) {
+                        console.warn('Firebase Storage가 초기화되지 않았습니다.');
+                        if (excelContent) {
+                            excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">Firebase Storage 초기화 오류가 발생했습니다.<br>페이지를 새로고침해주세요.</p>';
+                        }
+                        return;
+                    }
+                }
+
+                // SheetJS 라이브러리 확인
+                if (typeof XLSX === 'undefined') {
+                    console.error('SheetJS 라이브러리가 로드되지 않았습니다.');
+                    if (excelContent) {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">엑셀 파일 읽기 라이브러리를 불러올 수 없습니다.<br>페이지를 새로고침해주세요.</p>';
+                        excelContent.style.display = 'block';
+                    }
+                    const tabulatorTable = document.getElementById('tabulator-table');
+                    if (tabulatorTable) {
+                        tabulatorTable.style.display = 'none';
+                    }
+                    return;
+                }
+
+                // Tabulator 라이브러리 확인
+                if (typeof Tabulator === 'undefined') {
+                    console.error('Tabulator 라이브러리가 로드되지 않았습니다.');
+                    if (excelContent) {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">스프레드시트 뷰 라이브러리를 불러올 수 없습니다.<br>페이지를 새로고침해주세요.</p>';
+                        excelContent.style.display = 'block';
+                    }
+                    const tabulatorTable = document.getElementById('tabulator-table');
+                    if (tabulatorTable) {
+                        tabulatorTable.style.display = 'none';
+                    }
+                    return;
+                }
+
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child('school-list/school-list.xlsx');
+                
+                // Firebase Storage SDK를 사용하여 직접 바이트 다운로드
+                let arrayBuffer;
+                try {
+                    // getDownloadURL()로 URL 가져오기
+                    const url = await fileRef.getDownloadURL();
+                    console.log('다운로드 URL 획득:', url);
+                    
+                    // 이미지나 파일을 직접 로드하는 방식으로 CORS 문제 우회
+                    // Firebase Storage URL은 인증된 사용자에게는 CORS가 설정되어 있어야 함
+                    // 하지만 로컬 개발 환경에서는 CORS 문제가 발생할 수 있으므로
+                    // Firebase Storage SDK의 직접 다운로드 기능 사용
+                    
+                    // 방법 1: Blob URL을 통한 간접 다운로드
+                    try {
+                        // fetch with no-cors는 응답을 읽을 수 없으므로 사용 불가
+                        // 대신 Firebase Storage의 직접 다운로드 기능 사용
+                        
+                        // compat 버전에서는 getBytes()가 없을 수 있으므로
+                        // getDownloadURL() 후 fetch를 사용하되, CORS 에러 처리
+                        const response = await fetch(url, {
+                            method: 'GET',
+                            mode: 'cors',
+                            credentials: 'omit',
+                            headers: {
+                                'Accept': 'application/octet-stream'
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                        }
+                        
+                        arrayBuffer = await response.arrayBuffer();
+                    } catch (fetchError) {
+                        console.error('fetch 실패:', fetchError);
+                        // CORS 오류인 경우 사용자에게 안내
+                        if (fetchError.message && (
+                            fetchError.message.includes('CORS') || 
+                            fetchError.message.includes('Access-Control-Allow-Origin') ||
+                            fetchError.message.includes('Failed to fetch') ||
+                            fetchError.name === 'TypeError'
+                        )) {
+                            // Firebase Storage CORS 설정이 필요한 경우
+                            throw new Error('CORS 오류가 발생했습니다. Firebase Console에서 Storage의 CORS 설정을 확인하거나, 배포된 환경에서 접속해주세요.');
+                        }
+                        throw fetchError;
+                    }
+                } catch (downloadError) {
+                    console.error('파일 다운로드 오류:', downloadError);
+                    throw downloadError;
+                }
+                
+                if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+                    throw new Error('다운로드된 파일이 비어있습니다.');
+                }
+                
+                // SheetJS로 엑셀 파일 읽기
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+                    throw new Error('엑셀 파일에 시트가 없습니다.');
+                }
+                
+                // 첫 번째 시트 가져오기
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                if (!worksheet) {
+                    throw new Error('시트를 읽을 수 없습니다.');
+                }
+                
+                // JSON으로 변환 (첫 번째 행을 헤더로 사용)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1,  // 배열 형태로 변환
+                    defval: ''   // 빈 셀은 빈 문자열로
+                });
+                
+                if (!jsonData || jsonData.length === 0) {
+                    throw new Error('엑셀 데이터가 비어있습니다.');
+                }
+                
+                // 첫 번째 행을 헤더로 사용
+                const headers = jsonData[0];
+                if (!headers || headers.length === 0) {
+                    throw new Error('엑셀 파일에 헤더가 없습니다.');
+                }
+                
+                // 데이터 행 추출 (첫 번째 행 제외)
+                const dataRows = jsonData.slice(1);
+                
+                // 빈 행 필터링 (모든 셀이 비어있는 행 제거)
+                const filteredRows = dataRows.filter(row => {
+                    return row && row.some(cell => cell !== undefined && cell !== null && cell.toString().trim() !== '');
+                });
+                
+                if (filteredRows.length === 0) {
+                    throw new Error('엑셀 파일에 데이터 행이 없습니다.');
+                }
+                
+                console.log('엑셀 데이터 로드:', filteredRows.length, '행');
+                
+                // Tabulator용 데이터 형식으로 변환
+                const tabulatorData = filteredRows.map((row, index) => {
+                    const rowObj = { id: index + 1 }; // 고유 ID 추가
+                    headers.forEach((header, colIndex) => {
+                        // 헤더가 빈 문자열이면 "Column" + 인덱스로 설정
+                        const columnName = header && header.toString().trim() 
+                            ? header.toString().trim() 
+                            : `Column${colIndex + 1}`;
+                        rowObj[columnName] = row[colIndex] !== undefined && row[colIndex] !== null 
+                            ? row[colIndex].toString() 
+                            : '';
+                    });
+                    return rowObj;
+                });
+                
+                console.log('Tabulator 데이터 변환 완료:', tabulatorData.length, '행');
+                
+                // 모바일 여부 확인
+                const isMobile = window.innerWidth <= 1024;
+                
+                // Tabulator 컬럼 정의 생성
+                const columns = headers.map((header, index) => {
+                    const columnName = header && header.toString().trim() 
+                        ? header.toString().trim() 
+                        : `Column${index + 1}`;
+                    return {
+                        title: columnName,
+                        field: columnName,
+                        headerFilter: isMobile ? false : "input",  // 모바일에서는 필터 비활성화
+                        headerSort: true,        // 정렬 기능 활성화
+                        sorter: "string",        // 문자열 정렬
+                        width: 150,              // 고정 너비 설정 (모바일/데스크톱 동일)
+                        minWidth: 120,           // 최소 너비 보장 (컬럼이 사라지지 않도록)
+                        maxWidth: undefined,     // 최대 너비 제한 없음
+                        resizable: !isMobile,          // 모바일에서는 컬럼 크기 조절 비활성화
+                        visible: true,           // 항상 표시
+                        formatter: undefined  // 전체 텍스트 표시 (스와이프로 볼 수 있도록)
+                    };
+                });
+                
+                // Tabulator 라이브러리 확인
+                if (typeof Tabulator === 'undefined') {
+                    throw new Error('Tabulator 라이브러리가 로드되지 않았습니다.');
+                }
+                
+                // Tabulator 테이블 생성
+                const tabulatorTable = document.getElementById('tabulator-table');
+                if (!tabulatorTable) {
+                    throw new Error('Tabulator 테이블 컨테이너를 찾을 수 없습니다.');
+                }
+                
+                // 기존 테이블이 있으면 제거
+                if (window.schoolTable) {
+                    try {
+                        // 기존 observer 정리
+                        if (window.schoolTableObserver) {
+                            window.schoolTableObserver.disconnect();
+                            window.schoolTableObserver = null;
+                        }
+                        window.schoolTable.destroy();
+                    } catch (e) {
+                        console.warn('기존 테이블 제거 중 오류:', e);
+                    }
+                }
+                
+                console.log('Tabulator 테이블 생성 시작:', tabulatorData.length, '행', columns.length, '컬럼');
+                
+                // 새 Tabulator 인스턴스 생성
+                try {
+                    window.schoolTable = new Tabulator("#tabulator-table", {
+                        data: tabulatorData,
+                        columns: columns,
+                        layout: "fitColumns",    // 모든 화면 크기에서 fitColumns 사용 (컬럼이 사라지지 않도록)
+                        pagination: true,        // 페이지네이션 활성화
+                        paginationSize: isMobile ? 20 : 50,       // 모바일에서는 페이지당 20개, 데스크톱은 50개
+                        paginationSizeSelector: isMobile ? [10, 20, 30, 50] : [25, 50, 100, 200], // 모바일 최적화 옵션
+                        paginationCounter: "rows", // 행 수 표시
+                        movableColumns: !isMobile,    // 모바일에서는 컬럼 이동 비활성화
+                        resizableColumns: !isMobile,   // 모바일에서는 컬럼 크기 조절 비활성화
+                        tooltips: true,           // 툴팁 표시
+                        placeholder: "데이터가 없습니다.",
+                        height: isMobile 
+                            ? "600px"  // 모바일: 충분한 높이로 설정하여 많은 행 표시
+                            : (tabulatorData.length > 0 ? "600px" : "400px"),  // 데스크톱: 기존 높이
+                        minHeight: isMobile ? "500px" : "400px",        // 모바일 최소 높이 증가
+                        responsiveLayout: false, // 반응형 레이아웃 완전히 비활성화 (컬럼이 사라지지 않도록)
+                        rowHeight: isMobile ? 36 : undefined,  // 모바일에서 행 높이 명시적 설정 (36px)
+                        virtualDom: true,  // 가상 DOM 사용으로 성능 향상
+                        virtualDomBuffer: 300,  // 버퍼 크기 설정
+                        autoResize: false,  // 자동 크기 조절 비활성화 (컬럼이 사라지지 않도록)
+                        initialSort: [            // 초기 정렬 설정
+                            {column: "id", dir: "asc"}
+                        ],
+                        // 모바일 터치 최적화
+                        selectable: false,        // 선택 비활성화 (모바일에서 실수 방지)
+                        selectableRangeMode: "click"
+                    });
+                    
+                    console.log('Tabulator 테이블 생성 완료');
+                    
+                    // excel-content 영역 숨기기
+                    if (excelContent) {
+                        excelContent.style.display = 'none';
+                    }
+                    
+                    // tabulator-table 영역 표시
+                    tabulatorTable.style.display = 'block';
+                    
+                    // 테이블이 제대로 렌더링되었는지 확인 및 컬럼 강제 표시
+                    setTimeout(() => {
+                        const tableElement = tabulatorTable.querySelector('.tabulator-table');
+                        if (!tableElement) {
+                            console.warn('Tabulator 테이블이 렌더링되지 않았습니다.');
+                        } else {
+                            console.log('Tabulator 테이블 렌더링 확인됨');
+                            
+                            // 모든 컬럼이 항상 표시되도록 강제
+                            const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                            allCols.forEach(col => {
+                                col.style.display = 'table-cell';
+                                col.style.visibility = 'visible';
+                                col.style.opacity = '1';
+                            });
+                            
+                            // 모든 셀이 항상 표시되도록 강제
+                            const allCells = tabulatorTable.querySelectorAll('.tabulator-cell');
+                            allCells.forEach(cell => {
+                                cell.style.display = 'table-cell';
+                                cell.style.visibility = 'visible';
+                            });
+                            
+                            // 모든 행이 항상 표시되도록 강제
+                            const allRows = tabulatorTable.querySelectorAll('.tabulator-row');
+                            allRows.forEach(row => {
+                                row.style.display = 'table-row';
+                                row.style.visibility = 'visible';
+                            });
+                            
+                            console.log('모든 컬럼/행 강제 표시 완료:', allCols.length, '컬럼', allRows.length, '행');
+                        }
+                    }, 100);
+                    
+                    // window resize 이벤트에서 테이블이 자동으로 변경되지 않도록 막기
+                    let resizeTimeout;
+                    const originalResize = window.schoolTable.redraw;
+                    window.schoolTable.redraw = function() {
+                        // redraw 호출 시 컬럼이 사라지지 않도록 보호
+                        const result = originalResize.call(this);
+                        
+                        // redraw 후 모든 컬럼이 표시되도록 강제
+                        setTimeout(() => {
+                            const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                            allCols.forEach(col => {
+                                col.style.display = 'table-cell';
+                                col.style.visibility = 'visible';
+                                col.style.opacity = '1';
+                            });
+                        }, 50);
+                        
+                        return result;
+                    };
+                    
+                    // window resize 이벤트 리스너 추가 (테이블이 자동으로 변경되지 않도록)
+                    window.addEventListener('resize', function() {
+                        clearTimeout(resizeTimeout);
+                        resizeTimeout = setTimeout(() => {
+                            // resize 후 모든 컬럼이 표시되도록 강제
+                            if (window.schoolTable && tabulatorTable) {
+                                const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                                allCols.forEach(col => {
+                                    col.style.display = 'table-cell';
+                                    col.style.visibility = 'visible';
+                                    col.style.opacity = '1';
+                                });
+                                
+                                const allCells = tabulatorTable.querySelectorAll('.tabulator-cell');
+                                allCells.forEach(cell => {
+                                    cell.style.display = 'table-cell';
+                                    cell.style.visibility = 'visible';
+                                });
+                                
+                                const allRows = tabulatorTable.querySelectorAll('.tabulator-row');
+                                allRows.forEach(row => {
+                                    row.style.display = 'table-row';
+                                    row.style.visibility = 'visible';
+                                });
+                            }
+                        }, 100);
+                    });
+                    
+                    // MutationObserver로 DOM 변경 감시하여 컬럼이 사라지면 다시 표시
+                    const observer = new MutationObserver(function(mutations) {
+                        if (!window.schoolTable || !tabulatorTable) return;
+                        
+                        let needsFix = false;
+                        const allCols = tabulatorTable.querySelectorAll('.tabulator-col');
+                        allCols.forEach(col => {
+                            const style = window.getComputedStyle(col);
+                            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                                col.style.display = 'table-cell';
+                                col.style.visibility = 'visible';
+                                col.style.opacity = '1';
+                                needsFix = true;
+                            }
+                        });
+                        
+                        const allCells = tabulatorTable.querySelectorAll('.tabulator-cell');
+                        allCells.forEach(cell => {
+                            const style = window.getComputedStyle(cell);
+                            if (style.display === 'none' || style.visibility === 'hidden') {
+                                cell.style.display = 'table-cell';
+                                cell.style.visibility = 'visible';
+                                needsFix = true;
+                            }
+                        });
+                        
+                        const allRows = tabulatorTable.querySelectorAll('.tabulator-row');
+                        allRows.forEach(row => {
+                            const style = window.getComputedStyle(row);
+                            if (style.display === 'none' || style.visibility === 'hidden') {
+                                row.style.display = 'table-row';
+                                row.style.visibility = 'visible';
+                                needsFix = true;
+                            }
+                        });
+                        
+                        if (needsFix) {
+                            console.log('컬럼/행이 사라진 것을 감지하여 다시 표시했습니다.');
+                        }
+                    });
+                    
+                    // 테이블 컨테이너의 변경사항 감시
+                    if (tabulatorTable) {
+                        observer.observe(tabulatorTable, {
+                            childList: true,
+                            subtree: true,
+                            attributes: true,
+                            attributeFilter: ['style', 'class']
+                        });
+                    }
+                    
+                    // 테이블이 제거될 때 observer 정리
+                    window.schoolTableObserver = observer;
+                    
+                } catch (tabulatorError) {
+                    console.error('Tabulator 초기화 오류:', tabulatorError);
+                    throw new Error('Tabulator 테이블 생성 중 오류가 발생했습니다: ' + tabulatorError.message);
+                }
+                } catch (error) {
+                console.error('엑셀 파일 로드 오류:', error);
+                console.error('오류 상세:', error.stack);
+                
+                const tabulatorTable = document.getElementById('tabulator-table');
+                if (tabulatorTable) {
+                    tabulatorTable.style.display = 'none';
+                }
+                
+                if (excelContent) {
+                    excelContent.style.display = 'block';
+                    
+                    if (error.code === 'storage/object-not-found' || 
+                        error.code === 'storage/unauthorized' ||
+                        error.message?.includes('object-not-found') ||
+                        error.message?.includes('not found')) {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">엑셀 파일이 아직 업로드되지 않았습니다.<br>관리자가 엑셀 파일을 업로드해주세요.</p>';
+                    } else if (error.code === 'storage/unauthorized') {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">파일 접근 권한이 없습니다.<br>로그인 상태를 확인해주세요.</p>';
+                    } else if (error.message && (
+                        error.message.includes('CORS') || 
+                        error.message.includes('Access-Control-Allow-Origin') ||
+                        error.message.includes('Failed to fetch') ||
+                        error.name === 'TypeError'
+                    )) {
+                        // 배포 환경인지 확인
+                        const isLocalhost = window.location.hostname === 'localhost' || 
+                                          window.location.hostname === '127.0.0.1' ||
+                                          window.location.protocol === 'file:';
+                        
+                        if (isLocalhost) {
+                            excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">CORS 오류가 발생했습니다.<br><br>로컬 개발 환경에서는 Firebase Storage의 CORS 설정이 필요합니다.<br>배포된 환경에서 접속하시면 정상 작동합니다.<br><br>또는 Firebase Console에서 CORS 설정을 확인하세요.</p>';
+                        } else {
+                            excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">CORS 오류가 발생했습니다.<br><br>Firebase Storage의 CORS 설정이 필요합니다.<br>프로젝트 루트의 <code>Firebase_Storage_CORS_설정_가이드.md</code> 파일을 참고하여 CORS를 설정해주세요.</p>';
+                        }
+                    } else if (error.message && error.message.includes('Tabulator')) {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">스프레드시트 뷰 생성 중 오류가 발생했습니다.<br>오류: ' + error.message + '<br><br>브라우저 콘솔을 확인하거나 페이지를 새로고침해주세요.</p>';
+                    } else {
+                        excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">엑셀 파일을 불러오는 중 오류가 발생했습니다.<br>오류: ' + (error.message || '알 수 없는 오류') + '<br><br>브라우저 콘솔(F12)을 열어 상세 오류를 확인하세요.</p>';
+                    }
+                }
+            }
+        }
+
+        // 전역: 로그인 상태 복원 시 안내 모달 자동 닫기 (최적화)
+        function setupAuthStateListener() {
+            if (window.schoolAuthStateListenerSetup) {
+                return; // 이미 설정됨
+            }
+            
+            window.schoolAuthStateListenerSetup = true;
+            
+            // authStateRestored 이벤트 감지 (간단하게)
+            window.addEventListener('authStateRestored', function(event) {
+                // 짧은 대기 후 확인
+                setTimeout(() => {
+                    const loggedInUser = sessionStorage.getItem('loggedInUser');
+                    const loggedIn = sessionStorage.getItem('loggedIn');
+                    
+                    if (loggedInUser && loggedIn === "true") {
+                        closeLoginModal();
+                    }
+                }, 200); // 200ms로 단축
+            });
+        }
+        
+        // 페이지 로드 시 즉시 설정
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupAuthStateListener);
+        } else {
+            setupAuthStateListener();
+        }
+        
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tabulator 라이브러리 로드 확인
+            if (typeof Tabulator === 'undefined') {
+                console.error('Tabulator 라이브러리가 로드되지 않았습니다.');
+                const excelContent = document.getElementById('excel-content');
+                if (excelContent) {
+                    excelContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #dc3545;">스프레드시트 뷰 라이브러리를 불러올 수 없습니다.<br>페이지를 새로고침해주세요.</p>';
+                    excelContent.style.display = 'block';
+                }
+                return;
+            }
+            
+            // 초기 상태 설정: Tabulator 테이블 숨기기, excel-content 표시
+            const tabulatorTable = document.getElementById('tabulator-table');
+            const excelContent = document.getElementById('excel-content');
+            if (tabulatorTable) {
+                tabulatorTable.style.display = 'none';
+            }
+            if (excelContent) {
+                excelContent.style.display = 'block';
+            }
+            
+            // Firebase Storage 초기화
+            initStorage();
+            
+            // 로그인 초기화 완료 대기 후 상태 확인 (최적화: 3초로 단축)
+            waitForAuthInit(3000).then(isLoggedIn => {
+                // 사용자 권한 확인 (업로드 버튼 표시용)
+                checkUserPermission();
+                
+                const modal = getLoginModal();
+                
+                if (!isLoggedIn) {
+                    // 로그인하지 않은 경우 안내 모달 표시
+                    if (modal) {
+                        modal.classList.add('active');
+                    }
+                    // 엑셀 표시 영역 숨기기
+                    const excelArea = document.getElementById('excel-display-area');
+                    if (excelArea) {
+                        excelArea.style.display = 'none';
+                    }
+                } else {
+                    // 로그인한 경우 안내 모달 닫기 (혹시 열려있다면)
+                    if (modal && modal.classList.contains('active')) {
+                        modal.classList.remove('active');
+                    }
+                    // 엑셀 파일 로드 및 표시
+                    loadExcelFile();
+                }
+            }).catch(error => {
+                console.error('[School] 로그인 초기화 대기 중 오류:', error);
+                // 오류 발생 시 sessionStorage 확인
+                const isLoggedIn = checkUserPermission();
+                const modal = getLoginModal();
+                
+                if (!isLoggedIn) {
+                    if (modal) {
+                        modal.classList.add('active');
+                    }
+                    const excelArea = document.getElementById('excel-display-area');
+                    if (excelArea) {
+                        excelArea.style.display = 'none';
+                    }
+                } else {
+                    // 로그인한 경우 안내 모달 닫기
+                    if (modal && modal.classList.contains('active')) {
+                        modal.classList.remove('active');
+                    }
+                    loadExcelFile();
+                }
+            });
+        });
+
+        // 로그인 안내 모달 닫기 (최적화)
+        function closeLoginNotice() {
+            const modal = getLoginModal();
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        // 모달 배경 클릭 시 닫기
+        document.addEventListener('click', function(e) {
+            const modal = getLoginModal();
+            if (modal && modal.classList.contains('active')) {
+                // 클릭된 요소가 모달 배경이지 콘텐츠가 아닐 때만 닫기
+                if (e.target === modal) {
+                    closeLoginNotice();
+                }
+            }
+        });
+
+        // ESC 키로 로그인 안내 모달 닫기
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLoginNotice();
+            }
+        });
+    </script>
+    
+    <!-- 인덱스 페이지로 자동 리다이렉트 -->
+    <script>
+        // school.html에 직접 접근하면 index.html#/school로 리다이렉트
+        if (window.location.pathname.includes('school.html')) {
+            window.location.replace('../../index.html#/school');
+        }
+    </script>
+    
+</body>
+</html>

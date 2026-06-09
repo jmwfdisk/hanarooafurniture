@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>A/S 신청 게시판</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    textarea, input, select { width: 100%; margin: 8px 0; padding: 8px; }
+    button { padding: 10px 16px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>A/S신청 게시판 (테스트용)</h2>
+
+  <label>문의 유형 *</label>
+  <select id="type">
+    <option value="A/S 요청">A/S 요청</option>
+    <option value="부품 요청">부품 요청</option>
+  </select>
+
+  <label>제목 *</label>
+  <input type="text" id="title" placeholder="제목을 입력해 주세요." />
+
+  <label>내용 *</label>
+  <textarea id="content" placeholder="신청기관(학교명), 구매연도, 요청내용, 수량, 연락처 등 입력"></textarea>
+
+  <label>첨부 파일</label>
+  <input type="file" id="file" />
+
+  <button onclick="submitForm()">등록</button>
+
+  <script>
+    async function submitForm() {
+      const type = document.getElementById('type').value;
+      const title = document.getElementById('title').value;
+      const content = document.getElementById('content').value;
+      const fileInput = document.getElementById('file');
+      const file = fileInput.files[0];
+
+      if (!title || !content) {
+        alert('제목과 내용을 입력해 주세요.');
+        return;
+      }
+
+      let fileContent = '';
+      let mimeType = '';
+      let fileName = '';
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async function () {
+          fileContent = reader.result.split(',')[1];
+          mimeType = file.type;
+          fileName = file.name;
+
+          await postToGoogle();
+        };
+        reader.readAsDataURL(file);
+      } else {
+        await postToGoogle();
+      }
+
+      async function postToGoogle() {
+        const payload = {
+          type,
+          title,
+          content,
+          fileName,
+          mimeType,
+          fileContent
+        };
+
+        try {
+          const res = await fetch("https://script.google.com/macros/s/AKfycbwB_18uS4pXwnFhmeJVR8I5A3RlJrU7v1cVC_w99EKAKHiZSjq7Eq2yFYyCr4AGHcTz/exec", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+
+          const text = await res.text();
+          alert("응답 결과: " + text);
+        } catch (err) {
+          alert("요청 실패: " + err.message);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
