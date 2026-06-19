@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <link rel="icon" href="../../image/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="../../image/favicon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="하나로오에이퍼니처 - 조달 우수제품과 일반제품 소개">
@@ -108,6 +110,9 @@
         .navbar > div {
             position: relative;
         }
+
+        /* 로그인/로그아웃/임직원 링크: 메뉴 링크 여백 상속 금지 (네비 가로 넘침 방지) */
+        .navbar > .login > a { margin: 0 !important; padding: 0 !important; font-size: 14px !important; }
 
         .navbar > div > a {
             margin: 13px 4px !important;
@@ -637,7 +642,7 @@
             margin-right: auto;
         }
 
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
             .navbar {
                 display: grid;
                 grid-template-columns: auto 1fr auto;
@@ -1030,18 +1035,18 @@
         
         <!-- 로그인 폼 -->
         <div id="login-form" class="auth-form">
-            <input type="text" id="username" placeholder="아이디">
+            <input type="text" id="username" placeholder="이메일">
             <input type="password" id="password" placeholder="비밀번호">
             <button onclick="login()">로그인</button>
         </div>
         
         <!-- 회원가입 폼 -->
         <div id="register-form" class="auth-form" style="display: none;">
-            <input type="text" id="reg-username" placeholder="아이디 (4자 이상)">
+            <input type="email" id="reg-email" placeholder="이메일 (로그인 아이디)">
             <input type="password" id="reg-password" placeholder="비밀번호 (6자 이상)">
             <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인">
+            <input type="text" id="reg-org" placeholder="소속 (선택)">
             <input type="text" id="reg-name" placeholder="이름">
-            <input type="email" id="reg-email" placeholder="이메일">
             <input type="tel" id="reg-phone" placeholder="연락처">
             <select id="reg-user-type" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
                 <option value="general">일반회원</option>
@@ -1630,6 +1635,7 @@
     <div class="product-item">
       <img src="./image/4/12.jpeg" alt="연두" onclick="openModal(this)">
       <p>
+        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
         <strong>원형-연두</strong><br>
       </p>
     </div>
@@ -1644,7 +1650,6 @@
     <div class="product-item">
       <img src="./image/4/14.jpeg" alt="감색" onclick="openModal(this)">
       <p>
-        <img src="./image/best.png" alt="베스트" style="width: 20px; height: auto; margin-right: 6px; vertical-align: middle;">
         <strong>원형-감색</strong><br>
       </p>
     </div>

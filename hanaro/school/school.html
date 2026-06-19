@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <link rel="icon" href="../../image/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="../../image/favicon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="하나로오에이퍼니처 - 납품학교 리스트">
@@ -90,6 +92,9 @@
         .navbar > div {
             position: relative;
         }
+
+        /* 로그인/로그아웃/임직원 링크: 메뉴 링크 여백 상속 금지 (네비 가로 넘침 방지) */
+        .navbar > .login > a { margin: 0 !important; padding: 0 !important; font-size: 14px !important; }
 
         .navbar > div > a {
             margin: 13px 4px !important;
@@ -705,7 +710,7 @@
             }
         }
 
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
             .navbar {
                 display: grid;
                 grid-template-columns: auto 1fr auto;
@@ -1220,18 +1225,18 @@
         
         <!-- 로그인 폼 -->
         <div id="login-form" class="auth-form">
-        <input type="text" id="username" placeholder="아이디">
+        <input type="text" id="username" placeholder="이메일">
         <input type="password" id="password" placeholder="비밀번호">
         <button onclick="login()">로그인</button>
         </div>
         
         <!-- 회원가입 폼 -->
         <div id="register-form" class="auth-form" style="display: none;">
-            <input type="text" id="reg-username" placeholder="아이디 (4자 이상)">
+            <input type="email" id="reg-email" placeholder="이메일 (로그인 아이디)">
             <input type="password" id="reg-password" placeholder="비밀번호 (6자 이상)">
             <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인">
+            <input type="text" id="reg-org" placeholder="소속 (선택)">
             <input type="text" id="reg-name" placeholder="이름">
-            <input type="email" id="reg-email" placeholder="이메일">
             <input type="tel" id="reg-phone" placeholder="연락처">
             <select id="reg-user-type" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
                 <option value="general">일반회원</option>
@@ -2072,9 +2077,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         virtualDom: true,  // 가상 DOM 사용으로 성능 향상
                         virtualDomBuffer: 300,  // 버퍼 크기 설정
                         autoResize: false,  // 자동 크기 조절 비활성화 (컬럼이 사라지지 않도록)
-                        initialSort: [            // 초기 정렬 설정
-                            {column: "id", dir: "asc"}
-                        ],
+                        // initialSort 제거: id 컬럼은 정의되지 않아 "Sort field does not exist" 경고 발생.
+                        // 데이터(tabulatorData)가 이미 엑셀 원본 순서이므로 초기 정렬 불필요.
                         // 모바일 터치 최적화
                         selectable: false,        // 선택 비활성화 (모바일에서 실수 방지)
                         selectableRangeMode: "click"

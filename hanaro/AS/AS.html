@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <link rel="icon" href="../../image/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="../../image/favicon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="하나로오에이퍼니처 - 조달 우수제품과 일반제품 소개">
@@ -77,6 +79,9 @@
         .navbar > div {
             position: relative;
         }
+
+        /* 로그인/로그아웃/임직원 링크: 메뉴 링크 여백 상속 금지 (네비 가로 넘침 방지) */
+        .navbar > .login > a { margin: 0 !important; padding: 0 !important; font-size: 14px !important; }
 
         .navbar > div > a {
             margin: 13px 4px !important;
@@ -849,7 +854,7 @@
             margin-right: auto;
         }
 
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
   .navbar {
                 display: grid;
                 grid-template-columns: auto 1fr auto;
@@ -1180,18 +1185,18 @@
         
         <!-- 로그인 폼 -->
         <div id="login-form" class="auth-form">
-        <input type="text" id="username" placeholder="아이디">
+        <input type="text" id="username" placeholder="이메일">
         <input type="password" id="password" placeholder="비밀번호">
         <button onclick="login()">로그인</button>
         </div>
         
         <!-- 회원가입 폼 -->
         <div id="register-form" class="auth-form" style="display: none;">
-            <input type="text" id="reg-username" placeholder="아이디 (4자 이상)">
+            <input type="email" id="reg-email" placeholder="이메일 (로그인 아이디)">
             <input type="password" id="reg-password" placeholder="비밀번호 (6자 이상)">
             <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인">
+            <input type="text" id="reg-org" placeholder="소속 (선택)">
             <input type="text" id="reg-name" placeholder="이름">
-            <input type="email" id="reg-email" placeholder="이메일">
             <input type="tel" id="reg-phone" placeholder="연락처">
             <select id="reg-user-type" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
                 <option value="general">일반회원</option>
@@ -1676,6 +1681,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+// 사용자 입력 XSS 방지용 escape
+function asEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function renderAsPosts() {
   const list = document.getElementById('as-list-body');
             if (!list) return;
@@ -1748,9 +1758,9 @@ if (asPosts.length === 0) {
     
     row.innerHTML = `
                     <span>${globalIndex + 1}</span>
-                    <span>${post.type || ''}</span>
-                    <span><a href="#" onclick="viewContent(${globalIndex}); return false;" style="text-decoration: underline; color: blue; cursor: pointer;">${post.title || ''}</a></span>
-                    <span>${post.date || ''}</span>
+                    <span>${asEsc(post.type)}</span>
+                    <span><a href="#" onclick="viewContent(${globalIndex}); return false;" style="text-decoration: underline; color: blue; cursor: pointer;">${asEsc(post.title)}</a></span>
+                    <span>${asEsc(post.date)}</span>
                     <span>${deleteButton}</span>
     `;
 
@@ -1876,7 +1886,7 @@ function deleteAsPost(index) {
   <div class="board-header">
     <div style="flex: 1;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h2 style="margin: 0;">A/S신청 게시판</h2>
+        <h2 style="margin: 0; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">A/S신청 게시판<span id="as-inline-notice" style="display:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:8px; -webkit-text-fill-color:initial; -webkit-background-clip:border-box; background-clip:border-box;"></span></h2>
         <button class="inquiry-btn" onclick="toggleAsForm()" style="margin-left: 20px; flex-shrink: 0;">
           <span style="margin-right: 6px;">✏️</span>A/S 신청
         </button>
@@ -1914,7 +1924,7 @@ function deleteAsPost(index) {
 
   <div style="margin-bottom: 24px;">
     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057; font-size: 15px;"><strong>제목 *</strong></label>
-    <input type="text" id="as-title" name="제목" required placeholder="제목을 입력해 주세요." style="width: 100%; padding: 14px 16px; font-size: 15px; border: 2px solid #e9ecef; border-radius: 12px; background: #fff; color: #495057; transition: all 0.3s ease; outline: none; font-family: inherit; box-sizing: border-box;">
+    <input type="text" id="as-title" name="제목" required placeholder="OOO 학교, A/S 합니다." style="width: 100%; padding: 14px 16px; font-size: 15px; border: 2px solid #e9ecef; border-radius: 12px; background: #fff; color: #495057; transition: all 0.3s ease; outline: none; font-family: inherit; box-sizing: border-box;">
     <style>
       #as-title:focus {
         border-color: #0071e3;
@@ -2015,10 +2025,25 @@ function deleteAsPost(index) {
 
 
 <script>
+        // 제목 옆 인라인 안내 (브라우저 alert 차단에도 항상 표시)
+        function showAsToast(msg, type) {
+            const el = document.getElementById('as-inline-notice');
+            if (!el) { alert(msg); return; }
+            el.textContent = msg.replace(/\n/g, ' ');
+            const col = (type === 'error') ? '#e53935' : '#2563eb';
+            el.style.background = (type === 'error') ? '#fdecec' : '#e7f1ff';
+            el.style.color = col;
+            el.style.webkitTextFillColor = col; // 제목 그라데이션 텍스트 상속 방지
+            el.style.border = '1px solid ' + ((type === 'error') ? '#f5c2c2' : '#c7ddff');
+            el.style.display = 'inline-block';
+            clearTimeout(window.__asNoticeTimer);
+            window.__asNoticeTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+        }
+
         function viewContent(index) {
             const isLoggedIn = sessionStorage.getItem("loggedIn");
             if (!isLoggedIn) {
-                alert("관리자 로그인 후 내용을 확인할 수 있습니다.");
+                showAsToast("로그인 후 내용을 확인할 수 있습니다.\n상단의 '로그인'을 눌러 로그인해 주세요.", 'error');
                 return;
             }
 
@@ -2033,6 +2058,23 @@ function deleteAsPost(index) {
     return;
   }
 
+            // 열람 권한: 관리자/임직원은 전체, 일반회원은 본인이 작성한 글만
+            let viewer = null;
+            try { viewer = JSON.parse(sessionStorage.getItem('loggedInUser') || 'null'); } catch (e) {}
+            if (!viewer) {
+                alert("사용자 정보를 확인할 수 없습니다.\n다시 로그인해 주세요.");
+                return;
+            }
+            const isAdmin = viewer.isAdmin === true || viewer.username === 'admin';
+            const isEmployee = viewer.userType === 'employee';
+            const isAuthor = (post.uid && post.uid === viewer.uid) ||
+                             (post.username && post.username === viewer.username) ||
+                             (post.name && viewer.name && post.name === viewer.name);
+            if (!isAdmin && !isEmployee && !isAuthor) {
+                showAsToast("본인이 작성한 A/S 신청만 열람할 수 있습니다.", 'error');
+                return;
+            }
+
             const modalTitle = document.getElementById('modal-title');
             const modalType = document.getElementById('modal-type');
             const modalContent = document.getElementById('modal-content');
@@ -2043,12 +2085,48 @@ function deleteAsPost(index) {
 
             if (modalTitle) modalTitle.innerText = post.title || '';
             if (modalType) modalType.innerText = `[문의 유형] ${post.type || ''}`;
-            if (modalContent) modalContent.innerText = post.content || '';
+            if (modalContent) modalContent.innerText = (post.content || '').split('\n').map(l => l.replace(/^[ \t ]+/, '')).join('\n');
             
+            // A/S 처리 정보 (임직원 페이지와 연동: 상태/담당자/답글/기사)
+            // 오류가 나도 상세창은 반드시 뜨도록 try/catch 로 보호
+            try {
+                const modalAsStatus = document.getElementById('modal-as-status');
+                if (modalAsStatus) {
+                    const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    const done = post.status === 'done';
+                    const replies = Array.isArray(post.replies) ? post.replies : [];
+                    let h = '';
+                    h += `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                            <span style="padding:3px 10px;border-radius:10px;font-size:13px;font-weight:600;${done?'background:#e6f7ec;color:#2f9e44;':'background:#fff4e6;color:#e8590c;'}">${done?'처리 완료':'접수/처리 중'}</span>
+                            ${post.assignee?`<span style="font-size:13px;color:#495057;">담당: ${esc(post.assignee)}</span>`:''}
+                          </div>`;
+                    if (replies.length) {
+                        h += `<div style="background:#eef6ff;border:1px solid #d0e3ff;border-radius:10px;padding:12px;margin-bottom:10px;">
+                                <div style="font-weight:700;color:#1c64d8;font-size:13px;margin-bottom:6px;">담당자 답변</div>` +
+                            replies.map(rp => `<div style="margin-bottom:8px;"><div style="font-size:14px;color:#333;white-space:pre-wrap;">${esc(rp.text||'')}</div><div style="font-size:12px;color:#888;margin-top:4px;">${esc(rp.author||'')} · ${esc(rp.date||'')}</div></div>`).join('') +
+                            `</div>`;
+                    }
+                    if (done && post.asReport) {
+                        h += `<div style="background:#f1fbf3;border:1px solid #c3ebcf;border-radius:10px;padding:12px;margin-bottom:10px;">
+                                <div style="font-weight:700;color:#2f9e44;font-size:13px;margin-bottom:6px;">A/S 처리 내용</div>
+                                <div style="font-size:14px;color:#333;white-space:pre-wrap;">${esc(post.asReport)}</div>
+                                <div style="font-size:12px;color:#888;margin-top:6px;">완료일: ${esc(post.completedDate||'')}</div>
+                              </div>`;
+                    }
+                    modalAsStatus.innerHTML = h;
+                }
+            } catch (asErr) {
+                console.error('A/S 처리정보 표시 오류:', asErr);
+                const m = document.getElementById('modal-as-status');
+                if (m) m.innerHTML = '';
+            }
+
             if (modalFiles) {
                 if (post.files && post.files.length > 0) {
+                    // onclick 속성용 JS 문자열 escape (따옴표/백슬래시/꺾쇠 인젝션 방지)
+                    const jsStr = (s) => String(s == null ? '' : s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'\\x3C');
                     modalFiles.innerHTML = `첨부 파일: <br>` + post.files.map(name => `
-                        <a href="#" onclick="downloadFile('${name}'); return false;" style="color:blue; text-decoration:underline; cursor: pointer;">${name}</a>
+                        <a href="#" onclick="downloadFile('${jsStr(name)}'); return false;" style="color:blue; text-decoration:underline; cursor: pointer;">${asEsc(name)}</a>
                     `).join('<br>');
                 } else {
                     modalFiles.innerHTML = '첨부 파일: 없음';
@@ -2246,9 +2324,10 @@ function downloadFile(filename) {
     </style>
   </div>
   <p id="modal-type" style="font-size:15px; color:#0071e3; margin-bottom:16px; font-weight:600; padding: 10px 16px; background: linear-gradient(135deg, #e7f5ff 0%, #f0f9ff 100%); border-radius: 8px; border-left: 4px solid #0071e3;"></p>
-  <p id="modal-content" style="white-space:pre-wrap; line-height:1.8; font-size:15px; color:#495057; background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #e9ecef; margin-bottom: 16px;"></p>
+  <p id="modal-content" style="white-space:pre-wrap; text-align:left; line-height:1.8; font-size:15px; color:#495057; background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #e9ecef; margin-bottom: 16px;"></p>
 
   <!-- 첨부파일 및 이미지 영역 -->
+  <div id="modal-as-status" style="margin-top:16px;"></div>
   <div id="modal-files" style="font-size: 14px; margin-top: 16px; color: #495057; padding: 12px; background: #f8f9fa; border-radius: 8px;"></div>
   <div id="modal-images" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 8px;"></div>
   <style>

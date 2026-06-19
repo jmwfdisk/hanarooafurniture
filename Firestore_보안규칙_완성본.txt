@@ -38,7 +38,20 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
     }
-    
+
+    // 작성·관리 권한 맵 (없으면 빈 맵)
+    function userPerms() {
+      return (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', {})
+        : {};
+    }
+
+    // 특정 영역 작성·관리 권한 (관리자/전체 포함)
+    function permFor(area) {
+      return isAdmin() ||
+        (isAuthenticated() && (userPerms().get('all', false) == true || userPerms().get(area, false) == true));
+    }
+
     // ========== 사용자 정보 (users) ==========
     
     match /users/{userId} {
@@ -134,23 +147,18 @@ service cloud.firestore {
       // 읽기: 임직원 또는 관리자만 가능
       allow read: if isEmployee();
       
-      // 생성: 임직원 또는 관리자만 가능 (게시판 초기 생성)
+      // 생성/수정: 임직원(게시판 일반) — 단, 'as-result' 보드는 'A/S처리결과' 권한 보유자만
       allow create: if isEmployee() &&
-        // board는 문자열이어야 함
         board is string &&
-        // 필수 필드 검증
         request.resource.data.keys().hasAny(['posts']) &&
-        // posts는 배열이어야 함
-        request.resource.data.posts is list;
-      
-      // 수정: 임직원 또는 관리자만 가능 (게시글 추가/수정/삭제)
-      // 주의: 클라이언트에서 전체 posts 배열을 교체하므로,
-      // 개별 게시글 권한 검증은 클라이언트에서 처리해야 함
+        request.resource.data.posts is list &&
+        (board != 'as-result' || permFor('asResult'));
+
+      // 수정: 동일 규칙 (클라이언트가 전체 posts 배열 교체)
       allow update: if isEmployee() &&
-        // board는 문자열이어야 함
         board is string &&
-        // posts 필드는 배열이어야 함
-        request.resource.data.posts is list;
+        request.resource.data.posts is list &&
+        (board != 'as-result' || permFor('asResult'));
       
       // 삭제: 관리자만 가능 (게시판 전체 삭제)
       allow delete: if isAdmin();
@@ -249,7 +257,40 @@ service cloud.firestore {
       // 삭제: 임직원 또는 관리자만 가능
       allow delete: if isEmployee();
     }
-    
+
+    // ========== 납품 일정관리 (deliverySchedule) ==========
+    // 구조: doc('main') 단일 문서에 { notice, rows:[...], images:[...] } 형태로 저장
+    match /deliverySchedule/{docId} {
+      // 읽기: 임직원, 쓰기: 관리자 또는 '일정관리' 작성 권한 보유자
+      allow read: if isEmployee();
+      allow write: if permFor('schedule');
+    }
+
+    // ========== 앱 설정/메타 (appConfig) ==========
+    // 예: doc('memberOrder') = { order: [uid...] } 승인완료 회원 표시 순서
+    match /appConfig/{docId} {
+      // 읽기: 임직원, 쓰기: 관리자만
+      allow read: if isEmployee();
+      allow write: if isAdmin();
+    }
+
+    // ========== 회사운영 달력 (companyCalendar) ==========
+    // 구조: 개별 문서 { date:'YYYY-MM-DD', time, title, memo, createdBy, createdAt }
+    match /companyCalendar/{eventId} {
+      // 읽기: 로그인 사용자
+      allow read: if isAuthenticated();
+      // 쓰기: 관리자 또는 '회사운영' 작성 권한 보유자
+      allow write: if permFor('company');
+    }
+
+    // ========== 재고현황 (inventory) ==========
+    // 구조: doc('main') = { groups: [{ name, rows:[{product,qty,stock,note}] }] }
+    match /inventory/{docId} {
+      // 읽기: 임직원, 쓰기: 관리자 또는 '재고현황' 작성 권한 보유자
+      allow read: if isEmployee();
+      allow write: if permFor('inventory');
+    }
+
     // ========== 기타 컬렉션 ==========
     // 위에 명시되지 않은 모든 컬렉션은 접근 불가
     match /{document=**} {

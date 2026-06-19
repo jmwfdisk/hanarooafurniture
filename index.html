@@ -187,6 +187,7 @@
             width: 100%;
             max-width: 1200px;
             padding: 0 20px;
+            box-sizing: border-box;   /* padding 포함 → 뷰포트 넘침 방지 */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -289,14 +290,17 @@
             }
 
             .main2-title {
-                font-size: 32px;
-                letter-spacing: 2px;
+                font-size: clamp(22px, 7vw, 32px);  /* 좁은 화면에서 넘치지 않게 */
+                letter-spacing: 1px;
                 margin-bottom: -3px;
-                line-height: 1.1;
+                line-height: 1.15;
+                white-space: normal;       /* 폭 부족 시 줄바꿈 허용 */
+                word-break: keep-all;
+                max-width: 100%;
             }
 
             .main2-subtitle {
-                font-size: 18px;
+                font-size: clamp(13px, 4vw, 18px);
                 letter-spacing: 1px;
                 line-height: 1.2;
             }
@@ -891,6 +895,14 @@
     flex-direction: row;
 }
 
+/* .login 내부 a(로그인/로그아웃/임직원)는 메뉴 링크 스타일(.navbar > div > a)을
+   상속받지 않도록 여백 리셋 — 데스크탑에서 버튼 사이 과한 빈 공간 방지 */
+.navbar > .login > a {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 14px !important;
+}
+
 /* 숨겨진 로그인/로그아웃 버튼이 공간을 차지하지 않도록 */
 .login-item[style*="display: none"],
 #login-link[style*="display: none"],
@@ -962,7 +974,7 @@
         }
     }
     
-    @media (max-width: 1024px) {
+    @media (max-width: 1200px) {
         .navbar {
             display: grid;
             grid-template-columns: auto 1fr auto;
@@ -1529,18 +1541,18 @@
         
         <!-- 로그인 폼 -->
         <div id="login-form" class="auth-form">
-            <input type="text" id="username" placeholder="아이디">
+            <input type="text" id="username" placeholder="이메일">
             <input type="password" id="password" placeholder="비밀번호">
             <button type="button" onclick="login()">로그인</button>
         </div>
         
         <!-- 회원가입 폼 -->
         <div id="register-form" class="auth-form" style="display: none;">
-            <input type="text" id="reg-username" placeholder="아이디 (4자 이상)">
+            <input type="email" id="reg-email" placeholder="이메일 (로그인 아이디)">
             <input type="password" id="reg-password" placeholder="비밀번호 (6자 이상)">
             <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인">
+            <input type="text" id="reg-org" placeholder="소속 (선택)">
             <input type="text" id="reg-name" placeholder="이름">
-            <input type="email" id="reg-email" placeholder="이메일">
             <input type="tel" id="reg-phone" placeholder="연락처">
             <select id="reg-user-type" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
                 <option value="general">일반회원</option>

@@ -686,7 +686,8 @@ function resetAutoLogoutTimer() {
     autoLogoutTimer = setTimeout(() => {
         autoLogout();
     }, AUTO_LOGOUT_TIME);
-    
+
+    // 남은 시간 카운트다운 배지는 표시하지 않음 (경고 알림만 사용)
     updateLogoutTimer();
 }
 
@@ -760,88 +761,15 @@ async function autoLogout() {
 }
 
 function updateLogoutTimer() {
-    if (!lastActivityTime || !sessionStorage.getItem("loggedIn")) {
-        const timerDisplay = document.getElementById('logout-timer');
-        if (timerDisplay) {
-            timerDisplay.remove();
-        }
-        if (logoutTimerUpdateInterval) {
-            clearInterval(logoutTimerUpdateInterval);
-            logoutTimerUpdateInterval = null;
-        }
-        return;
+    // 남은 시간 카운트다운 배지는 더 이상 표시하지 않는다.
+    // 기존에 만들어진 배지가 있으면 제거하고, 갱신 인터벌도 정리한다.
+    const timerDisplay = document.getElementById('logout-timer');
+    if (timerDisplay) {
+        timerDisplay.remove();
     }
-    
-    const elapsed = Date.now() - lastActivityTime;
-    const remaining = AUTO_LOGOUT_TIME - elapsed;
-    
-    if (remaining <= 0) {
-        if (logoutTimerUpdateInterval) {
-            clearInterval(logoutTimerUpdateInterval);
-            logoutTimerUpdateInterval = null;
-        }
-        return;
-    }
-    
-    const minutes = Math.floor(remaining / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
-    
-    let timerDisplay = document.getElementById('logout-timer');
-    if (!timerDisplay) {
-        const logoutLink = document.getElementById('logout-link');
-        if (logoutLink) {
-            timerDisplay = document.createElement('span');
-            timerDisplay.id = 'logout-timer';
-            timerDisplay.style.cssText = `
-                display: inline-flex;
-                align-items: center;
-                padding: 4px 8px;
-                margin-left: 6px;
-                background: rgba(255, 255, 255, 0.95);
-                border: 1px solid #dee2e6;
-                border-radius: 6px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-                font-size: 11px;
-                color: #6c757d;
-                font-weight: 500;
-                line-height: 1.2;
-                text-align: center;
-                white-space: nowrap;
-                vertical-align: middle;
-            `;
-            let inserted = false;
-            for (let node of logoutLink.childNodes) {
-                if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() === '로그아웃') {
-                    logoutLink.insertBefore(timerDisplay, node.nextSibling);
-                    inserted = true;
-                    break;
-                }
-            }
-            if (!inserted) {
-                logoutLink.appendChild(timerDisplay);
-            }
-        } else {
-            return;
-        }
-    }
-    
-    if (remaining <= 3 * 60 * 1000) {
-        timerDisplay.style.color = '#ff6b6b';
-        timerDisplay.style.fontWeight = '600';
-        timerDisplay.style.borderColor = '#ff6b6b';
-        timerDisplay.style.background = 'rgba(255, 107, 107, 0.1)';
-    } else {
-        timerDisplay.style.color = '#6c757d';
-        timerDisplay.style.fontWeight = '500';
-        timerDisplay.style.borderColor = '#dee2e6';
-        timerDisplay.style.background = 'rgba(255, 255, 255, 0.95)';
-    }
-    
-    timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    
-    // setInterval 사용 (재귀적 setTimeout 대신)
-    if (!logoutTimerUpdateInterval) {
-        logoutTimerUpdateInterval = setInterval(updateLogoutTimer, 1000);
+    if (logoutTimerUpdateInterval) {
+        clearInterval(logoutTimerUpdateInterval);
+        logoutTimerUpdateInterval = null;
     }
 }
 
@@ -1088,7 +1016,7 @@ function hideLogin() {
     if (overlay) overlay.style.display = 'none';
     if (loginContainer) loginContainer.style.display = 'none';
     
-    const fields = ['username', 'password', 'reg-username', 'reg-password', 'reg-password-confirm', 'reg-name', 'reg-email', 'reg-phone'];
+    const fields = ['username', 'password', 'reg-password', 'reg-password-confirm', 'reg-name', 'reg-org', 'reg-email', 'reg-phone'];
     fields.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
@@ -1219,21 +1147,19 @@ async function login() {
 
 async function register() {
     log('[회원가입] register() 함수 호출됨');
-    const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
     const passwordConfirm = document.getElementById('reg-password-confirm').value;
     const name = document.getElementById('reg-name').value.trim();
     const email = document.getElementById('reg-email').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
+    const orgEl = document.getElementById('reg-org');
+    const org = orgEl ? orgEl.value.trim() : '';
     const userType = document.getElementById('reg-user-type') ? document.getElementById('reg-user-type').value : 'general';
+    // 아이디와 이메일 통합: 이메일을 아이디(username)로 사용
+    const username = email;
 
-    if (!username || !password || !name || !email) {
-        alert('필수 항목을 모두 입력해주세요.\n(아이디, 비밀번호, 이름, 이메일)');
-        return;
-    }
-
-    if (username.length < 4) {
-        alert('아이디는 4자 이상이어야 합니다.');
+    if (!password || !name || !email) {
+        alert('필수 항목을 모두 입력해주세요.\n(이메일, 비밀번호, 이름)');
         return;
     }
 
@@ -1249,11 +1175,6 @@ async function register() {
 
     if (!email.includes('@')) {
         alert('올바른 이메일 형식을 입력해주세요.');
-        return;
-    }
-
-    if (username === 'admin') {
-        alert('사용할 수 없는 아이디입니다.');
         return;
     }
 
@@ -1293,6 +1214,7 @@ async function register() {
                 name: name,
                 email: email,
                 phone: phone || '',
+                org: org || '',
                 userType: userType,
                 status: 'pending',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
