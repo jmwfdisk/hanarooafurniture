@@ -3,3 +3,6 @@
 *.clip
 _backup/
 .cursor/
+
+# 내부 참고 문서 (배포 불필요)
+docs/
