@@ -746,7 +746,7 @@
         
         /* 테이블 열 너비 고정: 아이디(120) 이름(100) 이메일(200) 회원유형(100) 신청일(120) 승인여부(150) 관리(80) */
         #member-section .table-header {
-            grid-template-columns: 95px 85px 1fr 80px 95px 100px 165px;
+            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -760,7 +760,7 @@
         #member-section .table-row {
             position: static;
             left: auto;
-            grid-template-columns: 95px 85px 1fr 80px 95px 100px 165px;
+            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -838,6 +838,30 @@
         }
         #member-section .member-type-select:hover {
             border-color: #3b82f6;
+        }
+
+        /* 소속 인라인 편집 (관리자) */
+        #member-section .member-org.editable {
+            cursor: pointer;
+            border-radius: 6px;
+            padding: 1px 4px;
+            transition: background 0.15s;
+        }
+        #member-section .member-org.editable:hover {
+            background: #eef4ff;
+            color: #2563eb;
+        }
+        #member-section .member-org .org-empty { color: #adb5bd; font-style: italic; }
+        #member-section .member-org-input {
+            width: 100%;
+            max-width: 140px;
+            height: 24px;
+            padding: 1px 6px;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            font-size: 13px;
+            box-sizing: border-box;
+            outline: none;
         }
 
         /* 승인완료 탭 회원 관리 버튼 (탈퇴/삭제) */
@@ -7176,34 +7200,21 @@
             
             // 관리자일 때 users 컬렉션 조회
             try {
-                let snapshot;
-                try {
-                    // createdAt으로 정렬 시도
-                    snapshot = await db.collection('users')
-                        .orderBy('createdAt', 'desc')
-                        .get();
-                } catch (indexError) {
-                    // 인덱스 오류인 경우 정렬 없이 조회
-                    if (indexError.code === 'failed-precondition') {
-                        console.warn('[Staff 페이지] 인덱스 없음, 정렬 없이 조회');
-                        snapshot = await db.collection('users').get();
-                        // 클라이언트 측에서 정렬
-                        const docs = [];
-                        snapshot.forEach(doc => docs.push(doc));
-                        docs.sort((a, b) => {
-                            const aTime = a.data().createdAt?.toDate ? a.data().createdAt.toDate().getTime() : 0;
-                            const bTime = b.data().createdAt?.toDate ? b.data().createdAt.toDate().getTime() : 0;
-                            return bTime - aTime; // 내림차순
-                        });
-                        // 정렬된 결과로 snapshot 재구성
-                        snapshot = {
-                            forEach: (callback) => docs.forEach(callback),
-                            size: docs.length
-                        };
-                    } else {
-                        throw indexError;
-                    }
-                }
+                // 전체 조회 후 클라이언트 정렬.
+                // (orderBy('createdAt')를 쓰면 createdAt 필드가 없는 문서가 결과에서 누락되어
+                //  방금 가입한 회원이 승인대기 목록에 안 뜨는 문제가 발생함)
+                const rawSnapshot = await db.collection('users').get();
+                const docs = [];
+                rawSnapshot.forEach(doc => docs.push(doc));
+                docs.sort((a, b) => {
+                    const aTime = a.data().createdAt?.toDate ? a.data().createdAt.toDate().getTime() : 0;
+                    const bTime = b.data().createdAt?.toDate ? b.data().createdAt.toDate().getTime() : 0;
+                    return bTime - aTime; // 최신 가입순(내림차순). createdAt 없는 문서는 맨 뒤.
+                });
+                const snapshot = {
+                    forEach: (callback) => docs.forEach(callback),
+                    size: docs.length
+                };
                 
                 allMembers = [];
                 snapshot.forEach(doc => {
@@ -7402,8 +7413,13 @@
 
                 // 레이아웃 스타일은 CSS에 위임, 색상 등 표현 스타일만 인라인
                 // 모바일에서는 CSS로 일부 컬럼이 숨겨짐
+                // 소속: 관리자는 클릭하여 수정 가능 (관리자 계정 포함 누구나 소속 편집 허용)
+                const orgText = member.org ? esc(member.org) : '<span class="org-empty">- 미입력 -</span>';
+                const orgCell = isAdminViewer
+                    ? `<span class="member-org editable" title="클릭하여 소속 수정" onclick="editMemberOrg('${member.id}', this)">${orgText} ✎</span>`
+                    : `<span>${orgText}</span>`;
                 row.innerHTML = `
-                    <span>${member.org ? esc(member.org) : '-'}</span>
+                    <span>${orgCell}</span>
                     <span>${member.name ? esc(member.name) : '-'}</span>
                     <span>${member.email ? esc(member.email) : '-'}</span>
                     <span>${userTypeCell}</span>
@@ -7565,6 +7581,34 @@
                 console.error('회원유형 변경 오류:', error);
                 alert('회원유형 변경 중 오류가 발생했습니다.\n관리자 권한 또는 보안 규칙을 확인해주세요.\n' + (error.message || ''));
                 renderMembers(); // 실패 시 원복
+            }
+        }
+
+        // 소속 수정 (관리자 전용) — 셀을 입력창으로 바꿔 인라인 편집
+        function editMemberOrg(userId, el) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) return;
+            const cur = member.org || '';
+            const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            el.outerHTML = `<input class="member-org-input" type="text" maxlength="40" value="${escAttr(cur)}" placeholder="소속 입력"
+                              onblur="saveMemberOrg('${userId}', this.value)"
+                              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
+            const inp = document.querySelector('.member-org-input');
+            if (inp) { inp.focus(); inp.select(); }
+        }
+        async function saveMemberOrg(userId, value) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) { renderMembers(); return; }
+            const newOrg = (value || '').trim();
+            if (newOrg === (member.org || '')) { renderMembers(); return; }  // 변경 없음
+            try {
+                await db.collection('users').doc(userId).update({ org: newOrg });
+                member.org = newOrg;
+                renderMembers();
+            } catch (error) {
+                console.error('소속 수정 오류:', error);
+                alert('소속 수정 중 오류가 발생했습니다.\n관리자 권한 또는 보안 규칙을 확인해주세요.\n' + (error.message || ''));
+                renderMembers();
             }
         }
 
