@@ -5919,7 +5919,9 @@
             <button class="member-tab active" onclick="showMemberTab('pending')" data-tab="pending">
                 승인 대기 <span id="pending-count" style="background: #ff6b6b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px;">0</span>
             </button>
-            <button class="member-tab" onclick="showMemberTab('approved')" data-tab="approved">승인 완료</button>
+            <button class="member-tab" onclick="showMemberTab('admin')" data-tab="admin">관리자</button>
+            <button class="member-tab" onclick="showMemberTab('employee')" data-tab="employee">임직원</button>
+            <button class="member-tab" onclick="showMemberTab('general')" data-tab="general">일반회원</button>
             <button class="member-tab" onclick="showMemberTab('rejected')" data-tab="rejected">승인거절</button>
         </div>
         
@@ -7304,14 +7306,27 @@
                 isAdminViewer = u.isAdmin === true || u.username === 'admin';
             } catch (e) {}
 
-            // 마지막 컬럼 헤더: 승인완료 탭만 '추가관리 권한부여', 그 외(대기/거절)는 '비고'
+            // 승인완료 계열 탭 = 관리자/임직원/일반회원 (모두 status==='approved')
+            const isApprovedTab = (currentMemberTab === 'admin' || currentMemberTab === 'employee' || currentMemberTab === 'general');
+
+            // 마지막 컬럼 헤더: 승인완료 계열 탭만 '추가관리 권한부여', 그 외(대기/거절)는 '비고'
             const lastColHeader = document.getElementById('member-last-col-header');
-            if (lastColHeader) lastColHeader.textContent = (currentMemberTab === 'approved') ? '추가관리 권한부여' : '비 고';
+            if (lastColHeader) lastColHeader.textContent = isApprovedTab ? '추가관리 권한부여' : '비 고';
 
-            const filteredMembers = allMembers.filter(m => m.status === currentMemberTab);
+            // 탭별 필터: 대기/거절은 status, 승인완료 계열은 status==='approved' + 역할 구분
+            const isMemberAdmin = (m) => m.isAdmin === true || m.username === 'admin';
+            const filteredMembers = allMembers.filter(m => {
+                if (currentMemberTab === 'pending') return m.status === 'pending';
+                if (currentMemberTab === 'rejected') return m.status === 'rejected';
+                if (m.status !== 'approved') return false;
+                if (currentMemberTab === 'admin') return isMemberAdmin(m);
+                if (currentMemberTab === 'employee') return !isMemberAdmin(m) && m.userType === 'employee';
+                if (currentMemberTab === 'general') return !isMemberAdmin(m) && m.userType !== 'employee';
+                return false;
+            });
 
-            // 승인완료 탭은 저장된 표시 순서대로 정렬 (순서 미지정 회원은 뒤로)
-            if (currentMemberTab === 'approved' && memberOrder.length) {
+            // 승인완료 계열 탭은 저장된 표시 순서대로 정렬 (순서 미지정 회원은 뒤로)
+            if (isApprovedTab && memberOrder.length) {
                 const orderIndex = id => {
                     const i = memberOrder.indexOf(id);
                     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
@@ -7322,10 +7337,12 @@
             if (filteredMembers.length === 0) {
                 const messages = {
                     'pending': '승인 대기 중인 회원이 없습니다.',
-                    'approved': '승인된 회원이 없습니다.',
+                    'admin': '관리자가 없습니다.',
+                    'employee': '임직원이 없습니다.',
+                    'general': '일반회원이 없습니다.',
                     'rejected': '승인거절된 회원이 없습니다.'
                 };
-                tbody.innerHTML = `<div class="table-empty">${messages[currentMemberTab]}</div>`;
+                tbody.innerHTML = `<div class="table-empty">${messages[currentMemberTab] || '회원이 없습니다.'}</div>`;
                 document.getElementById('member-pagination').innerHTML = '';
                 return;
             }
@@ -7378,8 +7395,8 @@
                         <button class="reject-btn icon-btn" onclick="rejectMember('${member.id}')" title="거절">✗</button>
                     `;
                 } else if (member.status === 'approved') {
-                    // 승인 완료 탭: 관리자 계정은 체크만, 일반 회원은 탈퇴/삭제 버튼 표시
-                    if (currentMemberTab === 'approved') {
+                    // 승인 완료 계열 탭: 관리자 계정은 체크만, 일반 회원은 탈퇴 버튼 표시
+                    if (isApprovedTab) {
                         if (memberIsAdmin || !isAdminViewer) {
                             statusHtml = `<span style="color: #44aa6b; font-size: 20px; font-weight: bold;">✓</span>`;
                         } else {
@@ -7398,9 +7415,9 @@
                     `;
                 }
                 
-                // 관리/비고 컬럼: 승인완료 탭=권한설정 버튼 / 승인거절 탭=거절 사유(비고)
+                // 관리/비고 컬럼: 승인완료 계열 탭=권한설정 버튼 / 승인거절 탭=거절 사유(비고)
                 let actionButtons = '';
-                if (currentMemberTab === 'approved' && isAdminViewer && !memberIsAdmin) {
+                if (isApprovedTab && isAdminViewer && !memberIsAdmin) {
                     const p = member.permissions || {};
                     const hasAny = p.all || p.company || p.photos || p.schedule || p.asResult || member.scheduleEditor;
                     actionButtons = `<button class="member-perm-btn ${hasAny ? 'on' : ''}" onclick="openPermModal('${member.id}')" title="작성·관리 권한 설정">권한설정</button>`;
@@ -7430,8 +7447,8 @@
                 tbody.appendChild(row);
             });
 
-            // 승인완료 탭: 행 드래그앤드롭으로 순서 변경 (관리자)
-            if (currentMemberTab === 'approved' && isAdminViewer) {
+            // 승인완료 계열 탭: 행 드래그앤드롭으로 순서 변경 (관리자, 같은 탭 내에서)
+            if (isApprovedTab && isAdminViewer) {
                 let dragSrcId = null;
                 tbody.querySelectorAll('.table-row').forEach(row => {
                     row.draggable = true;

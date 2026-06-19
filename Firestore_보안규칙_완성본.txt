@@ -91,22 +91,23 @@ service cloud.firestore {
         (!('userType' in request.resource.data) || request.resource.data.userType is string);
       
       // 수정: 본인 또는 관리자만 가능
-      allow update: if request.auth != null && 
-        request.auth.uid != null && (
-          // 본인 정보 수정 (일부 필드만)
+      // 주의: uid/username 보호는 affectedKeys() 방식으로 검사한다.
+      //       (resource.data.uid 처럼 없는 필드를 직접 비교하면 문서에 해당 필드가
+      //        누락된 회원에서 규칙 평가가 실패해 관리자 수정까지 거부되는 문제가 있음)
+      allow update: if request.auth != null &&
+        request.auth.uid != null &&
+        // 공통: uid, username 필드는 어떤 경우에도 변경 불가
+        !('uid' in request.resource.data.diff(resource.data).affectedKeys()) &&
+        !('username' in request.resource.data.diff(resource.data).affectedKeys()) &&
+        (
+          // 본인 정보 수정 (isAdmin, status는 변경 불가)
           (request.auth.uid == userId &&
-           // 본인은 isAdmin, status, uid 필드 수정 불가
            !('isAdmin' in request.resource.data.diff(resource.data).affectedKeys()) &&
-           !('status' in request.resource.data.diff(resource.data).affectedKeys()) &&
-           !('uid' in request.resource.data.diff(resource.data).affectedKeys())) ||
-          // 관리자가 다른 사용자 정보 수정 (회원 승인/거절 등)
+           !('status' in request.resource.data.diff(resource.data).affectedKeys())) ||
+          // 관리자가 다른 사용자 정보 수정 (회원 승인/거절/소속/유형 등)
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
-        ) &&
-        // UID는 변경 불가
-        request.resource.data.uid == resource.data.uid &&
-        // username은 admin으로 변경 불가
-        request.resource.data.username != 'admin';
+        );
       
       // 삭제: 관리자만 가능
       allow delete: if request.auth != null && 
