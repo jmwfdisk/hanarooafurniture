@@ -38,6 +38,11 @@
     biz: '305-81-45158'
   };
 
+  // 하단 정부로고 영역 우측 '바로가기' 드롭다운 링크 (항목을 추가하면 메뉴에 자동 반영)
+  var SITE_LINKS = [
+    { label: '네이트 메일 로그인', url: 'https://mail.nate.com/' }
+  ];
+
   // 인증마크 (파일은 /image/ 에 저장). 누락 시 onerror로 숨김.
   var MARKS = [
     { file: 'cert-excellent.png', alt: '조달청 우수조달물품' },
@@ -117,7 +122,26 @@
     '.fbz-modal-foot{margin-top:22px;text-align:right;}' +
     '.fbz-modal-foot button{background:#3b4453;color:#fff;border:none;border-radius:8px;' +
       'padding:10px 22px;font-size:14px;cursor:pointer;}' +
-    '.fbz-modal-foot button:hover{background:#2c333f;}';
+    '.fbz-modal-foot button:hover{background:#2c333f;}' +
+    /* 정부로고 영역 우측 바로가기 드롭다운 */
+    '.fbz-sitelinks{position:absolute;right:20px;top:50%;transform:translateY(-50%);z-index:30;}' +
+    '.fbz-sl-btn{display:inline-flex;align-items:center;gap:6px;background:#3b4453;color:#fff;border:none;' +
+      'border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;' +
+      'transition:background .15s ease;}' +
+    '.fbz-sl-btn:hover{background:#2c333f;}' +
+    '.fbz-sl-caret{font-size:11px;transition:transform .15s ease;}' +
+    '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
+    '.fbz-sl-menu{display:none;position:absolute;right:0;bottom:calc(100% + 8px);min-width:210px;' +
+      'background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
+      'overflow:hidden;padding:6px 0;}' +
+    '.fbz-sitelinks.open .fbz-sl-menu{display:block;}' +
+    '.fbz-sl-menu a{display:block;padding:10px 16px;font-size:14px;color:#444;text-decoration:none;white-space:nowrap;}' +
+    '.fbz-sl-menu a:hover{background:#f5f7fa;color:#111;}' +
+    '@media (max-width:768px){' +
+      '.fbz-sitelinks{position:static;transform:none;right:auto;top:auto;flex-basis:100%;' +
+        'display:flex;justify-content:center;margin-top:12px;}' +
+      '.fbz-sl-menu{left:50%;right:auto;transform:translateX(-50%);}' +
+    '}';
 
   var styleEl = document.createElement('style');
   styleEl.textContent = css;
@@ -233,6 +257,35 @@
     '<p>본 웹사이트에 게시된 이메일 주소가 전자우편 수집 프로그램이나 그 밖의 기술적 장치를 이용하여 무단으로 수집되는 것을 거부하며, 이를 위반 시 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」에 의해 형사처벌됨을 유념하시기 바랍니다.</p>' +
     '<p style="color:#888;font-size:13px;">— ' + COMPANY.name + '</p>';
 
+  // ── 정부로고 영역 우측 '바로가기' 드롭다운 주입 ─────────
+  function buildSiteLinks() {
+    var pl = document.querySelector('.partner-logos');
+    if (!pl || pl.querySelector('.fbz-sitelinks')) return;
+    pl.style.position = 'relative';
+    var wrap = document.createElement('div');
+    wrap.className = 'fbz-sitelinks';
+    var items = SITE_LINKS.map(function (l) {
+      return '<a href="' + l.url + '" target="_blank" rel="noopener">' + l.label + '</a>';
+    }).join('');
+    wrap.innerHTML =
+      '<button type="button" class="fbz-sl-btn" aria-haspopup="true" aria-expanded="false">' +
+        '🔗 바로가기 <span class="fbz-sl-caret">▾</span></button>' +
+      '<div class="fbz-sl-menu">' + items + '</div>';
+    pl.appendChild(wrap);
+    var btn = wrap.querySelector('.fbz-sl-btn');
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = wrap.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) {
+        wrap.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
   // ── 초기화: 기존 <footer> 내용을 교체 ───────────────────
   function init() {
     var footer = document.querySelector('footer');
@@ -244,6 +297,7 @@
     footer.innerHTML = footerHtml();
     document.getElementById('fbz-privacy').addEventListener('click', function () { openModal(PRIVACY_HTML); });
     document.getElementById('fbz-email-reject').addEventListener('click', function () { openModal(EMAIL_HTML); });
+    buildSiteLinks();
   }
 
   if (document.readyState === 'loading') {
