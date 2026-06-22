@@ -30,6 +30,7 @@ The site is a hybrid: `index.html` is a single-page app (SPA) that renders multi
 index.html              ← Main SPA (home, product sections, search)
 hanaro/
   js/auth.js            ← Shared Firebase auth singleton (loaded on every page)
+  js/footer-bar.js      ← Shared footer bar (links + SNS), self-injects above <footer> on every page
   js/router.js          ← SPA route handler + School section logic
   css/common.css        ← Shared design system
   css/auth.css          ← Login modal styles
