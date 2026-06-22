@@ -131,21 +131,28 @@
     '.fbz-modal-foot button{background:#3b4453;color:#fff;border:none;border-radius:8px;' +
       'padding:10px 22px;font-size:14px;cursor:pointer;}' +
     '.fbz-modal-foot button:hover{background:#2c333f;}' +
-    /* 정부로고 영역 우측 바로가기 번호 목록 */
+    /* 정부로고 영역 우측 바로가기 드롭다운 */
     '.fbz-sitelinks{position:absolute;right:24px;top:50%;transform:translateY(-50%);z-index:30;}' +
-    '.fbz-sl-list{list-style:decimal;margin:0;padding:0 0 0 22px;text-align:left;}' +
-    '.fbz-sl-list li{margin:3px 0;font-size:13px;color:#777;line-height:1.5;}' +
-    '.fbz-sl-list li::marker{color:#999;}' +
-    '.fbz-sl-list a{display:inline !important;background:none !important;border:none !important;' +
-      'box-shadow:none !important;border-radius:0 !important;padding:0 !important;margin:0 !important;' +
-      'width:auto !important;height:auto !important;color:#555 !important;text-decoration:none !important;' +
-      'font-size:13px !important;white-space:nowrap;transition:color .15s ease;}' +
-    '.fbz-sl-list a::before{display:none !important;content:none !important;}' +
-    '.fbz-sl-list a:hover{color:#0071e3 !important;text-decoration:underline !important;transform:none !important;}' +
-    '.fbz-sl-list a img{display:none !important;}' +
+    '.fbz-sl-btn{display:inline-flex;align-items:center;gap:6px;background:none;color:#555;border:none;' +
+      'padding:6px 2px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:color .15s ease;}' +
+    '.fbz-sl-btn:hover{color:#111;text-decoration:underline;}' +
+    '.fbz-sl-caret{font-size:11px;transition:transform .15s ease;}' +
+    '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
+    '.fbz-sl-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:210px;' +
+      'background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
+      'overflow:hidden;padding:6px 0;}' +
+    '.fbz-sitelinks.open .fbz-sl-menu{display:block;}' +
+    '.fbz-sl-menu a{display:block !important;background:none !important;border:none !important;' +
+      'box-shadow:none !important;border-radius:0 !important;width:auto !important;height:auto !important;' +
+      'margin:0 !important;padding:10px 16px !important;font-size:14px !important;color:#444 !important;' +
+      'text-decoration:none !important;white-space:nowrap;transition:background .15s ease;}' +
+    '.fbz-sl-menu a::before{display:none !important;content:none !important;}' +
+    '.fbz-sl-menu a:hover{background:#f5f7fa !important;color:#111 !important;transform:none !important;}' +
+    '.fbz-sl-menu a img{display:none !important;}' +
     '@media (max-width:768px){' +
       '.fbz-sitelinks{position:static;transform:none;right:auto;top:auto;flex-basis:100%;' +
-        'display:flex;justify-content:center;margin-top:14px;}' +
+        'display:flex;justify-content:center;margin-top:12px;}' +
+      '.fbz-sl-menu{left:50%;right:auto;transform:translateX(-50%);}' +
     '}';
 
   var styleEl = document.createElement('style');
@@ -271,12 +278,26 @@
     pl.style.position = 'relative';
     var wrap = document.createElement('div');
     wrap.className = 'fbz-sitelinks';
-    // 번호 목록(항상 표시): 각 항목은 새 탭으로 엶
     var items = SITE_LINKS.map(function (l) {
-      return '<li><a href="' + l.url + '" target="_blank" rel="noopener">' + l.label + '</a></li>';
+      return '<a href="' + l.url + '" target="_blank" rel="noopener">' + l.label + '</a>';
     }).join('');
-    wrap.innerHTML = '<ol class="fbz-sl-list">' + items + '</ol>';
+    wrap.innerHTML =
+      '<button type="button" class="fbz-sl-btn" aria-haspopup="true" aria-expanded="false">' +
+        '바로가기 <span class="fbz-sl-caret">▾</span></button>' +
+      '<div class="fbz-sl-menu">' + items + '</div>';
     pl.appendChild(wrap);
+    var btn = wrap.querySelector('.fbz-sl-btn');
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = wrap.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) {
+        wrap.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
   }
 
   // ── 초기화: 기존 <footer> 내용을 교체 ───────────────────
