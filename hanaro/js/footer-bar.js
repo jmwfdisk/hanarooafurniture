@@ -131,7 +131,7 @@
     '.fbz-sl-btn:hover{background:#2c333f;}' +
     '.fbz-sl-caret{font-size:11px;transition:transform .15s ease;}' +
     '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
-    '.fbz-sl-menu{display:none;position:absolute;right:0;bottom:calc(100% + 8px);min-width:210px;' +
+    '.fbz-sl-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:210px;' +
       'background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
       'overflow:hidden;padding:6px 0;}' +
     '.fbz-sitelinks.open .fbz-sl-menu{display:block;}' +
