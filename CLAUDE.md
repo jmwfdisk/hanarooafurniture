@@ -94,7 +94,7 @@ This single large file (~9k lines, several inline `<script>` blocks) holds all e
 - **자재관리** uses **Tabulator** (row = Firestore doc, structured fields), NOT the sheet engine. Has its own right-click menu, app-level undo/redo (native history is wiped by realtime `replaceData`), CSV/JSON/Excel import-export.
 - **활동사진첩**: photos carry an optional `title`. The viewer groups photos by identical title (next/prev cycles within the group), supports mobile swipe. Upload assigns one common title to the batch; grid titles are double-click editable by owner/admin only.
 - **A/S 처리결과** is `asPosts`-backed with assignee management (`appConfig/asAssignees`), replies, and completion handling.
-- **이메일** (`#email-section`, `switchBoard('email')`) is just a launcher panel that opens Nate webmail (mail.nate.com) in a new tab — external webmail can't be auto-logged-in or iframe-embedded (provider blocks framing / cross-origin), so it's a new-tab link, not an embed.
+- **이메일** (`#email-section`, `switchBoard('email')`) embeds Nate webmail (`mail.nate.com`) in an `iframe` (lazy `src` set on first open) below the sub-nav. The iframe `sandbox` omits `allow-top-navigation` so the framed site's frame-busting can't hijack the staff page; a "새 창에서 열기" fallback button covers the case where Nate blocks framing. No auto-login (cross-origin / credential-safety limits).
 
 ### External Libraries (CDN)
 
