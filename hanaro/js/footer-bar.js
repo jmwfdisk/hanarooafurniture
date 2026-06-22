@@ -144,7 +144,8 @@
     '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
     '.fbz-sl-menu{display:none;position:absolute;left:0;right:auto;top:calc(100% + 6px);min-width:170px;' +
       'background:#fff;border:1px solid #cfcfcf;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
-      'overflow:hidden;padding:4px 0;text-align:left;}' +
+      'overflow-y:auto;overflow-x:hidden;max-height:340px;padding:4px 0;text-align:left;' +
+      '-webkit-overflow-scrolling:touch;}' +
     '.fbz-sitelinks.open .fbz-sl-menu{display:block;}' +
     '.fbz-sl-menu a{display:block !important;background:none !important;border:none !important;' +
       'box-shadow:none !important;border-radius:0 !important;width:auto !important;height:auto !important;' +
