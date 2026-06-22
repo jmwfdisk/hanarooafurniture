@@ -133,14 +133,15 @@
     '.fbz-modal-foot button:hover{background:#2c333f;}' +
     /* 정부로고 영역 우측 바로가기 드롭다운 */
     '.fbz-sitelinks{position:absolute;right:24px;top:50%;transform:translateY(-50%);z-index:30;}' +
-    '.fbz-sl-btn{display:inline-flex;align-items:center;gap:6px;background:none;color:#555;border:none;' +
-      'padding:6px 2px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:color .15s ease;}' +
-    '.fbz-sl-btn:hover{color:#111;text-decoration:underline;}' +
-    '.fbz-sl-caret{font-size:11px;transition:transform .15s ease;}' +
+    '.fbz-sl-btn{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:170px;' +
+      'background:#fff;color:#333;border:1px solid #b9b9b9;border-radius:4px;padding:8px 12px;font-size:14px;' +
+      'font-weight:500;cursor:pointer;font-family:inherit;transition:border-color .15s ease;}' +
+    '.fbz-sl-btn:hover{border-color:#888;}' +
+    '.fbz-sl-caret{font-size:11px;color:#666;transition:transform .15s ease;}' +
     '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
-    '.fbz-sl-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:210px;' +
-      'background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
-      'overflow:hidden;padding:6px 0;}' +
+    '.fbz-sl-menu{display:none;position:absolute;left:0;right:auto;top:calc(100% + 6px);min-width:170px;' +
+      'background:#fff;border:1px solid #cfcfcf;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
+      'overflow:hidden;padding:4px 0;text-align:left;}' +
     '.fbz-sitelinks.open .fbz-sl-menu{display:block;}' +
     '.fbz-sl-menu a{display:block !important;background:none !important;border:none !important;' +
       'box-shadow:none !important;border-radius:0 !important;width:auto !important;height:auto !important;' +
@@ -152,7 +153,7 @@
     '@media (max-width:768px){' +
       '.fbz-sitelinks{position:static;transform:none;right:auto;top:auto;flex-basis:100%;' +
         'display:flex;justify-content:center;margin-top:12px;}' +
-      '.fbz-sl-menu{left:50%;right:auto;transform:translateX(-50%);}' +
+      '.fbz-sl-menu{left:0;right:auto;transform:none;}' +
     '}';
 
   var styleEl = document.createElement('style');
