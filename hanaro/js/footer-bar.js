@@ -59,7 +59,7 @@
   var css = '' +
     /* 기존 footer 스타일 무력화 */
     'footer.fbz-footer{background:#fff !important;color:#666 !important;text-align:left !important;' +
-      'padding:0 !important;margin-top:40px !important;border-top:1px solid #e5e7eb;width:100%;' +
+      'padding:0 !important;margin-top:8px !important;border-top:1px solid #e5e7eb;width:100%;' +
       'max-width:100%;box-sizing:border-box;}' +
     'footer.fbz-footer::before{display:none !important;}' +
     '.fbz-foot{font-family:inherit;color:#666;}' +
