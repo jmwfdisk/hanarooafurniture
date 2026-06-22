@@ -2709,7 +2709,6 @@
         <a href="#" onclick="openInventoryModal(); return false;" data-board="inventory">📊 재고현황</a>
         <a href="#" onclick="openScheduleModal(); return false;" data-board="schedule">📅 일정관리</a>
         <a href="#" onclick="switchBoard('photo-gallery'); return false;" data-board="photo-gallery">📷 활동사진첩</a>
-        <a href="#" onclick="switchBoard('email'); return false;" data-board="email">📧 이메일</a>
         <a href="#" onclick="switchBoard('member-management'); return false;" data-board="member-management" style="background: rgba(255,215,0,0.2);">👥 회원관리</a>
     </nav>
 
@@ -3002,26 +3001,6 @@
             
             // 활동사진첩 섹션 처리
             const photoSection = document.getElementById('photo-gallery-section');
-            // 이메일 섹션 처리
-            const emailSection = document.getElementById('email-section');
-
-            if (boardType === 'email') {
-                if (!staffAccessGranted) {
-                    alert('로그인이 필요합니다.');
-                    switchBoard('notice');
-                    return;
-                }
-                boardSection.style.display = 'none';
-                memberSection.style.display = 'none';
-                if (photoSection) photoSection.style.display = 'none';
-                if (emailSection) emailSection.style.display = 'block';
-                // 네이트 메일 로그인 페이지를 처음 열 때만 로드(지연 로드)
-                const emailFrame = document.getElementById('email-frame');
-                if (emailFrame && (!emailFrame.src || emailFrame.src === 'about:blank' || /about:blank$/.test(emailFrame.src))) {
-                    emailFrame.src = 'https://mail.nate.com/';
-                }
-                return;
-            }
 
             if (boardType === 'member-management') {
                 // 접근 권한 확인 (staffAccessGranted 사용)
@@ -3048,7 +3027,6 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'block';
                 if (photoSection) photoSection.style.display = 'none';
-                if (emailSection) emailSection.style.display = 'none';
                 // user 확정 후에만 Firestore 접근
                 loadMembers();
                 return;
@@ -3063,7 +3041,6 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'none';
                 if (photoSection) photoSection.style.display = 'block';
-                if (emailSection) emailSection.style.display = 'none';
                 // user 확정 후에만 Firestore 접근
                 loadPhotos();
                 return;
@@ -3071,7 +3048,6 @@
                 boardSection.style.display = 'block';
                 memberSection.style.display = 'none';
                 if (photoSection) photoSection.style.display = 'none';
-                if (emailSection) emailSection.style.display = 'none';
             }
 
             // 게시판 제목 변경
@@ -5983,35 +5959,6 @@
                 <p>아직 업로드된 사진이 없습니다.</p>
             </div>
         </div>
-    </div>
-
-    <!-- 이메일 (엠파스/네이트 웹메일을 보조네비바 아래에 임베드) -->
-    <style>
-        #email-section .email-bar { display: flex; align-items: center; justify-content: space-between;
-            gap: 12px; flex-wrap: wrap; margin: 6px 0 12px; }
-        #email-section .email-bar .email-addr { font-size: 13px; color: #888; margin: 0; }
-        #email-section .email-bar .email-addr b { color: #3b4453; }
-        #email-section .email-open-btn { display: inline-block; background: #3b4453; color: #fff;
-            text-decoration: none; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
-            white-space: nowrap; transition: background .15s ease; }
-        #email-section .email-open-btn:hover { background: #2c333f; }
-        #email-section .email-frame { width: 100%; height: 78vh; min-height: 560px;
-            border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; display: block; }
-        #email-section .email-fallback { font-size: 12px; color: #aaa; margin: 10px 2px 0; }
-        @media (max-width: 768px) { #email-section .email-frame { height: 70vh; min-height: 460px; } }
-    </style>
-    <div class="board-section" id="email-section" style="display: none;">
-        <div class="board-header">
-            <h2>📧 이메일</h2>
-        </div>
-        <div class="email-bar">
-            <p class="email-addr">회사 이메일 <b>oa9500@empas.com</b> · 로그인은 네이트 공식 페이지에서 진행됩니다.</p>
-            <a class="email-open-btn" href="https://mail.nate.com/" target="_blank" rel="noopener">새 창에서 열기 ↗</a>
-        </div>
-        <iframe id="email-frame" class="email-frame" src="about:blank" title="네이트 메일"
-                referrerpolicy="no-referrer-when-downgrade"
-                sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
-        <p class="email-fallback">※ 보안 정책에 따라 메일 화면이 비어 보이면 위의 「새 창에서 열기」를 이용하세요.</p>
     </div>
 
     <!-- 사진 업로드 모달 -->
