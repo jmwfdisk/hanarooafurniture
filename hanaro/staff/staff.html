@@ -7724,6 +7724,7 @@
         .asr-toolbar { display:flex; justify-content:flex-end; margin-bottom:10px; }
         .asr-manage-btn { padding:7px 14px; border:1px solid #d5d9e0; background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
         .asr-manage-btn:hover { border-color:#3b82f6; color:#3b82f6; }
+        .asr-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
         .asr-table { border-collapse:collapse; width:100%; border-top:2px solid #3b4453; font-size:14px; }
         .asr-table th { background:#f7f8fa; border-bottom:1px solid #e5e7eb; padding:12px 8px; font-weight:600; color:#555; }
         .asr-table td { border-bottom:1px solid #f0f1f3; padding:11px 8px; text-align:center; color:#555; }
@@ -7732,6 +7733,10 @@
         .asr-table .asr-title-cell { text-align:left; max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .asr-table .asr-title-cell a { color:#333; text-decoration:none; cursor:pointer; }
         .asr-table .asr-title-cell a:hover { color:#2563eb; text-decoration:underline; }
+        /* 모바일: 고정폭 컬럼 합 때문에 제목칸이 짓눌리는 것을 막고 가로 스와이프로 전체 확인 */
+        @media (max-width:768px) {
+            .asr-table { min-width:760px; }
+        }
         .asr-type { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; background:#eef2ff; color:#4f46e5; white-space:nowrap; }
         .asr-assignee-sel { padding:5px 8px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; max-width:130px; }
         .asr-badge-done { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; background:#e6f7ec; color:#2f9e44; font-weight:600; }
@@ -7863,7 +7868,7 @@
             if (asrIsAdmin()) {
                 html += `<div class="asr-toolbar"><button class="asr-manage-btn" onclick="openAssigneeManager()">👷 출동 담당자 관리</button></div>`;
             }
-            html += '<table class="asr-table"><thead><tr>' +
+            html += '<div class="asr-table-wrap"><table class="asr-table"><thead><tr>' +
                 '<th style="width:50px;">번호</th><th style="width:120px;">구분</th><th>제목</th>' +
                 '<th style="width:90px;">작성자</th><th style="width:100px;">' + (isDone ? '완료일' : '신청일') + '</th>' +
                 '<th style="width:150px;">' + (isDone ? '담당자' : '출동 담당자') + '</th>' +
@@ -7894,7 +7899,7 @@
                     </tr>`;
                 });
             }
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
             view.innerHTML = html;
         }
 
