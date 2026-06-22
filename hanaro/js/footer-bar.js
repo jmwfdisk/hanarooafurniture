@@ -40,16 +40,16 @@
 
   // 하단 정부로고 영역 우측 '바로가기' 드롭다운 링크 (항목을 추가하면 메뉴에 자동 반영)
   var SITE_LINKS = [
-    { label: '네이트 메일 로그인',     url: 'https://mail.nate.com/' },
+    { label: '네이트 메일',            url: 'https://mail.nate.com/' },
     { label: '홈택스',                url: 'https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&menuCd=index3' },
     { label: '위택스(지방세)',         url: 'https://www.wetax.go.kr/main.do' },
-    { label: '나라장터 종합쇼핑몰',     url: 'https://goods.g2b.go.kr:8053/main/main.do' },
-    { label: '사회보험 통합징수포털',   url: 'https://si4n.nhis.or.kr/jpza/JpZaa00101.do' },
-    { label: '근로복지공단 토탈서비스', url: 'https://total.comwel.or.kr/' },
     { label: '하나은행 기업뱅킹',       url: 'https://biz.kebhana.com/index.jsp' },
     { label: '신한은행 기업뱅킹',       url: 'https://bizbank.shinhan.com/main.html' },
     { label: '우리은행 기업뱅킹',       url: 'https://nbi.wooribank.com/nbi/woori?withyou=bi' },
-    { label: '퍼맥스(가구부품)',        url: 'https://furmax.co.kr' },
+    { label: '나라장터 종합쇼핑몰',     url: 'https://goods.g2b.go.kr:8053/main/main.do' },
+    { label: '사회보험 통합징수포털',   url: 'https://si4n.nhis.or.kr/jpza/JpZaa00101.do' },
+    { label: '근로복지공단 토탈서비스', url: 'https://total.comwel.or.kr/' },
+    { label: '퍼맥스',                url: 'https://furmax.co.kr' },
     { label: '포맥스체어',             url: 'http://www.formaxchair.co.kr/main.html' },
     { label: '옥천군청',               url: 'https://www.oc.go.kr/www/index.do' }
   ];
