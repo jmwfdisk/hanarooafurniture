@@ -125,10 +125,9 @@
     '.fbz-modal-foot button:hover{background:#2c333f;}' +
     /* 정부로고 영역 우측 바로가기 드롭다운 */
     '.fbz-sitelinks{position:absolute;right:20px;top:50%;transform:translateY(-50%);z-index:30;}' +
-    '.fbz-sl-btn{display:inline-flex;align-items:center;gap:6px;background:#3b4453;color:#fff;border:none;' +
-      'border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;' +
-      'transition:background .15s ease;}' +
-    '.fbz-sl-btn:hover{background:#2c333f;}' +
+    '.fbz-sl-btn{display:inline-flex;align-items:center;gap:6px;background:none;color:#555;border:none;' +
+      'padding:6px 2px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:color .15s ease;}' +
+    '.fbz-sl-btn:hover{color:#111;text-decoration:underline;}' +
     '.fbz-sl-caret{font-size:11px;transition:transform .15s ease;}' +
     '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
     '.fbz-sl-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:210px;' +
@@ -271,7 +270,7 @@
     }).join('');
     wrap.innerHTML =
       '<button type="button" class="fbz-sl-btn" aria-haspopup="true" aria-expanded="false">' +
-        '🔗 바로가기 <span class="fbz-sl-caret">▾</span></button>' +
+        '바로가기 <span class="fbz-sl-caret">▾</span></button>' +
       '<div class="fbz-sl-menu">' + items + '</div>';
     pl.appendChild(wrap);
     var btn = wrap.querySelector('.fbz-sl-btn');
