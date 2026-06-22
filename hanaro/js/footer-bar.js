@@ -8,11 +8,11 @@
  *
  * ▼ 인증마크 이미지: /image/ 폴더에 아래 파일명으로 저장하세요.
  *   누락된 파일은 자동으로 숨겨집니다(onerror).
- *     cert-excellent.png  (조달청 우수제품)
- *     cert-patent.png     (특허청 특허)
- *     cert-eco.png        (친환경 인증)
- *     cert-w.png          (W 로고/인증)
- *     cert-sds.png        (SDS)
+ *     cert-excellent.png  (조달청 우수조달물품)
+ *     cert-patent.png     (특허)
+ *     cert-eco.jpg        (친환경 인증)
+ *     cert-women.png      (여성기업)
+ *     cert-standard.png   (단체표준/SPS)
  *
  * ▼ 운영 시 채워 넣으세요 (현재는 placeholder '#').
  *     YOUTUBE_URL, KAKAO_URL
@@ -40,11 +40,11 @@
 
   // 인증마크 (파일은 /image/ 에 저장). 누락 시 onerror로 숨김.
   var MARKS = [
-    { file: 'cert-excellent.png', alt: '조달청 우수제품' },
-    { file: 'cert-patent.png',    alt: '특허청 특허' },
-    { file: 'cert-eco.png',       alt: '친환경 인증' },
-    { file: 'cert-w.png',         alt: '하나로오에이퍼니처 인증' },
-    { file: 'cert-sds.png',       alt: 'SDS' }
+    { file: 'cert-excellent.png', alt: '조달청 우수조달물품' },
+    { file: 'cert-patent.png',    alt: '특허' },
+    { file: 'cert-eco.jpg',       alt: '친환경 인증' },
+    { file: 'cert-women.png',     alt: '여성기업' },
+    { file: 'cert-standard.png',  alt: '단체표준(SPS)' }
   ];
 
   // ── 이미지 경로 베이스 계산 (스크립트 자신의 URL 기준) ──
