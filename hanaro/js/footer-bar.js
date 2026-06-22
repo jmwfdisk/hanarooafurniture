@@ -63,7 +63,7 @@
       'max-width:100%;box-sizing:border-box;}' +
     'footer.fbz-footer::before{display:none !important;}' +
     '.fbz-foot{font-family:inherit;color:#666;}' +
-    '.fbz-foot-inner{max-width:1200px;margin:0 auto;padding:26px 28px 30px;box-sizing:border-box;}' +
+    '.fbz-foot-inner{padding:26px 20px 30px;box-sizing:border-box;}' +
     /* 1) 법인 정보 */
     '.fbz-legal{display:flex;flex-direction:column;gap:8px;}' +
     '.fbz-legal p{margin:0;font-size:13px;line-height:1.7;color:#888;' +
@@ -96,7 +96,7 @@
     '.fbz-ico svg{width:20px;height:20px;fill:#fff;}' +
     /* 모바일 */
     '@media (max-width:768px){' +
-      '.fbz-foot-inner{padding:20px 16px 24px;}' +
+      '.fbz-foot-inner{padding:20px 20px 24px;}' +
       '.fbz-copy-row{flex-direction:column;align-items:flex-start;gap:16px;}' +
       '.fbz-marks{gap:14px;}' +
       '.fbz-marks img{height:38px;}' +
