@@ -24,7 +24,7 @@
   window.__footerBarInit = true;
 
   // ── 설정 ────────────────────────────────────────────────
-  var YOUTUBE_URL = '#';   // 예: 'https://www.youtube.com/@hanarooa'
+  var YOUTUBE_URL = 'https://www.youtube.com/@하나로오에이퍼니처';
   var KAKAO_URL   = '#';   // 예: 'https://pf.kakao.com/_xxxxx'
 
   var COMPANY = {
