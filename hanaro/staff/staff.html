@@ -2830,6 +2830,8 @@
             // 여기서부터 Firestore 리스너 시작
             // loadAllPosts는 이미 checkStaffAccess()에서 호출되므로
             // 추가 리스너가 필요하면 여기에 추가
+            // A/S 처리결과(asPosts) 실시간 동기화 시작 — 별도 <script> 블록에 정의됨
+            if (typeof startAsrRealtime === 'function') startAsrRealtime();
             console.log('[Staff 페이지] Firestore 리스너 시작 완료');
         }
 
@@ -7836,6 +7838,32 @@
             renderAsResult();
         }
 
+        // ===== A/S 처리결과 실시간 동기화 (asPosts/posts onSnapshot) =====
+        // AS신청 게시판(AS.html)에서 새 신청이 들어오거나, 다른 임직원이 처리하면
+        // 탭을 다시 누르지 않아도 즉시 화면에 반영된다.
+        let asrUnsub = null;
+        let asrPendingPosts = null; // 상세 모달이 열려 있는 동안 들어온 변경을 보류 (인덱스 꼬임 방지)
+        function asrModalIsOpen() {
+            const m = document.getElementById('asr-modal');
+            return !!(m && m.style.display === 'flex');
+        }
+        function applyAsrPosts(posts) {
+            asrData = Array.isArray(posts) ? posts : [];
+            if (currentBoard === 'as-result' && typeof renderAsResult === 'function') renderAsResult();
+        }
+        function startAsrRealtime() {
+            if (!db || asrUnsub) return;
+            asrUnsub = db.collection('asPosts').doc('posts').onSnapshot(function (snap) {
+                const posts = (snap.exists && Array.isArray(snap.data().posts)) ? snap.data().posts : [];
+                // 상세 모달이 열려 있으면 asrCurrentIdx가 가리키는 항목이 어긋날 수 있으므로
+                // 즉시 교체하지 않고 보류했다가 모달을 닫을 때 반영한다.
+                if (asrModalIsOpen()) { asrPendingPosts = posts; return; }
+                applyAsrPosts(posts);
+            }, function (err) {
+                console.error('[A/S 실시간] 리스너 오류:', err);
+            });
+        }
+
         async function saveAsrData() {
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return false; }
             try {
@@ -7997,6 +8025,8 @@
             document.getElementById('asr-modal').style.display = 'none';
             document.body.style.overflow = '';
             asrCurrentIdx = -1;
+            // 모달이 열려 있는 동안 실시간으로 들어온 변경을 이제 반영
+            if (asrPendingPosts) { const p = asrPendingPosts; asrPendingPosts = null; applyAsrPosts(p); }
         }
 
         async function addAsrReply() {
