@@ -1699,6 +1699,10 @@
                 margin: 0;
             }
 
+            /* A/S 처리결과와 동일한 방식: 5컬럼 한 줄 표를 유지하고
+               좁은 화면에서는 가로 스와이프로 전체 확인 (조회칸이 번호 아래로
+               내려가던 문제 해결). 스크롤은 .board-table 가 담당하고
+               header/row 가 같은 min-width 로 정렬을 맞춤. */
             .board-table {
                 font-size: 13px;
                 padding: 10px 0;
@@ -1710,36 +1714,33 @@
                 box-sizing: border-box;
             }
 
+            .table-header,
+            .table-row {
+                grid-template-columns: 48px minmax(160px, 1fr) 80px 84px 52px !important;
+                gap: 0;
+                min-width: 520px;
+                width: 100%;
+            }
+
             .table-header {
-                grid-template-columns: 45px 1fr 70px 75px;
-                gap: 6px;
                 font-size: 12px;
-                padding: 14px 8px;
-                min-width: 100%;
-                width: max-content;
-                position: sticky;
-                top: 0;
-                background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-                z-index: 10;
+                padding: 12px 10px;
+                position: static;
+                background: #f7f8fa;
             }
 
             .table-body {
                 width: 100% !important;
                 max-width: 100% !important;
                 min-width: 0 !important;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+                overflow: visible !important;
                 position: relative;
                 box-sizing: border-box;
             }
 
             .table-row {
-                grid-template-columns: 45px 1fr 70px 75px !important;
                 font-size: 13px !important;
-                padding: 14px 8px !important;
-                gap: 6px;
-                min-width: 100%;
-                width: max-content;
+                padding: 12px 10px !important;
                 position: static !important;
                 left: auto !important;
             }
@@ -1750,26 +1751,20 @@
                 line-height: 1.5 !important;
                 height: auto !important;
                 min-height: 20px;
-                word-break: break-word;
-                white-space: normal !important;
-                overflow: visible !important;
-                text-overflow: clip !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
             }
 
             .table-row span:nth-child(2) {
-                width: auto !important;
-                min-width: 150px !important;
-                max-width: none !important;
                 text-align: center !important;
             }
 
             .table-row span:nth-child(2) a {
-                display: block;
-                width: 100%;
-                word-break: break-word;
-                white-space: normal;
-                overflow: visible;
-                text-overflow: clip;
+                display: inline;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
                 text-align: center;
             }
 
