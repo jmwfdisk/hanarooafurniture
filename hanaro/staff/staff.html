@@ -2799,11 +2799,14 @@
                 initStaffDB();
             }
 
-            // user가 확정된 이후에만 Firestore 리스너 시작
-            // 게시글 로드 (반드시 await: 로드 완료 전에 switchBoard가 렌더하면
-            // 빈 배열을 그려 새로고침 시 공지사항이 사라지는 경합 발생)
-            await loadAllPosts();
+            // 게시판 구조/탭을 즉시 표시(빈 상태) → 사용자가 바로 UI를 본다
             switchBoard('notice');
+
+            // 게시글 병렬 로드 후 현재 보드를 다시 렌더(데이터 채우기).
+            // (await 없이 switchBoard만 하면 빈 배열을 그린 채 끝나 공지사항이
+            //  안 보이므로, 로드 완료 후 renderPosts로 반드시 채운다.)
+            await loadAllPosts();
+            renderPosts();
 
             // 작성 버튼 표시 여부 초기화
             updateWriteButtonVisibility();
@@ -2913,21 +2916,24 @@
             if (db) {
                 // Firebase Firestore 사용
                 try {
-                    for (const board of Object.keys(allPosts)) {
-                        // 문서 단건 getDoc만 사용 (users 컬렉션 list/query 금지)
-                        const snapshot = await db.collection('staffPosts').doc(board).get();
+                    // 게시판 문서들을 병렬로 읽어 지연 최소화(순차 await 시 RTT가 누적됨)
+                    const boards = Object.keys(allPosts);
+                    const snapshots = await Promise.all(
+                        boards.map(board => db.collection('staffPosts').doc(board).get())
+                    );
+                    boards.forEach((board, i) => {
+                        const snapshot = snapshots[i];
                         if (snapshot.exists) {
                             allPosts[board] = snapshot.data().posts || [];
                         } else {
-                            // 기존 localStorage 데이터 마이그레이션
+                            // 기존 localStorage 데이터 마이그레이션(쓰기는 await 불필요)
                             const stored = localStorage.getItem(`staffPosts_${board}`);
                             if (stored) {
                                 allPosts[board] = JSON.parse(stored);
-                                // Firebase로 마이그레이션
-                                await db.collection('staffPosts').doc(board).set({ posts: allPosts[board] });
+                                db.collection('staffPosts').doc(board).set({ posts: allPosts[board] });
                             }
                         }
-                    }
+                    });
                 } catch (error) {
                     console.error('[Staff 페이지] Firebase 로드 실패:', error);
                     // permission-denied 시 signOut 호출하지 않음
