@@ -75,7 +75,7 @@
     '.fbz-copy-row{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;}' +
     '.fbz-copy{font-size:13px;color:#999;}' +
     '.fbz-marks{display:flex;align-items:center;justify-content:flex-end;gap:26px;flex-wrap:wrap;}' +
-    '.fbz-marks img{height:50px;width:auto;max-width:112px;object-fit:contain;display:block;' +
+    '.fbz-marks img{height:36px;width:auto;max-width:84px;object-fit:contain;display:block;' +
       'opacity:.95;transition:opacity .15s ease,transform .15s ease;}' +
     '.fbz-marks img:hover{opacity:1;transform:scale(1.04);}' +
     /* 3) 링크 + SNS */
@@ -99,7 +99,7 @@
       '.fbz-foot-inner{padding:20px 20px 24px;}' +
       '.fbz-copy-row{flex-direction:column;align-items:flex-start;gap:16px;}' +
       '.fbz-marks{gap:18px;justify-content:flex-start;}' +
-      '.fbz-marks img{height:42px;max-width:92px;}' +
+      '.fbz-marks img{height:30px;max-width:70px;}' +
       '.fbz-bottom{flex-direction:column;gap:16px;}' +
       '.fbz-right{align-items:flex-start;}' +
     '}' +
