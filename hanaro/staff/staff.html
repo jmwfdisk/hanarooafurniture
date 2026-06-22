@@ -2709,6 +2709,7 @@
         <a href="#" onclick="openInventoryModal(); return false;" data-board="inventory">📊 재고현황</a>
         <a href="#" onclick="openScheduleModal(); return false;" data-board="schedule">📅 일정관리</a>
         <a href="#" onclick="switchBoard('photo-gallery'); return false;" data-board="photo-gallery">📷 활동사진첩</a>
+        <a href="#" onclick="switchBoard('email'); return false;" data-board="email">📧 이메일</a>
         <a href="#" onclick="switchBoard('member-management'); return false;" data-board="member-management" style="background: rgba(255,215,0,0.2);">👥 회원관리</a>
     </nav>
 
@@ -3001,7 +3002,22 @@
             
             // 활동사진첩 섹션 처리
             const photoSection = document.getElementById('photo-gallery-section');
-            
+            // 이메일 섹션 처리
+            const emailSection = document.getElementById('email-section');
+
+            if (boardType === 'email') {
+                if (!staffAccessGranted) {
+                    alert('로그인이 필요합니다.');
+                    switchBoard('notice');
+                    return;
+                }
+                boardSection.style.display = 'none';
+                memberSection.style.display = 'none';
+                if (photoSection) photoSection.style.display = 'none';
+                if (emailSection) emailSection.style.display = 'block';
+                return;
+            }
+
             if (boardType === 'member-management') {
                 // 접근 권한 확인 (staffAccessGranted 사용)
                 if (!staffAccessGranted) {
@@ -3027,6 +3043,7 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'block';
                 if (photoSection) photoSection.style.display = 'none';
+                if (emailSection) emailSection.style.display = 'none';
                 // user 확정 후에만 Firestore 접근
                 loadMembers();
                 return;
@@ -3041,6 +3058,7 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'none';
                 if (photoSection) photoSection.style.display = 'block';
+                if (emailSection) emailSection.style.display = 'none';
                 // user 확정 후에만 Firestore 접근
                 loadPhotos();
                 return;
@@ -3048,6 +3066,7 @@
                 boardSection.style.display = 'block';
                 memberSection.style.display = 'none';
                 if (photoSection) photoSection.style.display = 'none';
+                if (emailSection) emailSection.style.display = 'none';
             }
 
             // 게시판 제목 변경
@@ -5958,6 +5977,37 @@
                 <span>📷</span>
                 <p>아직 업로드된 사진이 없습니다.</p>
             </div>
+        </div>
+    </div>
+
+    <!-- 이메일 (엠파스/네이트 웹메일 이동) -->
+    <style>
+        #email-section .email-panel { max-width: 560px; margin: 30px auto; padding: 40px 28px;
+            text-align: center; background: linear-gradient(135deg,#f8f9fa 0%,#fff 100%);
+            border: 1px solid #e9ecef; border-radius: 16px; }
+        #email-section .email-ico { font-size: 52px; line-height: 1; }
+        #email-section .email-panel h3 { margin: 16px 0 4px; font-size: 20px; color: #222; }
+        #email-section .email-addr { font-size: 16px; font-weight: 700; color: #3b4453; margin: 0 0 14px; }
+        #email-section .email-desc { font-size: 14px; color: #777; line-height: 1.7; margin: 0 auto 24px; max-width: 440px; }
+        #email-section .email-open-btn { display: inline-block; background: #3b4453; color: #fff;
+            text-decoration: none; padding: 14px 30px; border-radius: 10px; font-size: 16px; font-weight: 600;
+            transition: background .15s ease; }
+        #email-section .email-open-btn:hover { background: #2c333f; }
+    </style>
+    <div class="board-section" id="email-section" style="display: none;">
+        <div class="board-header">
+            <h2>📧 이메일</h2>
+        </div>
+        <div class="email-panel">
+            <div class="email-ico">📧</div>
+            <h3>회사 이메일</h3>
+            <p class="email-addr">oa9500@empas.com</p>
+            <p class="email-desc">
+                엠파스(현 네이트) 웹메일로 이동합니다.<br>
+                보안을 위해 로그인은 네이트 공식 페이지에서 직접 진행하세요.<br>
+                브라우저에 비밀번호를 저장해두면 다음부터 자동으로 입력됩니다.
+            </p>
+            <a class="email-open-btn" href="https://mail.nate.com/" target="_blank" rel="noopener">네이트 메일 열기 ↗</a>
         </div>
     </div>
 
