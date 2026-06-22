@@ -48,7 +48,10 @@
     { label: '근로복지공단 토탈서비스', url: 'https://total.comwel.or.kr/' },
     { label: '하나은행 기업뱅킹',       url: 'https://biz.kebhana.com/index.jsp' },
     { label: '신한은행 기업뱅킹',       url: 'https://bizbank.shinhan.com/main.html' },
-    { label: '우리은행 기업뱅킹',       url: 'https://nbi.wooribank.com/nbi/woori?withyou=bi' }
+    { label: '우리은행 기업뱅킹',       url: 'https://nbi.wooribank.com/nbi/woori?withyou=bi' },
+    { label: '퍼맥스(가구부품)',        url: 'https://furmax.co.kr' },
+    { label: '포맥스체어',             url: 'http://www.formaxchair.co.kr/main.html' },
+    { label: '옥천군청',               url: 'https://www.oc.go.kr/www/index.do' }
   ];
 
   // 인증마크 (파일은 /image/ 에 저장). 누락 시 onerror로 숨김.
