@@ -259,7 +259,9 @@
 
   // ── 정부로고 영역 우측 '바로가기' 드롭다운 주입 ─────────
   function buildSiteLinks() {
-    var pl = document.querySelector('.partner-logos');
+    // 일부 페이지(index)는 .partner-logos 가 2개 → 하단 스트립(마지막)에 주입
+    var pls = document.querySelectorAll('.partner-logos');
+    var pl = pls.length ? pls[pls.length - 1] : null;
     if (!pl || pl.querySelector('.fbz-sitelinks')) return;
     pl.style.position = 'relative';
     var wrap = document.createElement('div');
@@ -288,16 +290,27 @@
 
   // ── 초기화: 기존 <footer> 내용을 교체 ───────────────────
   function init() {
-    var footer = document.querySelector('footer');
-    if (!footer) {
-      footer = document.createElement('footer');
-      document.body.appendChild(footer);
+    // 푸터 렌더와 드롭다운 주입을 분리해, 한쪽에서 오류가 나도 다른 쪽은 동작하도록 함
+    try {
+      var footer = document.querySelector('footer');
+      if (!footer) {
+        footer = document.createElement('footer');
+        document.body.appendChild(footer);
+      }
+      footer.classList.add('fbz-footer');
+      footer.innerHTML = footerHtml();
+      var pv = document.getElementById('fbz-privacy');
+      var er = document.getElementById('fbz-email-reject');
+      if (pv) pv.addEventListener('click', function () { openModal(PRIVACY_HTML); });
+      if (er) er.addEventListener('click', function () { openModal(EMAIL_HTML); });
+    } catch (e) {
+      console.error('[footer-bar] 푸터 렌더 오류:', e);
     }
-    footer.classList.add('fbz-footer');
-    footer.innerHTML = footerHtml();
-    document.getElementById('fbz-privacy').addEventListener('click', function () { openModal(PRIVACY_HTML); });
-    document.getElementById('fbz-email-reject').addEventListener('click', function () { openModal(EMAIL_HTML); });
-    buildSiteLinks();
+    try {
+      buildSiteLinks();
+    } catch (e) {
+      console.error('[footer-bar] 바로가기 드롭다운 오류:', e);
+    }
   }
 
   if (document.readyState === 'loading') {
