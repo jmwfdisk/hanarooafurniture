@@ -151,9 +151,9 @@
     '.fbz-sl-menu a:hover{background:#f5f7fa !important;color:#111 !important;transform:none !important;}' +
     '.fbz-sl-menu a img{display:none !important;}' +
     '@media (max-width:768px){' +
-      '.fbz-sitelinks{position:static;transform:none;right:auto;top:auto;flex-basis:100%;' +
+      '.fbz-sitelinks{position:relative;transform:none;right:auto;top:auto;flex-basis:100%;' +
         'display:flex;justify-content:center;margin-top:12px;}' +
-      '.fbz-sl-menu{left:0;right:auto;transform:none;}' +
+      '.fbz-sl-menu{left:50%;right:auto;transform:translateX(-50%);top:calc(100% + 6px);}' +
     '}';
 
   var styleEl = document.createElement('style');
