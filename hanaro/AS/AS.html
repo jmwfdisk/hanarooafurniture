@@ -1302,12 +1302,23 @@
         document.addEventListener("DOMContentLoaded", function() {
             // 로그인 상태는 auth.js의 setLoggedInState에서 처리
             // 타이머는 auth.js의 resetAutoLogoutTimer에서 자동으로 시작됨
+
+            // 1) localStorage 백업으로 즉시 1차 렌더 (Firestore 대기 없이 목록을 바로 표시)
+            try {
+                const cached = localStorage.getItem('asPosts');
+                if (cached) {
+                    const arr = JSON.parse(cached);
+                    if (Array.isArray(arr) && arr.length) { asPosts = arr; renderAsPosts(); }
+                }
+            } catch (e) { /* 캐시 파싱 실패는 무시하고 서버 로드로 진행 */ }
+
+            // 2) Firestore 최신본으로 갱신(권위 데이터)
             loadAsPosts().then(posts => {
                 asPosts = posts || [];
                 renderAsPosts();
             }).catch(error => {
                 console.error('A/S 게시글 로드 실패:', error);
-                asPosts = [];
+                if (!Array.isArray(asPosts)) asPosts = []; // 캐시로 이미 표시 중이면 유지
                 renderAsPosts();
             });
             
@@ -1587,10 +1598,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Firebase Firestore에서 A/S 게시글 로드
         async function loadAsPosts() {
-            // Firebase가 초기화될 때까지 대기 (최대 5초)
+            // Firebase가 초기화될 때까지 대기 (최대 5초, 50ms 단위로 촘촘히 확인 → 준비 즉시 진행)
             let retryCount = 0;
-            while (!db && retryCount < 10) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+            while (!db && retryCount < 100) {
+                await new Promise(resolve => setTimeout(resolve, 50));
                 retryCount++;
             }
             
