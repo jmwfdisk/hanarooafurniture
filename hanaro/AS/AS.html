@@ -1989,7 +1989,12 @@ function deleteAsPost(index) {
   </button>
 
   <!-- 등록 버튼 -->
-  <button id="submitBtn" type="submit" 
+  <style>
+    .as-spinner { display:inline-block; width:15px; height:15px; margin-right:8px; vertical-align:-2px; border:2px solid rgba(255,255,255,0.45); border-top-color:#fff; border-radius:50%; animation:as-spin 0.7s linear infinite; }
+    @keyframes as-spin { to { transform:rotate(360deg); } }
+    #submitBtn:disabled { cursor:wait; opacity:0.7; }
+  </style>
+  <button id="submitBtn" type="submit"
     style="padding: 14px 32px; background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);">
     등록
   </button>
@@ -2354,8 +2359,25 @@ function downloadFile(filename) {
 <div id="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index:9998; transition: opacity 0.3s ease;" onclick="closeModal()"></div>
 
 <script>
-document.getElementById("as-form").addEventListener("submit", function(event) {
+        // 등록 버튼 로딩 상태 토글 (스피너 표시 + 비활성화)
+        let asSubmitting = false;
+        function setSubmitLoading(loading) {
+            const btn = document.getElementById('submitBtn');
+            if (!btn) return;
+            btn.disabled = loading;
+            if (loading) {
+                if (btn.dataset.label == null) btn.dataset.label = btn.innerHTML;
+                btn.innerHTML = '<span class="as-spinner" aria-hidden="true"></span>등록 중...';
+            } else {
+                btn.innerHTML = btn.dataset.label || '등록';
+            }
+        }
+
+document.getElementById("as-form").addEventListener("submit", async function(event) {
             event.preventDefault();
+
+            // 더블클릭 등 중복 제출 차단 (두 번 등록 방지)
+            if (asSubmitting) return;
 
             const type = document.getElementById('as-type').value;
             const title = document.getElementById('as-title').value.trim();
@@ -2371,7 +2393,6 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
 
             // 파일 처리
             const fileNames = files.map(f => f.name);
-            const fileUrls = []; // Firebase Storage URL 저장
 
             if (files.length > 0) {
                 // 파일 크기 검증
@@ -2380,20 +2401,30 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
                     alert(`다음 파일의 크기가 너무 큽니다. (최대 10MB):\n${oversizedFiles.map(f => f.name).join('\n')}`);
                     return;
                 }
-                
-                // Firebase Storage가 사용 가능한지 확인
-                if (storage) {
-                    // Firebase Storage에 업로드
-                    uploadFilesToFirebase(files, type, title, content, fileNames);
+            }
+
+            // 실제 제출 시작 → 버튼 잠금 + 스피너 (저장 완료까지 유지)
+            asSubmitting = true;
+            setSubmitLoading(true);
+            try {
+                if (files.length > 0) {
+                    if (storage) {
+                        // Firebase Storage에 업로드
+                        await uploadFilesToFirebase(files, type, title, content, fileNames);
+                    } else {
+                        // Firebase가 없으면 localStorage 사용 (기존 방식)
+                        await uploadFilesToLocalStorage(files, type, title, content, fileNames);
+                    }
                 } else {
-                    // Firebase가 없으면 localStorage 사용 (기존 방식)
-                    uploadFilesToLocalStorage(files, type, title, content, fileNames);
-                }
-            } else {
-                // 파일이 없는 경우 바로 저장
-                (async () => {
+                    // 파일이 없는 경우 바로 저장
                     await savePost(type, title, content, fileNames, [], []);
-                })();
+                }
+            } catch (err) {
+                console.error('A/S 등록 오류:', err);
+                alert('등록 중 오류가 발생했습니다. 다시 시도해주세요.');
+            } finally {
+                asSubmitting = false;
+                setSubmitLoading(false);
             }
         });
 
@@ -2445,54 +2476,47 @@ document.getElementById("as-form").addEventListener("submit", function(event) {
         }
 
         // localStorage에 파일 저장 (Firebase 미사용 시)
-        async function uploadFilesToLocalStorage(files, type, title, content, fileNames) {
-            const fileData = [];
-            let processedFiles = 0;
-            let hasError = false;
-            
-            files.forEach((file, index) => {
-  const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const base64Data = e.target.result.split(',')[1];
-                        fileData.push({
-                            name: file.name,
-                            type: file.type,
-                            data: base64Data
-                        });
-                    } catch (err) {
-                        console.error('파일 처리 오류:', err);
-                        hasError = true;
-                    }
-                    processedFiles++;
+        // Promise를 반환해 savePost 완료 시점에 resolve → 호출부의 await가 정확히 동작(중복 제출 방지)
+        function uploadFilesToLocalStorage(files, type, title, content, fileNames) {
+            return new Promise((resolve) => {
+                const fileData = [];
+                let processedFiles = 0;
+                let hasError = false;
 
-                    if (processedFiles === files.length) {
-                        // 모든 파일 처리 완료 후 저장
+                const finish = async () => {
+                    try {
                         if (!hasError) {
-                            (async () => {
-                                await savePost(type, title, content, fileNames, fileData, []);
-                            })();
-      } else {
-                            alert('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
-                        }
-                    }
-                };
-                reader.onerror = function(error) {
-                    console.error('파일 읽기 오류:', error);
-                    hasError = true;
-                    processedFiles++;
-                    if (processedFiles === files.length) {
-                        if (!hasError) {
-                            (async () => {
-                                await savePost(type, title, content, fileNames, fileData, []);
-                            })();
+                            await savePost(type, title, content, fileNames, fileData, []);
                         } else {
                             alert('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
                         }
+                    } finally {
+                        resolve();
                     }
-  };
-  reader.readAsDataURL(file);
-});
+                };
+
+                files.forEach((file) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const base64Data = e.target.result.split(',')[1];
+                            fileData.push({ name: file.name, type: file.type, data: base64Data });
+                        } catch (err) {
+                            console.error('파일 처리 오류:', err);
+                            hasError = true;
+                        }
+                        processedFiles++;
+                        if (processedFiles === files.length) finish();
+                    };
+                    reader.onerror = function(error) {
+                        console.error('파일 읽기 오류:', error);
+                        hasError = true;
+                        processedFiles++;
+                        if (processedFiles === files.length) finish();
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
         }
 
         async function savePost(type, title, content, fileNames, fileData, fileUrls) {
