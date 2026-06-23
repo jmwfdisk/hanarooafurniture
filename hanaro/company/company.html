@@ -829,66 +829,118 @@
   </div>
 </header>
 
-<section class="main-info-section">
-    <div class="main-image-container">
-    <img src="../image/c-1.jpeg" alt="회사 메인 이미지">
-    </div>
-    <div class="company-description">
-       <h1 style="border-bottom: 2px solid #333; padding-bottom: 8px; display: inline-block; width: 600px;">회사 소개</h1>
-       <p>
-       (주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여, 다양한 가구 제품 및 종합 가구 컨설팅 서비스를 제공하는 전문 업체입니다.  
-       <br>2023년에는 조달 우수제품으로 공식 인증을 받았으며, 현재 전국의 공공기관과 교육기관 등에 제품 납품과 맞춤형 공간 가구 솔루션 서비스를 제공하고 있으며, 20년간의 축적된 경험과 기술 / 전문성을 바탕으로 고객의 공간에 최적화된 제품과 서비스를 지속적으로 공급하고 있습니다.
-       </p>
-    </div>
-</section>
+<style>
+  .company-page { display:flex; gap:48px; max-width:1200px; margin:34px auto 70px; padding:0 24px; box-sizing:border-box; align-items:flex-start; text-align:left; }
+  /* 좌측 메뉴 */
+  .company-sidebar { width:240px; flex-shrink:0; }
+  .cs-title { font-size:30px; font-weight:800; color:#1a1a1a; margin:0 0 14px; padding-bottom:16px; border-bottom:2px solid #222; }
+  .cs-menu { display:flex; flex-direction:column; }
+  .cs-link { padding:14px 8px; font-size:16px; color:#444; text-decoration:none; border-bottom:1px solid #ececec; font-weight:600; transition:color .15s ease, background .15s ease; border-radius:6px; }
+  .cs-link:hover { color:#2563eb; background:#f5f8ff; }
+  .cs-link.active { color:#2563eb; font-weight:700; background:#eef4ff; }
+  /* 우측 내용 */
+  .company-content { flex:1; min-width:0; }
+  .cs-breadcrumb { font-size:14px; color:#999; margin-bottom:14px; }
+  .cs-breadcrumb b { color:#2563eb; font-weight:700; }
+  .cs-h1 { font-size:34px; font-weight:800; color:#111; margin:0 0 28px; padding-bottom:14px; border-bottom:2px solid #222; }
+  .cs-section { display:none; }
+  .cs-section.active { display:block; animation:csFade .2s ease; }
+  @keyframes csFade { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
+  .cs-intro-img { width:100%; max-width:680px; height:auto; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.08); margin-bottom:24px; }
+  .cs-lead { font-size:17px; line-height:1.85; color:#333; }
+  .cs-list { font-size:16px; line-height:1.9; padding-left:22px; color:#333; }
+  .cs-list li { margin-bottom:6px; }
+  .cs-cert-imgs { display:flex; flex-direction:column; align-items:center; gap:22px; }
+  .cs-cert-imgs img { width:100%; max-width:760px; height:auto; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.1); }
+  @media (max-width:900px) {
+    .company-page { flex-direction:column; gap:24px; margin:20px auto 50px; }
+    .company-sidebar { width:100%; }
+    .cs-h1 { font-size:27px; }
+  }
+</style>
 
-<section class="company-history-section" style="padding: 0px 10% 5px; background-color: #f9f9f9; display: flex; justify-content: center;">
-  <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 40px; max-width: 1100px; width: 100%;">
-    <div class="company-status" style="flex: 1; min-width: 300px; text-align: left;">
-      <h2 style="font-size: 24px; margin-bottom: 10px; text-align: left; border-bottom: 2px solid #333; padding-bottom: 6px; display: inline-block;">일반 현황</h2>
-      <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px;">
-        <li>회사명: (주)하나로오에이퍼니처</li>
+<div class="company-page">
+  <!-- 좌측 메뉴 -->
+  <aside class="company-sidebar">
+    <h2 class="cs-title">회사소개</h2>
+    <nav class="cs-menu">
+      <a href="#" class="cs-link active" data-sec="intro"   onclick="showCompanySec('intro'); return false;">회사소개</a>
+      <a href="#" class="cs-link"        data-sec="status"  onclick="showCompanySec('status'); return false;">일반현황</a>
+      <a href="#" class="cs-link"        data-sec="history" onclick="showCompanySec('history'); return false;">주요연혁</a>
+      <a href="#" class="cs-link"        data-sec="cert"    onclick="showCompanySec('cert'); return false;">인증·우수제품</a>
+    </nav>
+  </aside>
+
+  <!-- 우측 내용 -->
+  <main class="company-content">
+    <div class="cs-breadcrumb">홈 &gt; 회사소개 &gt; <b id="cs-crumb">회사소개</b></div>
+
+    <section class="cs-section active" id="sec-intro">
+      <h1 class="cs-h1">회사소개</h1>
+      <img src="../image/c-1.jpeg" alt="회사 메인 이미지" class="cs-intro-img">
+      <p class="cs-lead">
+        (주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여, 다양한 가구 제품 및 종합 가구 컨설팅 서비스를 제공하는 전문 업체입니다.
+        <br><br>2023년에는 조달 우수제품으로 공식 인증을 받았으며, 현재 전국의 공공기관과 교육기관 등에 제품 납품과 맞춤형 공간 가구 솔루션 서비스를 제공하고 있으며, 20년간의 축적된 경험과 기술·전문성을 바탕으로 고객의 공간에 최적화된 제품과 서비스를 지속적으로 공급하고 있습니다.
+      </p>
+    </section>
+
+    <section class="cs-section" id="sec-status">
+      <h1 class="cs-h1">일반현황</h1>
+      <ul class="cs-list">
+        <li>회사명 : (주)하나로오에이퍼니처</li>
         <li>대표이사 : 정진희, 장인덕</li>
         <li>설립연도 : 2001년 4월</li>
-        <li>사업 분야 : 이동식스툴테이블, 사물함, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;학교용 가구<span style="font-size: 14px;">(도서실, 과학실, 영어교실, 보건실, 교탁 등)</span>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OA사무용 가구 외.</li>
+        <li>사업 분야 : 이동식스툴테이블, 사물함, 학교용 가구<span style="font-size:14px; color:#666;">(도서실, 과학실, 영어교실, 보건실, 교탁 등)</span>, OA사무용 가구 외</li>
         <li>소재지 : 대전광역시 대덕구 오정로 41번길 12</li>
       </ul>
-    </div>
+    </section>
 
-    <div style="width: 1px; background-color: #ccc; height: auto;"></div>
-
-    <div class="company-timeline" style="flex: 1; min-width: 300px; text-align: left;">
-      <h2 style="font-size: 24px; margin-bottom: 10px; text-align: left; border-bottom: 2px solid #333; padding-bottom: 6px; display: inline-block;">주요 연혁</h2>
-      <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px;">
+    <section class="cs-section" id="sec-history">
+      <h1 class="cs-h1">주요연혁</h1>
+      <ul class="cs-list">
         <li>2001년 4월 : 회사 설립</li>
         <li>2010년 5월 : 중소기업청 여성기업인증</li>
         <li>2011년 5월 : 절첩식의자 일체형테이블 특허 등록</li>
         <li>2011년 11월 : K마크, 환경마크 인증서 획득</li>
         <li>2012년 3월 : 조달청 우수제품지정(HOA시리즈 이동식스툴테이블)</li>
         <li>2014년 10월 : 조달청 우수제품지정(사물함)</li>
-        <li>2015년 7월 : ISO 14001(환경경영시스템) / 9001(품질경영시스템) 인증획득)</li>
+        <li>2015년 7월 : ISO 14001(환경경영시스템) / 9001(품질경영시스템) 인증획득</li>
         <li>2015년 10월 : 단체표준인증 획득</li>
         <li>2015년 12월 : 굿디자인 선정</li>
         <li>2016년 7월 : 2016 대한민국베스트신상품 선정</li>
         <li>2017년 4월 : 조달청 우수제품지정(HS시리즈 이동식스툴테이블)</li>
         <li>2018년 12월 : 대한민국환경공헌대상</li>
         <li>2019년 3월 : 조달청 G-PASS기업 지정</li>
-        <li>2019년 6월 : 경형혁신형 중소기업 회원 지정</li>
+        <li>2019년 6월 : 경영혁신형 중소기업 회원 지정</li>
         <li>2023년 4월 : 조달청 우수제품지정(H시리즈 이동식스툴테이블)</li>
       </ul>
-    </div>
-  </div>
-</section>
+    </section>
 
-<section class="company-history-section" style="padding: 0px 10% 0px; background-color: #f9f9f9; margin-bottom: 0;"></section>
+    <section class="cs-section" id="sec-cert">
+      <h1 class="cs-h1">우수제품지정, 기술(성능) 및 인증서</h1>
+      <div class="cs-cert-imgs">
+        <img src="../image/sub-1.png" alt="우수제품·인증서 1">
+        <img src="../image/sub-2.png" alt="우수제품·인증서 2">
+      </div>
+    </section>
+  </main>
+</div>
 
-<section class="company-sub-images" style="padding: 20px 10% 50px; background-color: #ffffff;">
-  <h3 style="font-size: 24px; text-align: left; border-bottom: 2px solid #333; display: inline-block; margin-bottom: 40px;">우수제품지정, 기술(성능) 및 인증서</h3>
-  <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px;">
-    <img src="../image/sub-1.png" alt="서브 이미지 1" style="width: 450px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-    <img src="../image/sub-2.png" alt="서브 이미지 2" style="width: 700px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-  </div>
-</section>
+<script>
+  function showCompanySec(sec) {
+    document.querySelectorAll('.cs-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.cs-link').forEach(a => a.classList.remove('active'));
+    const sectionEl = document.getElementById('sec-' + sec);
+    const linkEl = document.querySelector('.cs-link[data-sec="' + sec + '"]');
+    if (sectionEl) sectionEl.classList.add('active');
+    if (linkEl) {
+      linkEl.classList.add('active');
+      const crumb = document.getElementById('cs-crumb');
+      if (crumb) crumb.textContent = linkEl.textContent;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
