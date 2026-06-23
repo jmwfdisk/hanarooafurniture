@@ -95,7 +95,7 @@ This single large file (~9k lines, several inline `<script>` blocks) holds all e
 - **재고현황 / 일정관리** share one in-house spreadsheet engine (`sheet*` functions: `sheetRenderTable`, `sheetBind`, `sheetEditCell` double-click edit, drag-select via `schedSel`, right-click `#sheet-ctxmenu`, merge/align, undo/redo `sheetPushUndo`). Model: `{columns, grid, merges, aligns, ...}`. 재고현황 adds per-group `rowColors`.
 - **자재관리** uses **Tabulator** (row = Firestore doc, structured fields), NOT the sheet engine. Has its own right-click menu, app-level undo/redo (native history is wiped by realtime `replaceData`), CSV/JSON/Excel import-export.
 - **활동사진첩**: photos carry an optional `title`. The viewer groups photos by identical title (next/prev cycles within the group), supports mobile swipe. Upload assigns one common title to the batch; grid titles are double-click editable by owner/admin only.
-- **A/S 처리결과** is `asPosts`-backed with assignee management (`appConfig/asAssignees`), replies, and completion handling.
+- **A/S 처리결과** is `asPosts`-backed with assignee management (`appConfig/asAssignees`), replies, and completion handling. Kept live via an `onSnapshot` listener on `asPosts/posts` (`startAsrRealtime`, started from `startStaffListeners`) so new AS.html applications and processing updates appear without re-clicking the tab; while the detail modal (`asr-modal`) is open, incoming changes are buffered in `asrPendingPosts` and applied on `closeAsrModal` to avoid `asrCurrentIdx` desync. (AS.html's applicant-side list is still one-shot `.get()`.)
 
 ### External Libraries (CDN)
 

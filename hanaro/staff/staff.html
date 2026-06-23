@@ -7818,18 +7818,22 @@
 
         async function loadAsResult() {
             if (!db && typeof initStaffDB === 'function') initStaffDB();
-            asrData = [];
-            if (db) {
-                try {
-                    const snap = await db.collection('asPosts').doc('posts').get();
-                    asrData = (snap.exists && Array.isArray(snap.data().posts)) ? snap.data().posts : [];
-                } catch (e) { console.error('A/S 신청 로드 실패:', e); }
-                try {
-                    const a = await db.collection('appConfig').doc('asAssignees').get();
-                    if (a.exists && Array.isArray(a.data().list) && a.data().list.length) asrAssignees = a.data().list;
-                    else asrAssignees = ASR_DEFAULT_ASSIGNEES.slice();
-                } catch (e) { asrAssignees = ASR_DEFAULT_ASSIGNEES.slice(); }
-            }
+            // 실시간 리스너 보장: Safari에서 아래 .get()이 지연/멈춰도 onSnapshot이 표를 채운다.
+            if (typeof startAsrRealtime === 'function') startAsrRealtime();
+            // 이미 확보한 데이터(onSnapshot 등)로 먼저 동기 렌더 → 표가 통째로 비는 현상 방지.
+            // (await 뒤에서 렌더하면 .get()이 멈출 때 renderAsResult까지 도달하지 못함)
+            renderAsResult();
+            if (!db) return;
+            // 담당자 목록 보강(실패해도 위 렌더 유지)
+            try {
+                const a = await db.collection('appConfig').doc('asAssignees').get();
+                asrAssignees = (a.exists && Array.isArray(a.data().list) && a.data().list.length) ? a.data().list : ASR_DEFAULT_ASSIGNEES.slice();
+            } catch (e) { asrAssignees = ASR_DEFAULT_ASSIGNEES.slice(); }
+            // 게시물 직접 로드(onSnapshot 지연 대비). 모달 열린 동안엔 인덱스 보호 위해 교체 안 함.
+            try {
+                const snap = await db.collection('asPosts').doc('posts').get();
+                if (snap.exists && Array.isArray(snap.data().posts) && !asrModalIsOpen()) asrData = snap.data().posts;
+            } catch (e) { console.error('A/S 신청 로드 실패:', e); }
             renderAsResult();
         }
 
