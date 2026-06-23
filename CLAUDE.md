@@ -38,7 +38,8 @@ hanaro/
   Gallery/Gallery.html  ← 갤러리
   company/company.html  ← 회사 소개 (좌측 메뉴 + 우측 내용, 인증현황 드롭다운)
   support/support.html  ← 고객지원 (Apple 지원 스타일: 카테고리 아이콘 + 퀵카드)
-  product/product.html  ← 제품 목록
+  product/product.html  ← 제품 목록 (네비 '제품 라인업')
+  product/intro.html    ← 제품소개 (네비 '제품소개', 현재 준비중 플레이스홀더)
   school/school.html    ← 납품학교 리스트 (로그인 필요)
   staff/staff.html      ← 임직원 전용 게시판 (임직원/관리자만)
   lib/tabulator/        ← Locally bundled Tabulator.js (fallback)
