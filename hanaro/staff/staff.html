@@ -8393,6 +8393,7 @@
             if (dInput && dRo) {
                 if (canEdit) {
                     dInput.style.display = ''; dRo.style.display = 'none';
+                    dInput.max = invTodayKey();   // 미래 날짜 선택 불가
                     dInput.value = dval;
                 } else {
                     dInput.style.display = 'none'; dRo.style.display = '';
@@ -8515,9 +8516,20 @@
             invColorPickCb = null;
         }
 
-        // 최신화 날짜 지정 (저장 시 함께 저장됨)
+        // 오늘 날짜(YYYY-MM-DD, 로컬)
+        function invTodayKey() {
+            const n = new Date();
+            return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+        }
+        // 최신화 날짜 지정 (저장 시 함께 저장됨). 미래 날짜는 거부
         function invSetUpdatedDate(val) {
             if (!invCanEdit()) return;
+            if (val && val > invTodayKey()) {
+                alert('미래 날짜로는 저장할 수 없습니다.\n오늘 또는 이전 날짜를 선택하세요.');
+                const dInput = document.getElementById('inv-updated-date');
+                if (dInput) dInput.value = inventoryData.updatedDate || '';
+                return;
+            }
             inventoryData.updatedDate = val || '';
         }
 
@@ -8565,6 +8577,7 @@
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
             const dateKey = (inventoryData.updatedDate || '').trim();
             if (!dateKey) { alert('먼저 "📅 최신화 날짜"를 지정한 뒤 저장하세요.\n해당 날짜로 재고현황이 저장됩니다.'); return; }
+            if (dateKey > invTodayKey()) { alert('미래 날짜로는 저장할 수 없습니다.\n오늘 또는 이전 날짜를 선택하세요.'); return; }
             try {
                 let user = {};
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
