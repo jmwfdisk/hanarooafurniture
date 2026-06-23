@@ -1693,6 +1693,35 @@ function asEsc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// 화면 정중앙 확인 팝업 (네이티브 alert은 위치 조정 불가 → 직접 중앙 정렬)
+function showAsDonePopup(message) {
+  const old = document.getElementById('as-done-popup');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'as-done-popup';
+  overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100000;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:16px;padding:28px 32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
+  const icon = document.createElement('div');
+  icon.style.cssText = 'font-size:40px;line-height:1;margin-bottom:12px;';
+  icon.textContent = '✅';
+  const msg = document.createElement('div');
+  msg.style.cssText = 'font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:20px;';
+  msg.textContent = message;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = '확인';
+  btn.style.cssText = 'padding:11px 28px;background:linear-gradient(135deg,#0071e3,#005bb5);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;';
+  const close = () => overlay.remove();
+  btn.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', function esc(e){ if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+  box.appendChild(icon); box.appendChild(msg); box.appendChild(btn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  btn.focus();
+}
+
 function renderAsPosts() {
   const list = document.getElementById('as-list-body');
             if (!list) return;
@@ -2595,7 +2624,7 @@ document.getElementById("as-form").addEventListener("submit", async function(eve
             // 목록 새로고침
             renderAsPosts();
             
-            alert("A/S 신청이 등록되었습니다.");
+            showAsDonePopup("A/S 신청이 등록되었습니다.");
 }
 </script>
 
