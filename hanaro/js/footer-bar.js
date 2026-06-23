@@ -135,7 +135,7 @@
       'padding:10px 22px;font-size:14px;cursor:pointer;}' +
     '.fbz-modal-foot button:hover{background:#2c333f;}' +
     /* 정부로고 영역 우측 바로가기 드롭다운 */
-    '.fbz-sitelinks{position:absolute;right:max(24px, calc((100% - 1200px) / 2 + 20px));top:50%;transform:translateY(-50%);z-index:30;}' +
+    '.fbz-sitelinks{position:absolute;right:5%;top:50%;transform:translateY(-50%);z-index:30;}' +
     '.fbz-sl-btn{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:170px;' +
       'background:#fff;color:#333;border:1px solid #b9b9b9;border-radius:4px;padding:8px 12px;font-size:14px;' +
       'font-weight:500;cursor:pointer;font-family:inherit;transition:border-color .15s ease;}' +
