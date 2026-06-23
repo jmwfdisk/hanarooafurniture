@@ -7791,6 +7791,9 @@
         .asr-files { display:flex; flex-wrap:wrap; gap:8px; }
         .asr-files a { display:inline-flex; align-items:center; gap:5px; background:#eef4ff; color:#2563eb; border:1px solid #d6e4ff; border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; text-decoration:none; }
         .asr-files a:hover { background:#dde9ff; }
+        .asr-files a.asr-thumb { padding:0; width:84px; height:84px; border-radius:10px; overflow:hidden; background:#f2f4f8; border:1px solid #d6e4ff; }
+        .asr-files a.asr-thumb:hover { border-color:#2563eb; }
+        .asr-files a.asr-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
         @media (max-width:560px){ .asr-grid { grid-template-columns:1fr; } }
         .assignee-modal-card { background:#fff; border-radius:14px; width:420px; max-width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.3); overflow:hidden; }
         .assignee-modal-body { padding:16px 20px; }
@@ -7954,7 +7957,13 @@
                     p.files.map((nm, fi) => {
                         let url = (p.fileUrls && p.fileUrls[fi]) ? p.fileUrls[fi] : null;
                         if (!url && p.fileData && p.fileData[fi]) { const it = p.fileData[fi]; url = it.url || (it.data ? 'data:'+it.type+';base64,'+it.data : null); }
-                        return url ? `<a onclick="downloadFileDirect('${url.replace(/'/g,"\\'")}','${asrEsc(nm).replace(/'/g,"")}')">📎 ${asrEsc(nm)}</a>` : `<span>📎 ${asrEsc(nm)}</span>`;
+                        if (!url) return `<span>📎 ${asrEsc(nm)}</span>`;
+                        const clickAttr = `onclick="downloadFileDirect('${url.replace(/'/g,"\\'")}','${asrEsc(nm).replace(/'/g,"")}')"`;
+                        const isImg = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(nm);
+                        if (isImg) {
+                            return `<a class="asr-thumb" title="${asrEsc(nm)}" ${clickAttr}><img src="${asrEsc(url)}" alt="${asrEsc(nm)}" loading="lazy"></a>`;
+                        }
+                        return `<a ${clickAttr}>📎 ${asrEsc(nm)}</a>`;
                     }).join('') + '</div></div>';
             }
 
