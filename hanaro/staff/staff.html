@@ -8209,44 +8209,42 @@
         .inv-ro { padding:8px 6px; font-size:13px; min-height:18px; }
         .inv-empty { padding:40px; color:#888; }
 
-        /* ===== 재고현황 표 색상 디자인 (인벤토리 모달 한정) ===== */
-        /* 일정관리 표처럼 시트 전체폭 사용 (패딩/라운드 제거) */
+        /* ===== 재고현황 표 스타일 = 일정관리 표와 통일 ===== */
         #inventory-modal .inv-table-wrap { padding:0; background:#fff; }
         #inventory-modal .inv-table {
             border-collapse:separate; border-spacing:0;
             background:#fff;
         }
-        /* 헤더: 남색 그라데이션 + 흰 글씨 */
+        /* 헤더: 일정관리와 동일(연회색 #eef1f5 + 진회색 글씨, sticky) */
         #inventory-modal .inv-table thead th {
-            background:linear-gradient(135deg,#4f6cb0 0%,#3b4a7a 100%) !important;
-            color:#fff !important;
-            font-weight:700; font-size:14px;
-            padding:13px 8px !important;
-            border:none !important;
-            border-right:1px solid rgba(255,255,255,.18) !important;
-            letter-spacing:0.35em;
+            background:#eef1f5 !important;
+            color:#444 !important;
+            font-weight:600; font-size:13px;
+            padding:6px !important;
+            border:1px solid #dfe3e8 !important;
+            letter-spacing:0.3em;
+            position:sticky; top:0; z-index:1;
         }
-        #inventory-modal .inv-table thead th:last-child { border-right:none !important; }
         #inventory-modal .inv-table thead .sched-colname {
-            color:#fff !important; -webkit-text-fill-color:#fff; font-weight:700; text-align:center;
-            letter-spacing:0.35em; padding-left:0.35em;
+            color:#444 !important; -webkit-text-fill-color:#444; font-weight:600; text-align:center;
+            letter-spacing:0.3em; padding-left:0.3em; font-size:13px;
         }
-        #inventory-modal .inv-table thead .sched-colname::placeholder { color:rgba(255,255,255,.7); }
-        /* 본문 셀 — 또렷한 격자선 */
+        #inventory-modal .inv-table thead .sched-colname::placeholder { color:#999; }
+        /* 본문 셀 — 일정관리와 동일한 격자선(#e8eaed)/패딩 (그룹색·구분선은 JS 인라인이 우선) */
         #inventory-modal .inv-table tbody td {
             border:none !important;
-            border-right:1px solid #cfd6e4 !important;
-            border-bottom:1px solid #cfd6e4 !important;
+            border-right:1px solid #e8eaed !important;
+            border-bottom:1px solid #e8eaed !important;
             padding:2px !important;
             background:#fff;
+            vertical-align:top;
         }
         #inventory-modal .inv-table tbody td:last-child { border-right:none !important; }
-        #inventory-modal .inv-table tbody tr:last-child td { border-bottom:1px solid #cfd6e4 !important; }
+        #inventory-modal .inv-table tbody tr:last-child td { border-bottom:1px solid #e8eaed !important; }
         /* 첫 열(구분) 글자색 — 배경/테두리는 그룹색상(JS)에서 처리 */
         #inventory-modal .inv-table tbody td.inv-cat { font-weight:700; color:#2c3a63; }
-        #inventory-modal .inv-table .schedule-cell-ro { padding:9px 8px; min-height:22px; }
-        #inventory-modal .inv-table .schedule-cell-ro { color:#2b2f36; }
-        #inventory-modal .inv-table td.sched-sel { background:#cfe0ff !important; }
+        #inventory-modal .inv-table .schedule-cell-ro { padding:6px; min-height:20px; color:#333; }
+        #inventory-modal .inv-table td.sched-sel { background:#dbeafe !important; }
 
         @media (max-width:768px){ .inv-modal { padding:0; } .inv-modal-card { height:100vh; border-radius:0; } #inventory-modal .inv-table-wrap { padding:0; } }
     </style>
