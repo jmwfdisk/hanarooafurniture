@@ -8133,6 +8133,7 @@
             <div class="inv-history">
               <span class="inv-updated-lbl">📂 날짜별 조회</span>
               <select id="inv-date-select" class="inv-date-select" onchange="onInvDateChange(this.value)"></select>
+              <button id="inv-date-del" class="inv-date-del" onclick="deleteInvDate()" title="선택한 날짜 스냅샷 삭제">🗑 삭제</button>
             </div>
           </div>
           <div id="inv-edit-tools" class="inv-edit-tools">
@@ -8183,6 +8184,8 @@
         .inv-updated { display:flex; align-items:center; gap:8px; }
         .inv-history { display:flex; align-items:center; gap:8px; }
         .inv-date-select { padding:6px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; background:#fff; color:#333; cursor:pointer; min-width:120px; }
+        .inv-date-del { padding:6px 10px; border:1px solid #f2c2c2; border-radius:6px; font-size:12px; background:#fdecec; color:#e53935; cursor:pointer; white-space:nowrap; }
+        .inv-date-del:hover { background:#fbd9d9; }
         .inv-updated-lbl { font-size:13px; font-weight:700; color:#3b4453; white-space:nowrap; }
         .inv-updated-input { padding:6px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
         .inv-updated-ro { font-size:14px; font-weight:600; color:#333; }
@@ -8334,6 +8337,27 @@
         async function onInvDateChange(val) {
             await loadInventory(val === '__latest__' ? null : val);
         }
+        // 선택한 날짜 스냅샷 삭제
+        async function deleteInvDate() {
+            if (!invCanEdit()) { alert('재고현황 작성 권한이 없습니다.'); return; }
+            if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
+            const sel = document.getElementById('inv-date-select');
+            const dateKey = sel ? sel.value : '';
+            if (!dateKey || dateKey === '__latest__') { alert('삭제할 날짜를 드롭다운에서 선택하세요.\n(\'최신\'은 삭제할 수 없습니다)'); return; }
+            if (!confirm(`'${dateKey}' 재고현황 스냅샷을 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+            try {
+                await db.collection('inventory').doc(dateKey).delete();
+                const dates = invDateList.filter(d => d !== dateKey).sort();
+                await db.collection('inventory').doc('_index').set({ dates }, { merge: true });
+                invDateList = dates.slice().reverse();
+                populateInvDateSelect('__latest__');
+                await loadInventory();   // 최신본으로 복귀
+                alert(`'${dateKey}' 스냅샷을 삭제했습니다.`);
+            } catch (e) {
+                console.error('재고 날짜 삭제 실패:', e);
+                alert('삭제 중 오류가 발생했습니다.\n' + (e.message || ''));
+            }
+        }
         function closeInventoryModal() {
             document.getElementById('inventory-modal').style.display = 'none';
             document.body.style.overflow = '';
@@ -8360,6 +8384,8 @@
         function renderInventory() {
             const canEdit = invCanEdit();
             document.getElementById('inv-edit-tools').style.display = canEdit ? 'flex' : 'none';
+            const delBtn = document.getElementById('inv-date-del');
+            if (delBtn) delBtn.style.display = canEdit ? '' : 'none';
             // 최신화 날짜: 편집권한 있으면 날짜 입력, 없으면 읽기 텍스트
             const dInput = document.getElementById('inv-updated-date');
             const dRo = document.getElementById('inv-updated-ro');
@@ -9032,13 +9058,15 @@
         function schedEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
         function schedEscAttr(s){ return schedEsc(s).replace(/"/g,'&quot;'); }
         function emptyScheduleData(){ return { notice:'', columns: SCHEDULE_DEFAULT_COLS.slice(), grid: [], merges: [], aligns: [], images: [] }; }
+        // Firestore는 중첩 배열 미지원 → grid/aligns는 JSON 문자열로 저장/로드(문자열·배열 모두 호환)
+        function schedParse2D(v){ if (typeof v === 'string'){ try { v = JSON.parse(v); } catch(e){ v = []; } } return Array.isArray(v) ? v.map(r => Array.isArray(r) ? r.slice() : []) : []; }
         function migrateSchedule(data){
             data = data || {};
-            if (Array.isArray(data.columns) && Array.isArray(data.grid)) {
+            if (Array.isArray(data.columns) && (Array.isArray(data.grid) || typeof data.grid === 'string')) {
                 return { notice: data.notice || '', columns: data.columns.slice(),
-                    grid: data.grid.map(r => Array.isArray(r) ? r.slice() : []),
+                    grid: schedParse2D(data.grid),
                     merges: (data.merges || []).map(m => ({ r:m.r, c:m.c, rs:m.rs, cs:m.cs })),
-                    aligns: Array.isArray(data.aligns) ? data.aligns.map(r => Array.isArray(r) ? r.slice() : []) : [],
+                    aligns: schedParse2D(data.aligns),
                     images: data.images || [] };
             }
             // 구버전(rows of objects) → grid 변환
@@ -9465,8 +9493,9 @@
                     date: scheduleCurrentDate,
                     notice: scheduleData.notice,
                     columns: scheduleData.columns,
-                    grid: scheduleData.grid,
+                    grid: JSON.stringify(scheduleData.grid || []),        // 중첩 배열 회피
                     merges: scheduleData.merges,
+                    aligns: JSON.stringify(scheduleData.aligns || []),    // 중첩 배열 회피 + 정렬 보존
                     images: scheduleData.images,
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
