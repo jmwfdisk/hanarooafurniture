@@ -838,6 +838,20 @@
   .cs-link { padding:14px 8px; font-size:16px; color:#444; text-decoration:none; border-bottom:1px solid #ececec; font-weight:600; transition:color .15s ease, background .15s ease; border-radius:6px; }
   .cs-link:hover { color:#2563eb; background:#f5f8ff; }
   .cs-link.active { color:#2563eb; font-weight:700; background:#eef4ff; }
+  /* 인증현황 드롭다운 그룹 */
+  .cs-group { border-bottom:1px solid #ececec; }
+  .cs-parent { width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:14px 8px; font-size:16px; font-weight:600; color:#444; background:none; border:none;
+    border-radius:6px; cursor:pointer; font-family:inherit; text-align:left; }
+  .cs-parent:hover { color:#2563eb; background:#f5f8ff; }
+  .cs-parent.active { color:#2563eb; }
+  .cs-caret { font-size:12px; color:#888; transition:transform .15s ease; }
+  .cs-group.open .cs-caret { transform:rotate(180deg); }
+  .cs-group.open .cs-parent { color:#2563eb; }
+  .cs-sub { display:none; flex-direction:column; padding:2px 0 8px 14px; }
+  .cs-group.open .cs-sub { display:flex; }
+  .cs-sub .cs-link { font-size:15px; padding:11px 8px; color:#555; border-bottom:none; font-weight:500; }
+  .cs-sub .cs-link::before { content:'· '; color:#aaa; }
   /* 우측 내용 */
   .company-content { flex:1; min-width:0; }
   .cs-breadcrumb { font-size:14px; color:#999; margin-bottom:14px; }
@@ -864,17 +878,23 @@
   <aside class="company-sidebar">
     <h2 class="cs-title">회사소개</h2>
     <nav class="cs-menu">
-      <a href="#" class="cs-link active" data-sec="intro"   onclick="showCompanySec('intro'); return false;">회사소개</a>
+      <a href="#" class="cs-link active" data-sec="intro"   onclick="showCompanySec('intro'); return false;">인사말</a>
       <a href="#" class="cs-link"        data-sec="status"  onclick="showCompanySec('status'); return false;">일반현황</a>
       <a href="#" class="cs-link"        data-sec="history" onclick="showCompanySec('history'); return false;">주요연혁</a>
-      <a href="#" class="cs-link"        data-sec="cert"    onclick="showCompanySec('cert'); return false;">인증·우수제품</a>
+      <div class="cs-group" id="cs-cert-group">
+        <button type="button" class="cs-parent" onclick="toggleCertMenu()">인증현황 <span class="cs-caret">▾</span></button>
+        <div class="cs-sub">
+          <a href="#" class="cs-link" data-sec="cert-excellent" onclick="showCompanySec('cert-excellent'); return false;">우수제품인증서</a>
+          <a href="#" class="cs-link" data-sec="cert-tech" onclick="showCompanySec('cert-tech'); return false;">기술/기타 인증서</a>
+        </div>
+      </div>
     </nav>
   </aside>
 
   <!-- 우측 내용 -->
   <main class="company-content">
     <section class="cs-section active" id="sec-intro">
-      <h1 class="cs-h1">회사소개</h1>
+      <h1 class="cs-h1">인사말</h1>
       <img src="../image/c-1.jpeg" alt="회사 메인 이미지" class="cs-intro-img">
       <p class="cs-lead">
         (주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여, 다양한 가구 제품 및 종합 가구 컨설팅 서비스를 제공하는 전문 업체입니다.
@@ -914,11 +934,17 @@
       </ul>
     </section>
 
-    <section class="cs-section" id="sec-cert">
-      <h1 class="cs-h1">우수제품지정, 기술(성능) 및 인증서</h1>
+    <section class="cs-section" id="sec-cert-excellent">
+      <h1 class="cs-h1">우수제품인증서</h1>
       <div class="cs-cert-imgs">
-        <img src="../image/sub-1.png" alt="우수제품·인증서 1">
-        <img src="../image/sub-2.png" alt="우수제품·인증서 2">
+        <img src="../image/sub-1.png" alt="우수제품인증서">
+      </div>
+    </section>
+
+    <section class="cs-section" id="sec-cert-tech">
+      <h1 class="cs-h1">기술/기타 인증서</h1>
+      <div class="cs-cert-imgs">
+        <img src="../image/sub-2.png" alt="기술/기타 인증서">
       </div>
     </section>
   </main>
@@ -928,15 +954,23 @@
   function showCompanySec(sec) {
     document.querySelectorAll('.cs-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.cs-link').forEach(a => a.classList.remove('active'));
+    const certParent = document.querySelector('.cs-parent');
+    if (certParent) certParent.classList.remove('active');
     const sectionEl = document.getElementById('sec-' + sec);
     const linkEl = document.querySelector('.cs-link[data-sec="' + sec + '"]');
     if (sectionEl) sectionEl.classList.add('active');
-    if (linkEl) {
-      linkEl.classList.add('active');
-      const crumb = document.getElementById('cs-crumb');
-      if (crumb) crumb.textContent = linkEl.textContent;
+    if (linkEl) linkEl.classList.add('active');
+    // 인증현황 하위 섹션이면 드롭다운을 펼치고 상위 메뉴도 활성화
+    const certGroup = document.getElementById('cs-cert-group');
+    if (sec.indexOf('cert') === 0) {
+      if (certGroup) certGroup.classList.add('open');
+      if (certParent) certParent.classList.add('active');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function toggleCertMenu() {
+    const g = document.getElementById('cs-cert-group');
+    if (g) g.classList.toggle('open');
   }
 </script>
 
