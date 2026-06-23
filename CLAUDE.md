@@ -80,7 +80,7 @@ New registrations are created with `status: 'pending'` and require admin approva
 | `staffPosts/{board}` | staff 직원게시판·회사운영 | employee (`asResult` needs `permFor('asResult')`) |
 | `activityPhotos` | staff 활동사진첩 | owner or admin (per-doc) |
 | `materials/{id}` | staff 자재관리 (one doc per row) | employee |
-| `inventory/main` | staff 재고현황 (single doc) | `permFor('inventory')` |
+| `inventory/{main\|YYYY-MM-DD\|_index}` | staff 재고현황: `main`=최신본, `YYYY-MM-DD`=날짜별 스냅샷, `_index.dates[]`=저장된 날짜 목록 | `permFor('inventory')` |
 | `deliverySchedule/{YYYY-MM-DD}` | staff 일정관리 | `permFor('schedule')` |
 | `companyCalendar/{id}` | staff 회사운영 캘린더 | `permFor('company')` |
 | `appConfig/{memberOrder\|asAssignees}` | staff | admin |

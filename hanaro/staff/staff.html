@@ -8124,10 +8124,16 @@
           <button class="inv-close" onclick="closeInventoryModal()" style="margin-left:auto;">&times;</button>
         </header>
         <div class="inv-toolbar">
-          <div class="inv-updated">
-            <span class="inv-updated-lbl">📅 최신화 날짜</span>
-            <input type="date" id="inv-updated-date" class="inv-updated-input" onchange="invSetUpdatedDate(this.value)">
-            <span id="inv-updated-ro" class="inv-updated-ro"></span>
+          <div class="inv-toolbar-left">
+            <div class="inv-updated">
+              <span class="inv-updated-lbl">📅 최신화 날짜</span>
+              <input type="date" id="inv-updated-date" class="inv-updated-input" onchange="invSetUpdatedDate(this.value)">
+              <span id="inv-updated-ro" class="inv-updated-ro"></span>
+            </div>
+            <div class="inv-history">
+              <span class="inv-updated-lbl">📂 날짜별 조회</span>
+              <select id="inv-date-select" class="inv-date-select" onchange="onInvDateChange(this.value)"></select>
+            </div>
           </div>
           <div id="inv-edit-tools" class="inv-edit-tools">
             <button onclick="invAddRow()">➕ 행</button>
@@ -8173,7 +8179,10 @@
         .inv-modal-header { display:flex; align-items:center; gap:14px; padding:14px 20px; background:#3b4453; color:#fff; }
         .inv-modal-header h2 { margin:0; font-size:18px; }
         .inv-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:1px solid #e5e7eb; background:#f7f8fa; }
+        .inv-toolbar-left { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
         .inv-updated { display:flex; align-items:center; gap:8px; }
+        .inv-history { display:flex; align-items:center; gap:8px; }
+        .inv-date-select { padding:6px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; background:#fff; color:#333; cursor:pointer; min-width:120px; }
         .inv-updated-lbl { font-size:13px; font-weight:700; color:#3b4453; white-space:nowrap; }
         .inv-updated-input { padding:6px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
         .inv-updated-ro { font-size:14px; font-weight:600; color:#333; }
@@ -8283,23 +8292,54 @@
 
         function invCanEdit() { return (typeof userCan === 'function') ? userCan('inventory') : false; }
 
+        // 저장된 재고현황 날짜 목록 (inventory/_index 의 dates)
+        let invDateList = [];
+
         async function openInventoryModal() {
             if (!staffAccessGranted) { alert('로그인이 필요합니다.'); return; }
             if (!db && typeof initStaffDB === 'function') initStaffDB();
             document.body.style.overflow = 'hidden';
             document.getElementById('inventory-modal').style.display = 'flex';
-            await loadInventory();
+            await loadInvDateIndex();   // 날짜 목록 → 드롭다운 채우기
+            await loadInventory();      // 최신본 로드
+        }
+
+        // 날짜 인덱스 로드 → 드롭다운 채우기
+        async function loadInvDateIndex() {
+            invDateList = [];
+            if (db) {
+                try {
+                    const snap = await db.collection('inventory').doc('_index').get();
+                    if (snap.exists && Array.isArray(snap.data().dates)) {
+                        invDateList = Array.from(new Set(snap.data().dates.filter(Boolean))).sort().reverse(); // 최신 우선
+                    }
+                } catch (e) { console.error('재고 날짜 인덱스 로드 실패:', e); }
+            }
+            populateInvDateSelect('__latest__');
+        }
+        function populateInvDateSelect(currentKey) {
+            const sel = document.getElementById('inv-date-select');
+            if (!sel) return;
+            let html = '<option value="__latest__">최신</option>';
+            invDateList.forEach(d => { html += `<option value="${d}">${d}</option>`; });
+            sel.innerHTML = html;
+            sel.value = currentKey || '__latest__';
+        }
+        async function onInvDateChange(val) {
+            await loadInventory(val === '__latest__' ? null : val);
         }
         function closeInventoryModal() {
             document.getElementById('inventory-modal').style.display = 'none';
             document.body.style.overflow = '';
         }
 
-        async function loadInventory() {
+        // dateKey 없으면 최신본(main), 있으면 해당 날짜 스냅샷(inventory/{date}) 로드
+        async function loadInventory(dateKey) {
             inventoryData = invDefaultData();
             if (db) {
                 try {
-                    const snap = await db.collection('inventory').doc('main').get();
+                    const docId = dateKey ? dateKey : 'main';
+                    const snap = await db.collection('inventory').doc(docId).get();
                     if (snap.exists) inventoryData = invMigrate(snap.data());
                 } catch (e) {
                     console.error('재고현황 로드 실패:', e);
@@ -8491,20 +8531,30 @@
         async function saveInventory() {
             if (!invCanEdit()) { alert('재고현황 작성 권한이 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
+            const dateKey = (inventoryData.updatedDate || '').trim();
+            if (!dateKey) { alert('먼저 "📅 최신화 날짜"를 지정한 뒤 저장하세요.\n해당 날짜로 재고현황이 저장됩니다.'); return; }
             try {
                 let user = {};
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
-                await db.collection('inventory').doc('main').set({
+                const payload = {
                     columns: inventoryData.columns,
                     grid: inventoryData.grid,
                     merges: inventoryData.merges,
                     aligns: inventoryData.aligns || [],
                     rowColors: inventoryData.rowColors || [],
-                    updatedDate: inventoryData.updatedDate || '',
+                    updatedDate: dateKey,
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
-                });
-                alert('재고현황이 저장되었습니다.');
+                };
+                // 날짜별 스냅샷 + 최신본(main) 동시 저장
+                await db.collection('inventory').doc(dateKey).set(payload);
+                await db.collection('inventory').doc('main').set(payload);
+                // 날짜 인덱스 갱신 (목록 누적)
+                const dates = Array.from(new Set(invDateList.concat(dateKey))).sort();
+                await db.collection('inventory').doc('_index').set({ dates }, { merge: true });
+                invDateList = dates.slice().reverse();
+                populateInvDateSelect('__latest__');
+                alert('재고현황이 저장되었습니다. (날짜: ' + dateKey + ')');
             } catch (e) {
                 console.error('재고현황 저장 실패:', e);
                 alert('저장 중 오류가 발생했습니다.\n(inventory 쓰기 규칙/권한 확인)\n' + (e.message || ''));
