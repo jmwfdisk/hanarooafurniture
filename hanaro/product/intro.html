@@ -830,9 +830,35 @@
 </header>
 
 
-<div style="max-width:1000px; margin:70px auto 90px; padding:0 24px; text-align:center; box-sizing:border-box;">
-  <h1 style="font-size:40px; font-weight:700; color:#111; margin:0 0 18px;">제품소개</h1>
-  <p style="font-size:17px; color:#888; line-height:1.8;">페이지 준비 중입니다.</p>
+<style>
+  /* 제품소개 보조 네비바 (DJI 스타일: 이미지 + 라벨 가로 행) */
+  .prod-subnav { background:#fafafa; border-bottom:1px solid #ececec; padding:16px 20px; }
+  .prod-subnav-inner { max-width:1200px; margin:0 auto; display:flex; justify-content:center; align-items:flex-start; gap:50px; flex-wrap:wrap; }
+  .prod-item { text-decoration:none; color:#333; display:flex; flex-direction:column; align-items:center; gap:8px; width:150px; transition:transform .15s ease; }
+  .prod-item:hover { transform:translateY(-3px); }
+  .prod-item:hover span { color:#0071e3; }
+  .prod-item img { width:100%; height:88px; object-fit:contain; }
+  .prod-item span { font-size:15px; font-weight:600; }
+  .prod-item.active span { color:#0071e3; }
+  @media (max-width:768px) {
+    .prod-subnav-inner { gap:20px; }
+    .prod-item { width:30%; max-width:110px; }
+    .prod-item img { height:64px; }
+    .prod-item span { font-size:13px; }
+  }
+</style>
+
+<div class="prod-subnav">
+  <div class="prod-subnav-inner">
+    <a class="prod-item" href="#"><img src="../../image/prod-general.png" alt="H시리즈"><span>H시리즈</span></a>
+    <a class="prod-item" href="#"><img src="../../image/prod-general.png" alt="HS시리즈"><span>HS시리즈</span></a>
+    <a class="prod-item" href="#"><img src="../../image/prod-locker.png" alt="OA시리즈"><span>OA시리즈</span></a>
+  </div>
+</div>
+
+<div style="max-width:1000px; margin:56px auto 90px; padding:0 24px; text-align:center; box-sizing:border-box;">
+  <h1 style="font-size:34px; font-weight:700; color:#111; margin:0 0 14px;">제품소개</h1>
+  <p style="font-size:16px; color:#aaa; line-height:1.8;">제품소개 내용 준비 중입니다.</p>
 </div>
 
     <script>
