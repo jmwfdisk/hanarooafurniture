@@ -36,7 +36,8 @@ hanaro/
   css/auth.css          ← Login modal styles
   AS/AS.html            ← A/S 신청 페이지
   Gallery/Gallery.html  ← 갤러리
-  company/company.html  ← 회사 소개
+  company/company.html  ← 회사 소개 (좌측 메뉴 + 우측 내용, 인증현황 드롭다운)
+  support/support.html  ← 고객지원 (Apple 지원 스타일: 카테고리 아이콘 + 퀵카드)
   product/product.html  ← 제품 목록
   school/school.html    ← 납품학교 리스트 (로그인 필요)
   staff/staff.html      ← 임직원 전용 게시판 (임직원/관리자만)

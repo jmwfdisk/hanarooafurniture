@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="하나로오에이퍼니처 - 조달 우수제품과 일반제품 소개">
     <meta name="keywords" content="하나로오에이퍼니처, 조달 우수제품, MAS, 가구, 사무가구">
-    <title>하나로오에이퍼니처 메인</title>
+    <title>하나로오에이퍼니처 고객지원</title>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -827,153 +827,77 @@
   </div>
 </header>
 
+
 <style>
-  .company-page { display:flex; gap:48px; max-width:1200px; margin:34px auto 70px; padding:0 24px; box-sizing:border-box; align-items:flex-start; text-align:left; }
-  /* 좌측 메뉴 */
-  .company-sidebar { width:240px; flex-shrink:0; }
-  .cs-title { font-size:30px; font-weight:800; color:#1a1a1a; margin:0 0 14px; padding-bottom:16px; border-bottom:2px solid #222; }
-  .cs-menu { display:flex; flex-direction:column; }
-  .cs-link { padding:14px 8px; font-size:16px; color:#444; text-decoration:none; border-bottom:1px solid #ececec; font-weight:600; transition:color .15s ease, background .15s ease; border-radius:6px; }
-  .cs-link:hover { color:#2563eb; background:#f5f8ff; }
-  .cs-link.active { color:#2563eb; font-weight:700; background:#eef4ff; }
-  /* 인증현황 드롭다운 그룹 */
-  .cs-group { border-bottom:1px solid #ececec; }
-  .cs-parent { width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px;
-    padding:14px 8px; font-size:16px; font-weight:600; color:#444; background:none; border:none;
-    border-radius:6px; cursor:pointer; font-family:inherit; text-align:left; }
-  .cs-parent:hover { color:#2563eb; background:#f5f8ff; }
-  .cs-parent.active { color:#2563eb; }
-  .cs-caret { font-size:14.4px; color:#888; transition:transform .15s ease; }
-  .cs-group.open .cs-caret { transform:rotate(180deg); }
-  .cs-group.open .cs-parent { color:#2563eb; }
-  .cs-sub { display:none; flex-direction:column; padding:2px 0 8px 14px; }
-  .cs-group.open .cs-sub { display:flex; }
-  .cs-sub .cs-link { font-size:15px; padding:11px 8px; color:#555; border-bottom:none; font-weight:500; }
-  .cs-sub .cs-link::before { content:'· '; color:#aaa; }
-  /* 우측 내용 */
-  .company-content { flex:1; min-width:0; }
-  .cs-breadcrumb { font-size:14px; color:#999; margin-bottom:14px; }
-  .cs-breadcrumb b { color:#2563eb; font-weight:700; }
-  .cs-h1 { font-size:34px; font-weight:800; color:#111; margin:0 0 28px; padding-bottom:14px; border-bottom:2px solid #222; }
-  .cs-section { display:none; }
-  .cs-section.active { display:block; animation:csFade .2s ease; }
-  @keyframes csFade { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
-  .cs-intro-img { display:block; width:100%; max-width:680px; height:auto; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.08); margin:0 auto 24px; }
-  .cs-lead { font-size:17px; line-height:1.85; color:#333; }
-  .cs-list { font-size:16px; line-height:1.9; padding-left:22px; color:#333; }
-  .cs-list li { margin-bottom:6px; }
-  .cs-cert-imgs { display:flex; flex-direction:column; align-items:center; gap:22px; }
-  .cs-cert-imgs img { width:100%; max-width:760px; height:auto; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.1); }
-  @media (max-width:900px) {
-    .company-page { flex-direction:column; gap:24px; margin:20px auto 50px; }
-    .company-sidebar { width:100%; }
-    .cs-h1 { font-size:27px; }
+  .support-page { max-width:1040px; margin:54px auto 70px; padding:0 24px; text-align:center; box-sizing:border-box; }
+  .sup-logo { width:96px; height:96px; border-radius:50%; background:#2563eb; display:flex; align-items:center; justify-content:center; margin:0 auto 30px; }
+  .sup-logo svg { width:46px; height:46px; fill:#fff; }
+  .sup-title { font-size:46px; font-weight:800; color:#111; margin:0 0 18px; letter-spacing:-1px; }
+  .sup-sub { font-size:19px; color:#444; margin:0 0 56px; }
+  .sup-cats { display:flex; justify-content:center; flex-wrap:wrap; gap:36px 44px; margin-bottom:60px; }
+  .sup-cat { text-decoration:none; color:#222; display:flex; flex-direction:column; align-items:center; gap:14px; width:104px; transition:transform .15s ease; }
+  .sup-cat:hover { transform:translateY(-3px); }
+  .sup-cat-ic { font-size:40px; line-height:1; }
+  .sup-cat span { font-size:16px; font-weight:600; }
+  .sup-cards { display:flex; justify-content:center; gap:24px; flex-wrap:wrap; }
+  .sup-card { flex:1; min-width:240px; max-width:320px; background:#f5f5f7; border-radius:18px; padding:44px 24px;
+    text-decoration:none; display:flex; flex-direction:column; align-items:center; gap:20px; transition:background .15s ease, transform .15s ease; }
+  .sup-card:hover { background:#ececef; transform:translateY(-2px); }
+  .sup-card-ic { width:64px; height:64px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:30px; }
+  .sup-card-ic.blue { background:#e8f0ff; }
+  .sup-card-ic.green { background:#e7f7ec; }
+  .sup-card-ic.red { background:#ffeceb; }
+  .sup-card-title { font-size:18px; font-weight:700; color:#2563eb; }
+  .sup-contact { margin-top:54px; font-size:14px; color:#888; line-height:1.95; }
+  .sup-contact b { color:#3b4453; }
+  @media (max-width:768px) {
+    .support-page { margin:30px auto 50px; }
+    .sup-title { font-size:34px; }
+    .sup-sub { font-size:16px; margin-bottom:40px; }
+    .sup-cats { gap:24px 28px; }
+    .sup-cat { width:84px; }
+    .sup-cat-ic { font-size:34px; }
+    .sup-cards { flex-direction:column; align-items:center; }
+    .sup-card { width:100%; max-width:380px; }
   }
 </style>
 
-<div class="company-page">
-  <!-- 좌측 메뉴 -->
-  <aside class="company-sidebar">
-    <h2 class="cs-title">회사소개</h2>
-    <nav class="cs-menu">
-      <a href="#" class="cs-link active" data-sec="intro"   onclick="showCompanySec('intro'); return false;">인사말</a>
-      <a href="#" class="cs-link"        data-sec="status"  onclick="showCompanySec('status'); return false;">일반현황</a>
-      <a href="#" class="cs-link"        data-sec="history" onclick="showCompanySec('history'); return false;">주요연혁</a>
-      <div class="cs-group" id="cs-cert-group">
-        <button type="button" class="cs-parent" onclick="toggleCertMenu()">인증현황 <span class="cs-caret">▾</span></button>
-        <div class="cs-sub">
-          <a href="#" class="cs-link" data-sec="cert-excellent" onclick="showCompanySec('cert-excellent'); return false;">우수제품인증서</a>
-          <a href="#" class="cs-link" data-sec="cert-tech" onclick="showCompanySec('cert-tech'); return false;">기술(성능) / 기타 인증서</a>
-        </div>
-      </div>
-    </nav>
-  </aside>
+<div class="support-page">
+  <div class="sup-logo">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1a9 9 0 0 0-9 9v6a3 3 0 0 0 3 3h2v-8H6v-1a6 6 0 0 1 12 0v1h-2v8h2a3 3 0 0 0 3-3v-6a9 9 0 0 0-9-9zm-4 12v4H6a1 1 0 0 1-1-1v-3h3zm11 3a1 1 0 0 1-1 1h-2v-4h3v3zm-5 6h-3a1 1 0 0 1 0-2h3a1 1 0 0 1 0 2z"/></svg>
+  </div>
+  <h1 class="sup-title">고객지원</h1>
+  <p class="sup-sub">도움이 필요하십니까? 여기에서 시작하세요.</p>
 
-  <!-- 우측 내용 -->
-  <main class="company-content">
-    <section class="cs-section active" id="sec-intro">
-      <h1 class="cs-h1">인사말</h1>
-      <img src="../image/c-1.jpeg" alt="회사 메인 이미지" class="cs-intro-img">
-      <p class="cs-lead">(주)하나로오에이퍼니처를 찾아주신 모든 고객 여러분께 진심으로 감사드립니다.</p>
-      <p class="cs-lead">(주)하나로오에이퍼니처는 조달청 우수제품으로 선정된 이동식 스툴 테이블과 사물함을 비롯하여 다양한 가구 제품과 종합 가구 컨설팅 서비스를 제공하는 전문 기업입니다.</p>
-      <p class="cs-lead">당사는 2023년 조달청 우수제품 인증을 획득하였으며, 현재 전국의 공공기관과 교육기관을 대상으로 제품 공급과 맞춤형 공간 가구 솔루션을 제공하고 있습니다. 또한 20여 년간 축적해 온 기술력과 현장 경험, 전문성을 바탕으로 고객의 공간 특성과 목적에 가장 적합한 제품과 서비스를 제공하기 위해 끊임없이 노력하고 있습니다.</p>
-      <p class="cs-lead">단순히 가구를 공급하는 것을 넘어 공간의 가치와 활용성을 높이는 최적의 파트너가 되고자 하며, 고객의 신뢰를 최우선으로 생각하는 기업으로 성장해 나가겠습니다.</p>
-      <p class="cs-lead">앞으로도 최고의 품질과 서비스로 고객 여러분의 기대에 부응할 것을 약속드리며, 많은 관심과 성원을 부탁드립니다.</p>
-      <p class="cs-lead">감사합니다.</p>
-      <p class="cs-lead" style="text-align:right; font-weight:700; margin-top:26px;">(주)하나로오에이퍼니처 임직원 일동</p>
-    </section>
+  <div class="sup-cats">
+    <a href="../AS/AS.html" class="sup-cat"><div class="sup-cat-ic">🛠️</div><span>A/S 신청</span></a>
+    <a href="../product/product.html" class="sup-cat"><div class="sup-cat-ic">🪑</div><span>제품 소개</span></a>
+    <a href="../../index.html#/school" class="sup-cat"><div class="sup-cat-ic">🏫</div><span>납품학교</span></a>
+    <a href="../Gallery/Gallery.html" class="sup-cat"><div class="sup-cat-ic">🖼️</div><span>갤러리</span></a>
+    <a href="../company/company.html" class="sup-cat"><div class="sup-cat-ic">🏢</div><span>회사소개</span></a>
+    <a href="tel:042-633-9500" class="sup-cat"><div class="sup-cat-ic">📞</div><span>전화 문의</span></a>
+  </div>
 
-    <section class="cs-section" id="sec-status">
-      <h1 class="cs-h1">일반현황</h1>
-      <ul class="cs-list">
-        <li>회사명 : (주)하나로오에이퍼니처</li>
-        <li>대표이사 : 정진희, 장인덕</li>
-        <li>설립연도 : 2001년 4월</li>
-        <li>사업 분야 : 이동식스툴테이블, 사물함, 학교용 가구<span style="font-size:14px; color:#666;">(도서실, 과학실, 영어교실, 보건실, 교탁 등)</span>, OA사무용 가구 외</li>
-        <li>소재지 : 대전광역시 대덕구 오정로 41번길 12</li>
-      </ul>
-    </section>
+  <div class="sup-cards">
+    <a class="sup-card" href="../AS/AS.html">
+      <div class="sup-card-ic blue">🛠️</div>
+      <div class="sup-card-title">A/S 신청하기</div>
+    </a>
+    <a class="sup-card" href="tel:043-731-9511">
+      <div class="sup-card-ic green">📞</div>
+      <div class="sup-card-title">A/S 전화 (043-731-9511)</div>
+    </a>
+    <a class="sup-card" href="mailto:oa9500@empas.com">
+      <div class="sup-card-ic red">✉️</div>
+      <div class="sup-card-title">이메일 문의</div>
+    </a>
+  </div>
 
-    <section class="cs-section" id="sec-history">
-      <h1 class="cs-h1">주요연혁</h1>
-      <ul class="cs-list">
-        <li>2001년 4월 : 회사 설립</li>
-        <li>2010년 5월 : 중소기업청 여성기업인증</li>
-        <li>2011년 5월 : 절첩식의자 일체형테이블 특허 등록</li>
-        <li>2011년 11월 : K마크, 환경마크 인증서 획득</li>
-        <li>2012년 3월 : 조달청 우수제품지정(HOA시리즈 이동식스툴테이블)</li>
-        <li>2014년 10월 : 조달청 우수제품지정(사물함)</li>
-        <li>2015년 7월 : ISO 14001(환경경영시스템) / 9001(품질경영시스템) 인증획득</li>
-        <li>2015년 10월 : 단체표준인증 획득</li>
-        <li>2015년 12월 : 굿디자인 선정</li>
-        <li>2016년 7월 : 2016 대한민국베스트신상품 선정</li>
-        <li>2017년 4월 : 조달청 우수제품지정(HS시리즈 이동식스툴테이블)</li>
-        <li>2018년 12월 : 대한민국환경공헌대상</li>
-        <li>2019년 3월 : 조달청 G-PASS기업 지정</li>
-        <li>2019년 6월 : 경영혁신형 중소기업 회원 지정</li>
-        <li>2023년 4월 : 조달청 우수제품지정(H시리즈 이동식스툴테이블)</li>
-      </ul>
-    </section>
-
-    <section class="cs-section" id="sec-cert-excellent">
-      <h1 class="cs-h1">우수제품인증서</h1>
-      <div class="cs-cert-imgs">
-        <img src="../image/sub-1.png" alt="우수제품인증서">
-      </div>
-    </section>
-
-    <section class="cs-section" id="sec-cert-tech">
-      <h1 class="cs-h1">기술(성능) / 기타 인증서</h1>
-      <div class="cs-cert-imgs">
-        <img src="../image/sub-2.png" alt="기술(성능) / 기타 인증서">
-      </div>
-    </section>
-  </main>
+  <div class="sup-contact">
+    대표전화 <b>042-633-9500</b> · A/S <b>043-731-9511</b> · 이메일 <b>oa9500@empas.com</b><br>
+    대전광역시 대덕구 오정로 41번길 12
+  </div>
 </div>
-
-<script>
-  function showCompanySec(sec) {
-    document.querySelectorAll('.cs-section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.cs-link').forEach(a => a.classList.remove('active'));
-    const certParent = document.querySelector('.cs-parent');
-    if (certParent) certParent.classList.remove('active');
-    const sectionEl = document.getElementById('sec-' + sec);
-    const linkEl = document.querySelector('.cs-link[data-sec="' + sec + '"]');
-    if (sectionEl) sectionEl.classList.add('active');
-    if (linkEl) linkEl.classList.add('active');
-    // 인증현황 하위 섹션이면 드롭다운을 펼치고 상위 메뉴도 활성화
-    const certGroup = document.getElementById('cs-cert-group');
-    if (sec.indexOf('cert') === 0) {
-      if (certGroup) certGroup.classList.add('open');
-      if (certParent) certParent.classList.add('active');
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-  function toggleCertMenu() {
-    const g = document.getElementById('cs-cert-group');
-    if (g) g.classList.toggle('open');
-  }
-</script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
