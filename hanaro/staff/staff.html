@@ -8373,7 +8373,7 @@
                     if (c === 0) {
                         td.classList.add('inv-cat');
                         td.style.background = color.row;   // 구분 셀 색을 제품 셀 색(color.row)과 통일
-                        td.style.setProperty('border-right', '2px solid #b6c3de', 'important');
+                        // 구분/제품 사이 세로선도 다른 격자선과 동일하게 (CSS의 1px #e8eaed 사용)
                         td.style.fontWeight = '700';
                         td.style.letterSpacing = '0.3em';   // 구분 글자 한 칸씩 띄어쓰기
                     } else {
