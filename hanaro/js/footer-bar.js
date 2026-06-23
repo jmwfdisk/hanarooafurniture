@@ -275,33 +275,34 @@
     '<p style="color:#888;font-size:13px;">— ' + COMPANY.name + '</p>';
 
   // ── 정부로고 영역 우측 '바로가기' 드롭다운 주입 ─────────
+  // index.html은 .partner-logos가 여러 개(홈/납품학교 SPA 섹션 등)라
+  // 모든 스트립에 주입(화면당 하나만 보이므로 중복 노출 없음).
   function buildSiteLinks() {
-    // 일부 페이지(index)는 .partner-logos 가 2개 → 하단 스트립(마지막)에 주입
-    var pls = document.querySelectorAll('.partner-logos');
-    var pl = pls.length ? pls[pls.length - 1] : null;
-    if (!pl || pl.querySelector('.fbz-sitelinks')) return;
-    pl.style.position = 'relative';
-    var wrap = document.createElement('div');
-    wrap.className = 'fbz-sitelinks';
     var items = SITE_LINKS.map(function (l) {
       return '<a href="' + l.url + '" target="_blank" rel="noopener">' + l.label + '</a>';
     }).join('');
-    wrap.innerHTML =
-      '<button type="button" class="fbz-sl-btn" aria-haspopup="true" aria-expanded="false">' +
-        '바로가기 <span class="fbz-sl-caret">▾</span></button>' +
-      '<div class="fbz-sl-menu">' + items + '</div>';
-    pl.appendChild(wrap);
-    var btn = wrap.querySelector('.fbz-sl-btn');
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var open = wrap.classList.toggle('open');
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    document.addEventListener('click', function (e) {
-      if (!wrap.contains(e.target)) {
-        wrap.classList.remove('open');
-        btn.setAttribute('aria-expanded', 'false');
-      }
+    document.querySelectorAll('.partner-logos').forEach(function (pl) {
+      if (pl.querySelector('.fbz-sitelinks')) return;
+      pl.style.position = 'relative';
+      var wrap = document.createElement('div');
+      wrap.className = 'fbz-sitelinks';
+      wrap.innerHTML =
+        '<button type="button" class="fbz-sl-btn" aria-haspopup="true" aria-expanded="false">' +
+          '바로가기 <span class="fbz-sl-caret">▾</span></button>' +
+        '<div class="fbz-sl-menu">' + items + '</div>';
+      pl.appendChild(wrap);
+      var btn = wrap.querySelector('.fbz-sl-btn');
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = wrap.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      document.addEventListener('click', function (e) {
+        if (!wrap.contains(e.target)) {
+          wrap.classList.remove('open');
+          btn.setAttribute('aria-expanded', 'false');
+        }
+      });
     });
   }
 
