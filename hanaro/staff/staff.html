@@ -8273,10 +8273,16 @@
             });
             return { columns: INV_DEFAULT_COLS.slice(), grid, merges, aligns: [], rowColors, updatedDate: '' };
         }
+        // Firestore는 중첩 배열을 지원하지 않으므로 grid/aligns는 JSON 문자열로 저장/로드.
+        // 문자열(신규)·배열(구버전) 모두 2차원 배열로 복원.
+        function invParse2D(v) {
+            if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { v = []; } }
+            return Array.isArray(v) ? v.map(r => Array.isArray(r) ? r.slice() : []) : [];
+        }
         function invMigrate(data) {
             data = data || {};
-            if (Array.isArray(data.columns) && Array.isArray(data.grid)) {
-                return { columns: data.columns.slice(), grid: data.grid.map(r => Array.isArray(r) ? r.slice() : []), merges: (data.merges || []).map(m => ({ r:m.r, c:m.c, rs:m.rs, cs:m.cs })), aligns: Array.isArray(data.aligns) ? data.aligns.map(r => Array.isArray(r) ? r.slice() : []) : [], rowColors: Array.isArray(data.rowColors) ? data.rowColors.slice() : [], updatedDate: data.updatedDate || '' };
+            if (Array.isArray(data.columns) && (Array.isArray(data.grid) || typeof data.grid === 'string')) {
+                return { columns: data.columns.slice(), grid: invParse2D(data.grid), merges: (data.merges || []).map(m => ({ r:m.r, c:m.c, rs:m.rs, cs:m.cs })), aligns: invParse2D(data.aligns), rowColors: Array.isArray(data.rowColors) ? data.rowColors.slice() : [], updatedDate: data.updatedDate || '' };
             }
             // 구버전(groups) → grid+merges 변환
             const grid = [], merges = [];
@@ -8538,9 +8544,9 @@
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
                 const payload = {
                     columns: inventoryData.columns,
-                    grid: inventoryData.grid,
+                    grid: JSON.stringify(inventoryData.grid || []),       // 중첩 배열 회피: 문자열로 저장
                     merges: inventoryData.merges,
-                    aligns: inventoryData.aligns || [],
+                    aligns: JSON.stringify(inventoryData.aligns || []),   // 중첩 배열 회피: 문자열로 저장
                     rowColors: inventoryData.rowColors || [],
                     updatedDate: dateKey,
                     updatedAt: new Date().toISOString(),
