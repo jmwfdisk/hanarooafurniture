@@ -47,7 +47,7 @@
       { label: '사회보험 통합징수포털',   url: 'https://si4n.nhis.or.kr/jpza/JpZaa00101.do' },
       { label: '근로복지공단 토탈서비스', url: 'https://total.comwel.or.kr/' }
     ]},
-    { category: '금융(기업뱅킹)', links: [
+    { category: '금융업무', links: [
       { label: '하나은행 기업뱅킹',       url: 'https://biz.kebhana.com/index.jsp' },
       { label: '신한은행 기업뱅킹',       url: 'https://bizbank.shinhan.com/main.html' },
       { label: '우리은행 기업뱅킹',       url: 'https://nbi.wooribank.com/nbi/woori?withyou=bi' }
