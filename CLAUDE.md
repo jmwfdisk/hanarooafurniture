@@ -37,9 +37,14 @@ hanaro/
   AS/AS.html            ← A/S 신청 페이지
   Gallery/Gallery.html  ← 갤러리
   company/company.html  ← 회사 소개 (좌측 메뉴 + 우측 내용, 인증현황 드롭다운)
-  support/support.html  ← 고객지원 (Apple 지원 스타일: 카테고리 아이콘 + 퀵카드)
+  support/support.html  ← 고객지원 (Apple 지원 스타일: 제품 카테고리 + 퀵카드)
+  support/repair.html   ← 수리 및 서비스 (A/S기간·하자보증·접수방법)
+  support/faq.html      ← 자주묻는 질문 (아코디언)
   product/product.html  ← 제품 목록 (네비 '제품 라인업')
-  product/intro.html    ← 제품소개 (네비 '제품소개', 현재 준비중 플레이스홀더)
+  product/intro.html    ← 제품소개 개요 (네비 '제품소개'): 보조네비(H/HS/OA) + 블러 히어로
+  product/h.html        ← H시리즈 (intro 보조네비 공유)
+  product/hs.html       ← HS시리즈
+  product/oa.html       ← OA시리즈
   school/school.html    ← 납품학교 리스트 (로그인 필요)
   staff/staff.html      ← 임직원 전용 게시판 (임직원/관리자만)
   lib/tabulator/        ← Locally bundled Tabulator.js (fallback)
