@@ -51,7 +51,8 @@
     { label: '근로복지공단 토탈서비스', url: 'https://total.comwel.or.kr/' },
     { label: '퍼맥스',                url: 'https://furmax.co.kr' },
     { label: '포맥스체어',             url: 'http://www.formaxchair.co.kr/main.html' },
-    { label: '옥천군청',               url: 'https://www.oc.go.kr/www/index.do' }
+    { label: '옥천군청',               url: 'https://www.oc.go.kr/www/index.do' },
+    { label: '정부조달수출진흥협회 교육', url: 'https://www.kepedu.or.kr' }
   ];
 
   // 인증마크 (파일은 /image/ 에 저장). 누락 시 onerror로 숨김.
