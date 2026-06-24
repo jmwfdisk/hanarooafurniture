@@ -2767,6 +2767,35 @@
         let selectedFiles = []; // 선택된 파일들을 추적하는 전역 변수
         let isSubmittingPost = false; // 등록 버튼 연타로 인한 중복 저장 방지 플래그
 
+        // 화면 정중앙 확인 팝업 (네이티브 alert은 위치 조정 불가 → A/S 등록 안내창과 동일 레이아웃)
+        function showStaffDonePopup(message) {
+            const old = document.getElementById('staff-done-popup');
+            if (old) old.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'staff-done-popup';
+            overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100000;';
+            const box = document.createElement('div');
+            box.style.cssText = 'background:#fff;border-radius:16px;padding:28px 32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
+            const icon = document.createElement('div');
+            icon.style.cssText = 'font-size:40px;line-height:1;margin-bottom:12px;';
+            icon.textContent = '✅';
+            const msg = document.createElement('div');
+            msg.style.cssText = 'font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:20px;';
+            msg.textContent = message;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = '확인';
+            btn.style.cssText = 'padding:11px 28px;background:linear-gradient(135deg,#0071e3,#005bb5);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;';
+            const close = () => overlay.remove();
+            btn.addEventListener('click', close);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+            document.addEventListener('keydown', function esc(e){ if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+            box.appendChild(icon); box.appendChild(msg); box.appendChild(btn);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            btn.focus();
+        }
+
         let currentBoard = 'notice';
         let currentPage = {};
         let currentPostIndex = -1; // 현재 상세보기 중인 게시글 인덱스
@@ -3670,7 +3699,7 @@
                     currentPage[currentBoard] = 1;
                     renderPosts();
                     hideWriteForm();
-                    alert('게시글이 등록되었습니다.');
+                    showStaffDonePopup('게시글이 등록되었습니다.');
                 }).catch(() => {
                     // 저장 실패 시 로컬 추가분 되돌리고 잠금 해제 (savePosts가 이미 원인 알림)
                     allPosts[currentBoard].shift();
@@ -3748,7 +3777,7 @@
                 renderPosts();
                 hideWriteForm();
                 if (persisted) {
-                    alert('게시글이 등록되었습니다.');
+                    showStaffDonePopup('게시글이 등록되었습니다.');
                 } else {
                     alert('주의: 파일은 업로드됐지만 게시글이 서버에 저장되지 않았습니다.\n새로고침하면 사라집니다. (Firestore staffPosts 쓰기 권한/규칙을 확인하세요)');
                 }
@@ -3806,7 +3835,7 @@
                                 currentPage[currentBoard] = 1;
                                 renderPosts();
                                 hideWriteForm();
-                                alert('게시글이 등록되었습니다.');
+                                showStaffDonePopup('게시글이 등록되었습니다.');
                             }).catch(() => {
                                 allPosts[currentBoard].shift();
                                 resetSubmitLock();
@@ -3845,7 +3874,7 @@
                                 currentPage[currentBoard] = 1;
                                 renderPosts();
                                 hideWriteForm();
-                                alert('게시글이 등록되었습니다.');
+                                showStaffDonePopup('게시글이 등록되었습니다.');
                             }).catch(() => {
                                 allPosts[currentBoard].shift();
                                 resetSubmitLock();
