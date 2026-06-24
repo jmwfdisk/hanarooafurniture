@@ -9138,6 +9138,7 @@
             <button class="schedule-nav-btn" onclick="scheduleGoPrev()" title="이전에 저장된 일정">◀ 이전</button>
             <input type="date" id="schedule-date" class="schedule-date" onchange="scheduleDatePicked()" title="기준일 선택">
             <button class="schedule-nav-btn" onclick="scheduleGoNext()" title="다음에 저장된 일정">다음 ▶</button>
+            <button id="schedule-date-del" class="schedule-nav-btn schedule-date-del" onclick="deleteScheduleDate()" title="현재 보고 있는 저장된 일정 삭제" style="display:none;">🗑 삭제</button>
             <span id="schedule-date-label" class="schedule-date-label"></span>
           </div>
           <button class="schedule-close" onclick="closeScheduleModal()">&times;</button>
@@ -9190,6 +9191,8 @@
         .schedule-datenav { margin-left:auto; display:flex; align-items:center; gap:8px; }
         .schedule-nav-btn { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.35); color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; white-space:nowrap; }
         .schedule-nav-btn:hover { background:rgba(255,255,255,.3); }
+        .schedule-date-del { background:rgba(229,72,77,.85); border-color:rgba(229,72,77,.6); }
+        .schedule-date-del:hover { background:rgba(229,72,77,1); }
         .schedule-date { padding:5px 8px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
         .schedule-date-label { font-size:12px; opacity:.85; white-space:nowrap; }
         .schedule-close { background:rgba(255,255,255,.2); border:none; color:#fff; width:34px; height:34px; border-radius:50%; font-size:22px; cursor:pointer; line-height:1; }
@@ -9368,6 +9371,12 @@
                     ? `저장된 일정 ${scheduleDates.length}건${idx >= 0 ? ` · ${idx + 1}/${scheduleDates.length}` : ' (신규)'}`
                     : '저장된 일정 없음 (신규)';
             }
+            // 삭제 버튼은 편집 권한 + 현재 날짜가 실제 저장된 일정일 때만 노출
+            const delBtn = document.getElementById('schedule-date-del');
+            if (delBtn) {
+                const canEdit = (typeof getScheduleCanEdit === 'function') ? getScheduleCanEdit() : false;
+                delBtn.style.display = (canEdit && scheduleDates.includes(scheduleCurrentDate)) ? 'inline-flex' : 'none';
+            }
         }
 
         // 이전/다음: 저장된 날짜들 사이를 이동 (없으면 안내)
@@ -9385,6 +9394,27 @@
         function scheduleDatePicked() {
             const v = document.getElementById('schedule-date').value;
             if (v) loadScheduleForDate(v);
+        }
+        // 현재 보고 있는 저장된 일정(날짜 문서) 삭제
+        async function deleteScheduleDate() {
+            if (!getScheduleCanEdit()) { alert('일정 편집 권한이 없습니다.'); return; }
+            if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
+            const dateKey = scheduleCurrentDate;
+            if (!dateKey || !scheduleDates.includes(dateKey)) { alert('삭제할 저장된 일정이 없습니다.\n(저장되지 않은 신규 일정은 삭제할 게 없습니다)'); return; }
+            if (!(await showStaffConfirm(`'${dateKey}' 일정을 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))) return;
+            try {
+                await db.collection('deliverySchedule').doc(dateKey).delete();
+                scheduleDates = scheduleDates.filter(d => d !== dateKey);
+                // 인접한 저장 일정으로 이동(다음 → 없으면 이전), 둘 다 없으면 오늘 날짜 신규
+                const next = scheduleDates.filter(d => d > dateKey).shift()
+                          || scheduleDates.filter(d => d < dateKey).pop()
+                          || scheduleTodayKey();
+                await loadScheduleForDate(next);
+                alert(`'${dateKey}' 일정을 삭제했습니다.`);
+            } catch (e) {
+                console.error('일정 삭제 실패:', e);
+                alert('삭제 중 오류가 발생했습니다.\n' + (e.message || ''));
+            }
         }
 
         function renderSchedule() {
