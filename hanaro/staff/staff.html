@@ -2796,6 +2796,45 @@
             btn.focus();
         }
 
+        // 화면 정중앙 확인(취소/삭제) 팝업 — 네이티브 confirm 대체, 등록 안내창과 동일 레이아웃
+        function showStaffConfirmPopup(message, onConfirm, opts) {
+            opts = opts || {};
+            const old = document.getElementById('staff-confirm-popup');
+            if (old) old.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'staff-confirm-popup';
+            overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100000;';
+            const box = document.createElement('div');
+            box.style.cssText = 'background:#fff;border-radius:16px;padding:28px 32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
+            const icon = document.createElement('div');
+            icon.style.cssText = 'font-size:40px;line-height:1;margin-bottom:12px;';
+            icon.textContent = opts.icon || '🗑️';
+            const msg = document.createElement('div');
+            msg.style.cssText = 'font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:22px;white-space:pre-line;';
+            msg.textContent = message;
+            const btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.textContent = '취소';
+            cancelBtn.style.cssText = 'padding:11px 24px;background:#eef0f3;color:#444;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;';
+            const okBtn = document.createElement('button');
+            okBtn.type = 'button';
+            okBtn.textContent = opts.confirmText || '삭제';
+            okBtn.style.cssText = 'padding:11px 24px;background:' + (opts.confirmColor || 'linear-gradient(135deg,#e5484d,#c0383c)') + ';color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;';
+            function onKey(e){ if (e.key === 'Escape') close(); }
+            const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+            cancelBtn.addEventListener('click', close);
+            okBtn.addEventListener('click', () => { close(); if (typeof onConfirm === 'function') onConfirm(); });
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+            document.addEventListener('keydown', onKey);
+            btnRow.appendChild(cancelBtn); btnRow.appendChild(okBtn);
+            box.appendChild(icon); box.appendChild(msg); box.appendChild(btnRow);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            okBtn.focus();
+        }
+
         let currentBoard = 'notice';
         let currentPage = {};
         let currentPostIndex = -1; // 현재 상세보기 중인 게시글 인덱스
@@ -3261,7 +3300,7 @@
                 return;
             }
             
-            if (confirm("정말 삭제하시겠습니까?")) {
+            showStaffConfirmPopup("정말 삭제하시겠습니까?", () => {
                 allPosts[currentBoard].splice(index, 1);
                 savePosts(currentBoard).then(() => {
                     // 현재 페이지가 비어있으면 이전 페이지로 이동
@@ -3271,7 +3310,7 @@
                     }
                     renderPosts();
                 });
-            }
+            });
         }
 
         function renderPagination() {
