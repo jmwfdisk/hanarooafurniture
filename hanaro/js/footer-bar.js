@@ -53,11 +53,11 @@
     { label: '포맥스체어',             url: 'http://www.formaxchair.co.kr/main.html' },
     { label: '옥천군청',               url: 'https://www.oc.go.kr/www/index.do' },
     { label: '정부조달수출진흥협회 교육', url: 'https://www.kepedu.or.kr' },
-    { label: '한국건설생활환경시험연구원(KCL)', url: 'https://www.kcl.re.kr/site/main/index001.do' },
+    { label: 'KCL',                   url: 'https://www.kcl.re.kr/site/main/index001.do' },
     { label: 'KOTRA 무역투자24',        url: 'https://www.kotra.or.kr/index.do' },
     { label: '중소벤처24',              url: 'https://www.smes.go.kr/main/index' },
-    { label: '벤처나라(조달청)',         url: 'https://venture.g2b.go.kr' },
-    { label: '2026 온라인 수출상담회',    url: 'https://2026keponline.com/fairDash.do?hl=KOR' }
+    { label: '조달청 벤처나라',          url: 'https://venture.g2b.go.kr' },
+    { label: '해외조달시장 수출상담회',    url: 'https://2026keponline.com/fairDash.do?hl=KOR' }
   ];
 
   // 인증마크 (파일은 /image/ 에 저장). 누락 시 onerror로 숨김.
