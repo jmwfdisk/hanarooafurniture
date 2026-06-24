@@ -278,6 +278,8 @@
   // index.html은 .partner-logos가 여러 개(홈/납품학교 SPA 섹션 등)라
   // 모든 스트립에 주입(화면당 하나만 보이므로 중복 노출 없음).
   function buildSiteLinks() {
+    // '바로가기' 드롭다운은 임직원 페이지(staff.html)에서만 노출. 그 외 페이지에는 주입하지 않음.
+    if (!/\/staff\//.test(location.pathname)) return;
     var items = SITE_LINKS.map(function (l) {
       return '<a href="' + l.url + '" target="_blank" rel="noopener">' + l.label + '</a>';
     }).join('');
