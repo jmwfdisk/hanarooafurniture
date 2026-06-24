@@ -177,7 +177,7 @@
     '.fbz-sl-menu a:hover{background:#f5f7fa !important;color:#111 !important;transform:none !important;}' +
     '.fbz-sl-menu a img{display:none !important;}' +
     '.fbz-sl-group + .fbz-sl-group{border-top:1px solid #eceef1;margin-top:2px;}' +
-    '.fbz-sl-cat{padding:8px 16px 4px;font-size:11px;font-weight:700;color:#8a93a0;' +
+    '.fbz-sl-cat{padding:8px 16px 4px;font-size:11px;font-weight:700;color:#2e9e54;' +
       'letter-spacing:.02em;white-space:nowrap;}' +
     '@media (max-width:768px){' +
       '.fbz-sitelinks{position:relative;transform:none;right:auto;top:auto;flex-basis:100%;' +
