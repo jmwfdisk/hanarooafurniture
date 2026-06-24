@@ -39,26 +39,41 @@
   };
 
   // 하단 정부로고 영역 우측 '바로가기' 드롭다운 링크 (항목을 추가하면 메뉴에 자동 반영)
+  // 카테고리별 그룹. 항목을 추가하려면 해당 그룹 links에 {label, url} 추가.
   var SITE_LINKS = [
-    { label: '네이트 메일',            url: 'https://mail.nate.com/' },
-    { label: '홈택스',                url: 'https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&menuCd=index3' },
-    { label: '위택스(지방세)',         url: 'https://www.wetax.go.kr/main.do' },
-    { label: '하나은행 기업뱅킹',       url: 'https://biz.kebhana.com/index.jsp' },
-    { label: '신한은행 기업뱅킹',       url: 'https://bizbank.shinhan.com/main.html' },
-    { label: '우리은행 기업뱅킹',       url: 'https://nbi.wooribank.com/nbi/woori?withyou=bi' },
-    { label: '나라장터 종합쇼핑몰',     url: 'https://goods.g2b.go.kr:8053/main/main.do' },
-    { label: '사회보험 통합징수포털',   url: 'https://si4n.nhis.or.kr/jpza/JpZaa00101.do' },
-    { label: '근로복지공단 토탈서비스', url: 'https://total.comwel.or.kr/' },
-    { label: '퍼맥스',                url: 'https://furmax.co.kr' },
-    { label: '포맥스체어',             url: 'http://www.formaxchair.co.kr/main.html' },
-    { label: '옥천군청',               url: 'https://www.oc.go.kr/www/index.do' },
-    { label: 'KEP 교육',              url: 'https://www.kepedu.or.kr' },
-    { label: '특허정보검색',            url: 'https://www.kipris.or.kr/khome/main.do' },
-    { label: 'KCL',                   url: 'https://www.kcl.re.kr/site/main/index001.do' },
-    { label: 'KOTRA 무역투자24',        url: 'https://www.kotra.or.kr/index.do' },
-    { label: '중소벤처24',              url: 'https://www.smes.go.kr/main/index' },
-    { label: '조달청 벤처나라',          url: 'https://venture.g2b.go.kr' },
-    { label: '해외조달시장 수출상담회',    url: 'https://2026keponline.com/fairDash.do?hl=KOR' }
+    { category: '세무·4대보험', links: [
+      { label: '홈택스',                url: 'https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&menuCd=index3' },
+      { label: '위택스(지방세)',         url: 'https://www.wetax.go.kr/main.do' },
+      { label: '사회보험 통합징수포털',   url: 'https://si4n.nhis.or.kr/jpza/JpZaa00101.do' },
+      { label: '근로복지공단 토탈서비스', url: 'https://total.comwel.or.kr/' }
+    ]},
+    { category: '금융(기업뱅킹)', links: [
+      { label: '하나은행 기업뱅킹',       url: 'https://biz.kebhana.com/index.jsp' },
+      { label: '신한은행 기업뱅킹',       url: 'https://bizbank.shinhan.com/main.html' },
+      { label: '우리은행 기업뱅킹',       url: 'https://nbi.wooribank.com/nbi/woori?withyou=bi' }
+    ]},
+    { category: '조달업무', links: [
+      { label: '나라장터 종합쇼핑몰',     url: 'https://goods.g2b.go.kr:8053/main/main.do' },
+      { label: '조달청 벤처나라',          url: 'https://venture.g2b.go.kr' },
+      { label: '중소벤처24',              url: 'https://www.smes.go.kr/main/index' }
+    ]},
+    { category: '수출·해외 업무', links: [
+      { label: 'KOTRA 무역투자24',        url: 'https://www.kotra.or.kr/index.do' },
+      { label: 'KEP 교육',              url: 'https://www.kepedu.or.kr' },
+      { label: '해외조달시장 수출상담회',    url: 'https://2026keponline.com/fairDash.do?hl=KOR' }
+    ]},
+    { category: '인증·시험·특허', links: [
+      { label: 'KCL',                   url: 'https://www.kcl.re.kr/site/main/index001.do' },
+      { label: '특허정보검색',            url: 'https://www.kipris.or.kr/khome/main.do' }
+    ]},
+    { category: '협력사', links: [
+      { label: '퍼맥스',                url: 'https://furmax.co.kr' },
+      { label: '포맥스체어',             url: 'http://www.formaxchair.co.kr/main.html' }
+    ]},
+    { category: '기타', links: [
+      { label: '네이트 메일',            url: 'https://mail.nate.com/' },
+      { label: '옥천군청',               url: 'https://www.oc.go.kr/www/index.do' }
+    ]}
   ];
 
   // 인증마크 (파일은 /image/ 에 저장). 누락 시 onerror로 숨김.
@@ -161,6 +176,9 @@
     '.fbz-sl-menu a::before{display:none !important;content:none !important;}' +
     '.fbz-sl-menu a:hover{background:#f5f7fa !important;color:#111 !important;transform:none !important;}' +
     '.fbz-sl-menu a img{display:none !important;}' +
+    '.fbz-sl-group + .fbz-sl-group{border-top:1px solid #eceef1;margin-top:2px;}' +
+    '.fbz-sl-cat{padding:8px 16px 4px;font-size:11px;font-weight:700;color:#8a93a0;' +
+      'letter-spacing:.02em;white-space:nowrap;}' +
     '@media (max-width:768px){' +
       '.fbz-sitelinks{position:relative;transform:none;right:auto;top:auto;flex-basis:100%;' +
         'display:flex;justify-content:center;margin-top:12px;}' +
@@ -287,8 +305,11 @@
   function buildSiteLinks() {
     // '바로가기' 드롭다운은 임직원 페이지(staff.html)에서만 노출. 그 외 페이지에는 주입하지 않음.
     if (!/\/staff\//.test(location.pathname)) return;
-    var items = SITE_LINKS.map(function (l) {
-      return '<a href="' + l.url + '" target="_blank" rel="noopener">' + l.label + '</a>';
+    var items = SITE_LINKS.map(function (g) {
+      var links = g.links.map(function (l) {
+        return '<a href="' + l.url + '" target="_blank" rel="noopener">' + l.label + '</a>';
+      }).join('');
+      return '<div class="fbz-sl-group"><div class="fbz-sl-cat">' + g.category + '</div>' + links + '</div>';
     }).join('');
     document.querySelectorAll('.partner-logos').forEach(function (pl) {
       if (pl.querySelector('.fbz-sitelinks')) return;
