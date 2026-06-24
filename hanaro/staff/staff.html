@@ -1234,6 +1234,15 @@
             transform: scale(1.05);
         }
 
+        /* 등록 버튼 로딩 스피너 */
+        .btn-spinner {
+            display: inline-block; width: 15px; height: 15px;
+            border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff;
+            border-radius: 50%; animation: btnspin 0.7s linear infinite;
+            vertical-align: -2px; margin-right: 8px;
+        }
+        @keyframes btnspin { to { transform: rotate(360deg); } }
+
         .write-form button {
             padding: 12px 24px;
             background: linear-gradient(135deg, #44aa6b 0%, #3a8f5a 100%);
@@ -3324,8 +3333,8 @@
             if (authorInput) authorInput.value = '';
             if (contentInput) contentInput.value = '';
             
-            // A/S 처리결과 및 자료실 게시판일 때 파일 업로드 섹션 표시
-            if (currentBoard === 'as-result' || currentBoard === 'staff-data') {
+            // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 섹션 표시
+            if (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
                 if (fileUploadSection) fileUploadSection.style.display = 'block';
                 if (fileUpload) {
                     fileUpload.value = '';
@@ -3362,7 +3371,10 @@
         function resetSubmitLock() {
             isSubmittingPost = false;
             const submitBtn = document.querySelector('#write-form .write-submit, #write-form button[onclick="submitPost()"]');
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; }
+            if (submitBtn) {
+                submitBtn.disabled = false; submitBtn.style.opacity = '';
+                if (submitBtn.dataset.orig != null) { submitBtn.innerHTML = submitBtn.dataset.orig; delete submitBtn.dataset.orig; }
+            }
         }
         
         // 파일 선택 핸들러
@@ -3593,7 +3605,11 @@
             // 여기서부터 실제 저장 시작 → 중복 제출 잠금 + 등록 버튼 비활성화
             isSubmittingPost = true;
             const submitBtn = document.querySelector('#write-form .write-submit, #write-form button[onclick="submitPost()"]');
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6'; }
+            if (submitBtn) {
+                if (submitBtn.dataset.orig == null) submitBtn.dataset.orig = submitBtn.innerHTML;
+                submitBtn.disabled = true; submitBtn.style.opacity = '0.8';
+                submitBtn.innerHTML = '<span class="btn-spinner"></span>등록 중…';
+            }
 
             // 현재 사용자 정보 가져오기 (작성자 확인용)
             const loggedInUser = sessionStorage.getItem('loggedInUser');
@@ -3612,8 +3628,8 @@
                 }
             }
             
-            // A/S 처리결과 및 자료실 게시판일 때 파일 업로드 처리
-            if ((currentBoard === 'as-result' || currentBoard === 'staff-data') && selectedFiles.length > 0) {
+            // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 처리
+            if ((currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') && selectedFiles.length > 0) {
                 // 파일 크기 검증
                 const oversizedFiles = selectedFiles.filter(f => f.size > 10 * 1024 * 1024);
                 if (oversizedFiles.length > 0) {

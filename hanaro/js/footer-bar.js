@@ -10,7 +10,7 @@
  *   누락된 파일은 자동으로 숨겨집니다(onerror).
  *     cert-excellent.png  (조달청 우수조달물품)
  *     cert-patent.png     (특허)
- *     cert-eco.jpg        (친환경 인증)
+ *     cert-eco.png        (친환경 인증)
  *     cert-women.png      (여성기업)
  *     cert-standard.png   (단체표준/SPS)
  *
@@ -58,7 +58,7 @@
   var MARKS = [
     { file: 'cert-excellent.png', alt: '조달청 우수조달물품' },
     { file: 'cert-patent.png',    alt: '특허' },
-    { file: 'cert-eco.jpg',       alt: '친환경 인증' },
+    { file: 'cert-eco.png',       alt: '친환경 인증' },
     { file: 'cert-women.png',     alt: '여성기업' },
     { file: 'cert-standard.png',  alt: '단체표준(SPS)' }
   ];
