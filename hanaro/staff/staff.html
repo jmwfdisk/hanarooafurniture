@@ -2894,6 +2894,46 @@
         const _nativeAlert = window.alert.bind(window);
         window.alert = function (m) { try { showStaffAlertPopup(m); } catch (e) { _nativeAlert(m); } };
 
+        // Promise 기반 입력창 — 네이티브 prompt 대체(중앙 정렬). 확인 시 입력값, 취소/ESC 시 null 반환.
+        function showStaffPrompt(message, defaultValue) {
+            return new Promise((resolve) => {
+                const old = document.getElementById('staff-prompt-popup');
+                if (old) old.remove();
+                const overlay = document.createElement('div');
+                overlay.id = 'staff-prompt-popup';
+                overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100001;';
+                const box = document.createElement('div');
+                box.style.cssText = 'background:#fff;border-radius:16px;padding:26px 28px;width:380px;max-width:92vw;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
+                const msg = document.createElement('div');
+                msg.style.cssText = 'font-size:15px;font-weight:600;color:#1d1d1f;margin-bottom:14px;white-space:pre-line;';
+                msg.textContent = message;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = defaultValue != null ? String(defaultValue) : '';
+                input.style.cssText = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cfd4dc;border-radius:9px;font-size:14px;margin-bottom:20px;outline:none;';
+                const btnRow = document.createElement('div');
+                btnRow.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+                const cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button'; cancelBtn.textContent = '취소';
+                cancelBtn.style.cssText = 'padding:10px 22px;background:#eef0f3;color:#444;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;';
+                const okBtn = document.createElement('button');
+                okBtn.type = 'button'; okBtn.textContent = '확인';
+                okBtn.style.cssText = 'padding:10px 22px;background:linear-gradient(135deg,#0071e3,#005bb5);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;';
+                let settled = false;
+                const finish = (val) => { if (settled) return; settled = true; overlay.remove(); document.removeEventListener('keydown', onKey); resolve(val); };
+                function onKey(e){ if (e.key === 'Escape') finish(null); else if (e.key === 'Enter') finish(input.value); }
+                cancelBtn.addEventListener('click', () => finish(null));
+                okBtn.addEventListener('click', () => finish(input.value));
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
+                document.addEventListener('keydown', onKey);
+                btnRow.appendChild(cancelBtn); btnRow.appendChild(okBtn);
+                box.appendChild(msg); box.appendChild(input); box.appendChild(btnRow);
+                overlay.appendChild(box);
+                document.body.appendChild(overlay);
+                input.focus(); input.select();
+            });
+        }
+
         let currentBoard = 'notice';
         let currentPage = {};
         let currentPostIndex = -1; // 현재 상세보기 중인 게시글 인덱스
@@ -7796,7 +7836,7 @@
                 alert('관리자 계정은 탈퇴 처리할 수 없습니다.');
                 return;
             }
-            const reason = prompt('거절/탈퇴 사유를 입력하세요. (비고에 표시됩니다)', '');
+            const reason = await showStaffPrompt('거절/탈퇴 사유를 입력하세요. (비고에 표시됩니다)', '');
             if (reason === null) return; // 취소
             try {
                 await db.collection('users').doc(userId).update({ status: 'rejected', rejectReason: reason.trim() });
@@ -9482,10 +9522,10 @@
             sheetActive.rerender();
         }
         // 선택한 셀 기준으로 열 삽입 (오른쪽). 선택 없으면 맨 끝에 추가
-        function sheetAddCol() {
+        async function sheetAddCol() {
             if (!sheetActive) return; const m = sheetActive.model; const b = schedSelBox();
             const at = b ? b.c2 + 1 : m.columns.length;
-            const name = prompt('새 열(항목) 이름을 입력하세요.', ''); if (name === null) return;
+            const name = await showStaffPrompt('새 열(항목) 이름을 입력하세요.', ''); if (name === null) return;
             sheetPushUndo(); sheetEnsureAligns(m);
             m.columns.splice(at, 0, name.trim() || '항목');
             m.grid.forEach(row => row.splice(at, 0, ''));
