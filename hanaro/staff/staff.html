@@ -734,8 +734,10 @@
 
         /* 회원관리 테이블 전용 스타일 - 열 정렬 규칙 고정 */
         /* #member-section 박스 크기는 위에서 공지사항과 동일하게 설정됨 */
+        /* overflow:hidden — .board-section::before hover 스윕이 카드 밖으로 나가
+           가짜 가로 스크롤(우측 빈 영역)을 만들던 문제 차단. 표는 max-width:100%라 실제 스크롤 불필요. */
         #member-section {
-            overflow-x: auto;
+            overflow: hidden;
         }
         
         #member-section .board-table {
