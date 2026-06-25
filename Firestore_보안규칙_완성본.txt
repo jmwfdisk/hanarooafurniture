@@ -145,21 +145,24 @@ service cloud.firestore {
     // 구조: doc(board) 형태로 각 게시판별 문서에 { posts: [...] } 형태로 저장
     
     match /staffPosts/{board} {
-      // 읽기: 임직원 또는 관리자만 가능
-      allow read: if isEmployee();
-      
-      // 생성/수정: 임직원(게시판 일반) — 단, 'as-result' 보드는 'A/S처리결과' 권한 보유자만
+      // 읽기: 임직원 또는 관리자 — 단, 'staff-report'(업무보고 본사)는 'report' 권한 보유자만
+      allow read: if isEmployee() &&
+        (board != 'staff-report' || permFor('report'));
+
+      // 생성/수정: 임직원(게시판 일반) — 단, 'as-result'는 'A/S처리결과', 'staff-report'는 'report' 권한 보유자만
       allow create: if isEmployee() &&
         board is string &&
         request.resource.data.keys().hasAny(['posts']) &&
         request.resource.data.posts is list &&
-        (board != 'as-result' || permFor('asResult'));
+        (board != 'as-result' || permFor('asResult')) &&
+        (board != 'staff-report' || permFor('report'));
 
       // 수정: 동일 규칙 (클라이언트가 전체 posts 배열 교체)
       allow update: if isEmployee() &&
         board is string &&
         request.resource.data.posts is list &&
-        (board != 'as-result' || permFor('asResult'));
+        (board != 'as-result' || permFor('asResult')) &&
+        (board != 'staff-report' || permFor('report'));
       
       // 삭제: 관리자만 가능 (게시판 전체 삭제)
       allow delete: if isAdmin();

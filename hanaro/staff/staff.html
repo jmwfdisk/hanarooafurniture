@@ -2945,6 +2945,7 @@
             notice: [],
             staff: [],
             'staff-data': [],
+            'staff-report': [],
             suggestion: [],
             'as-result': []
         };
@@ -3091,12 +3092,17 @@
                 // Firebase Firestore 사용
                 try {
                     // 게시판 문서들을 병렬로 읽어 지연 최소화(순차 await 시 RTT가 누적됨)
-                    const boards = Object.keys(allPosts);
-                    const snapshots = await Promise.all(
+                    // 업무보고(본사)는 권한 보유자만 읽을 수 있으므로(서버 규칙) 비권한자는 요청 자체를 제외
+                    const canReport = (typeof userCan === 'function' && userCan('report'));
+                    const boards = Object.keys(allPosts).filter(b => b !== 'staff-report' || canReport);
+                    // allSettled: 특정 보드 읽기가 거부돼도 나머지 보드는 정상 로드
+                    const snapshots = await Promise.allSettled(
                         boards.map(board => db.collection('staffPosts').doc(board).get())
                     );
                     boards.forEach((board, i) => {
-                        const snapshot = snapshots[i];
+                        const settled = snapshots[i];
+                        if (settled.status !== 'fulfilled') return; // 권한 거부 등은 건너뜀
+                        const snapshot = settled.value;
                         if (snapshot.exists) {
                             allPosts[board] = snapshot.data().posts || [];
                         } else {
@@ -3159,13 +3165,18 @@
         }
 
         function switchBoard(boardType) {
+            // 업무보고(본사): 권한(관리자 또는 'report' 권한) 없는 사용자 접근 차단
+            if (boardType === 'staff-report' && !(typeof userCan === 'function' && userCan('report'))) {
+                alert('업무보고(본사) 열람 권한이 없습니다.');
+                boardType = 'staff';
+            }
             currentBoard = boardType;
-            
-            // 네비게이션 활성화 (staff-data는 직원게시판 메뉴를 활성화)
+
+            // 네비게이션 활성화 (staff-data/staff-report는 직원게시판 메뉴를 활성화)
             document.querySelectorAll('.secondary-navbar a').forEach(a => {
                 a.classList.remove('active');
             });
-            const navKey = (boardType === 'staff-data') ? 'staff' : boardType;
+            const navKey = (boardType === 'staff-data' || boardType === 'staff-report') ? 'staff' : boardType;
             const navEl = document.querySelector(`[data-board="${navKey}"]`);
             if (navEl) navEl.classList.add('active');
 
@@ -3229,6 +3240,7 @@
                 'notice': '회사운영',
                 'staff': '직원게시판',
                 'staff-data': '직원게시판',
+                'staff-report': '직원게시판',
                 'suggestion': '제안활동',
                 'as-result': 'A/S 처리결과'
             };
@@ -3251,8 +3263,13 @@
             // 직원게시판 탭: 세그먼트(자유게시판/자료실) 토글 표시
             const staffSegment = document.getElementById('staff-segment');
             if (staffSegment) {
-                if (boardType === 'staff' || boardType === 'staff-data') {
+                if (boardType === 'staff' || boardType === 'staff-data' || boardType === 'staff-report') {
                     staffSegment.style.display = 'flex';
+                    // 업무보고(본사) 세그먼트 버튼: 권한 없는 인원은 메뉴 자체를 숨김
+                    const reportBtn = document.getElementById('staff-report-seg-btn');
+                    if (reportBtn) {
+                        reportBtn.style.display = (typeof userCan === 'function' && userCan('report')) ? '' : 'none';
+                    }
                     document.querySelectorAll('#staff-segment .seg-btn').forEach(b => {
                         b.classList.toggle('active', b.dataset.board === boardType);
                     });
@@ -5876,6 +5893,7 @@
     <div id="staff-segment" class="notice-segment" style="display:none;">
         <button class="seg-btn active" data-board="staff" onclick="switchBoard('staff')">자유게시판</button>
         <button class="seg-btn" data-board="staff-data" onclick="switchBoard('staff-data')">자료실</button>
+        <button class="seg-btn" id="staff-report-seg-btn" data-board="staff-report" onclick="switchBoard('staff-report')" style="display:none;">업무보고(본사)</button>
     </div>
     <div id="asresult-segment" class="notice-segment" style="display:none;">
         <button class="seg-btn active" data-seg="pending" onclick="setAsrSegment('pending')">A/S 신청목록</button>
@@ -7603,7 +7621,7 @@
                 let actionButtons = '';
                 if (isApprovedTab && isAdminViewer && !memberIsAdmin) {
                     const p = member.permissions || {};
-                    const hasAny = p.all || p.company || p.photos || p.schedule || p.asResult || member.scheduleEditor;
+                    const hasAny = p.all || p.company || p.photos || p.schedule || p.asResult || p.inventory || p.report || member.scheduleEditor;
                     actionButtons = `<button class="member-perm-btn ${hasAny ? 'on' : ''}" onclick="openPermModal('${member.id}')" title="작성·관리 권한 설정">권한설정</button>`;
                 } else if (currentMemberTab === 'rejected') {
                     const reason = (member.rejectReason || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -7681,7 +7699,8 @@
             { key: 'photos',    label: '활동사진첩' },
             { key: 'schedule',  label: '일정관리' },
             { key: 'asResult',  label: 'A/S처리결과' },
-            { key: 'inventory', label: '재고현황' }
+            { key: 'inventory', label: '재고현황' },
+            { key: 'report',    label: '업무보고(본사)' }
         ];
         let permModalUserId = null;
 
@@ -8820,6 +8839,7 @@
           <label class="perm-row"><span>일정관리</span><input type="checkbox" id="perm-schedule"></label>
           <label class="perm-row"><span>A/S처리결과</span><input type="checkbox" id="perm-asResult"></label>
           <label class="perm-row"><span>재고현황</span><input type="checkbox" id="perm-inventory"></label>
+          <label class="perm-row"><span>업무보고(본사)</span><input type="checkbox" id="perm-report"></label>
         </div>
         <div class="perm-modal-foot">
           <button class="perm-cancel" onclick="closePermModal()">취소</button>
