@@ -2719,7 +2719,9 @@
 
     <!-- 공통 인증 스크립트 -->
     <script src="../js/auth.js"></script>
-    <script src="../js/footer-bar.js?v=20260647"></script>
+    <script src="../js/footer-bar.js?v=20260625"></script>
+    <!-- 글쓰기 리치 에디터 본문 살균(XSS 방지). 미로딩 시 평문 폴백 -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
      <script>
         // Firebase Firestore 참조 (auth.js에서 초기화된 것 사용)
@@ -3516,7 +3518,7 @@
             
             if (titleInput) titleInput.value = '';
             if (authorInput) authorInput.value = '';
-            if (contentInput) contentInput.value = '';
+            if (contentInput) contentInput.innerHTML = ''; // 리치 에디터(contenteditable) 초기화
             
             // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 섹션 표시
             if (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
@@ -3561,6 +3563,87 @@
                 if (submitBtn.dataset.orig != null) { submitBtn.innerHTML = submitBtn.dataset.orig; delete submitBtn.dataset.orig; }
             }
         }
+
+        // ===== 글쓰기 리치 에디터 (워드/한글 스타일 기본 서식) =====
+        // HTML에서 태그를 제거한 평문 추출(검색·빈값 판정용)
+        function rteToText(html) {
+            try { return new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent || ''; }
+            catch (e) { return String(html || ''); }
+        }
+        // 본문 HTML 살균(XSS 방지). DOMPurify 미로딩 시 태그 제거 + escape로 안전 폴백
+        function rteSanitize(html) {
+            const s = String(html || '');
+            if (window.DOMPurify && typeof DOMPurify.sanitize === 'function') {
+                return DOMPurify.sanitize(s, {
+                    ALLOWED_TAGS: ['p','div','span','br','b','strong','i','em','u','s','strike','font','ul','ol','li','h3','blockquote'],
+                    ALLOWED_ATTR: ['style','color','size','face'],
+                    ALLOWED_URI_REGEXP: /^$/   // 링크/이미지 미허용
+                });
+            }
+            return rteToText(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        }
+
+        // 툴바 동작 연결(한 번만). 선택영역을 유지하기 위해 마지막 range를 추적
+        let rteSavedRange = null;
+        function initRteToolbar() {
+            const tb = document.getElementById('write-rte-toolbar');
+            const editor = document.getElementById('write-content');
+            if (!tb || !editor || tb.dataset.bound === '1') return;
+            tb.dataset.bound = '1';
+
+            // 에디터 안에서 선택이 바뀔 때마다 range 저장(색상 선택기 등으로 포커스를 잃어도 복원 가능)
+            document.addEventListener('selectionchange', () => {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount && editor.contains(sel.anchorNode)) {
+                    rteSavedRange = sel.getRangeAt(0).cloneRange();
+                }
+            });
+            const applyCmd = (cmd, value) => {
+                editor.focus();
+                if (rteSavedRange) {
+                    const sel = window.getSelection();
+                    sel.removeAllRanges(); sel.addRange(rteSavedRange);
+                }
+                try { document.execCommand(cmd, false, value); } catch (e) { console.warn('execCommand 실패:', cmd, e); }
+            };
+            // 버튼/라벨 클릭 시 에디터 선택영역이 풀리지 않도록 기본동작 방지
+            tb.addEventListener('mousedown', e => { if (e.target.closest('button, label')) e.preventDefault(); });
+            tb.addEventListener('click', e => {
+                const btn = e.target.closest('button[data-cmd]');
+                if (btn) applyCmd(btn.dataset.cmd);
+            });
+            const fs = document.getElementById('rte-fontsize');
+            if (fs) fs.addEventListener('change', () => {
+                const pt = fs.value;
+                fs.selectedIndex = 0;                       // 같은 크기 재선택 가능하도록 초기화
+                if (!pt) return;
+                editor.focus();
+                const sel = window.getSelection();
+                if (rteSavedRange) { sel.removeAllRanges(); sel.addRange(rteSavedRange); }
+                if (!sel.rangeCount) return;
+                const range = sel.getRangeAt(0);
+                if (range.collapsed) { alert('크기를 적용할 글자를 먼저 선택하세요.'); return; }
+                // 선택 영역을 font-size 지정 span으로 감싸 임의의 pt 크기 적용(execCommand는 1~7만 지원)
+                const span = document.createElement('span');
+                span.style.fontSize = pt + 'pt';
+                try { range.surroundContents(span); }
+                catch (e) { const frag = range.extractContents(); span.appendChild(frag); range.insertNode(span); }
+                const nr = document.createRange();
+                nr.selectNodeContents(span);
+                sel.removeAllRanges(); sel.addRange(nr);
+                rteSavedRange = nr.cloneRange();
+            });
+            const fc = document.getElementById('rte-forecolor');
+            if (fc) fc.addEventListener('input', () => applyCmd('foreColor', fc.value));
+            const bc = document.getElementById('rte-backcolor');
+            if (bc) bc.addEventListener('input', () => {
+                // hiliteColor가 안 먹는 브라우저는 backColor로 대체
+                editor.focus();
+                if (rteSavedRange) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rteSavedRange); }
+                if (!document.execCommand('hiliteColor', false, bc.value)) document.execCommand('backColor', false, bc.value);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', initRteToolbar);
         
         // 파일 선택 핸들러
         function handleFileSelect(event) {
@@ -3780,9 +3863,11 @@
             
             const title = titleInput.value.trim();
             const author = authorInput.value.trim();
-            const content = contentInput.value.trim();
+            // 리치 에디터: 표시 텍스트로 빈값 검사, 저장은 살균된 HTML
+            const contentText = (contentInput.innerText || contentInput.textContent || '').trim();
+            const content = contentText ? rteSanitize(contentInput.innerHTML) : '';
 
-            if (!title || !author || !content) {
+            if (!title || !author || !contentText) {
                 alert('모든 항목을 입력하세요.');
                 return;
             }
@@ -4062,7 +4147,12 @@
             document.getElementById('post-meta').innerHTML = `
                 <strong>작성자:</strong> ${escMeta(post.author)} &nbsp;|&nbsp; <strong>작성일:</strong> ${escMeta(post.date)} &nbsp;|&nbsp; <strong>조회:</strong> ${post.views || 0}
             `;
-            document.getElementById('post-content').textContent = post.content;
+            // 본문: 리치 에디터 HTML이면 살균 후 렌더, 레거시 평문이면 escape + 줄바꿈 보존
+            const _rawContent = post.content || '';
+            const _looksHtml = /<[a-z!/][^>]*>/i.test(_rawContent);
+            document.getElementById('post-content').innerHTML = _looksHtml
+                ? rteSanitize(_rawContent)
+                : escMeta(_rawContent).replace(/\n/g, '<br>');
             
             // 첨부파일 표시 (단일 영역) — 파일명 + 다운로드 버튼
             const postFiles = document.getElementById('post-files');
@@ -4245,7 +4335,10 @@
                 if (searchType === 'title') {
                     return post.title.toLowerCase().includes(searchQuery);
                 } else {
-                    return post.content.toLowerCase().includes(searchQuery);
+                    // 리치 에디터 HTML은 태그를 제거한 평문으로 검색
+                    const c = post.content || '';
+                    const plain = /<[a-z!/][^>]*>/i.test(c) ? rteToText(c) : c;
+                    return plain.toLowerCase().includes(searchQuery);
                 }
             });
 
@@ -5931,12 +6024,66 @@
     <div id="asresult-view" style="display:none;"></div>
 </div>
 
+    <!-- 글쓰기 리치 에디터 스타일 -->
+    <style>
+        .rte-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:8px; border:1px solid #d5d9e0; border-bottom:none; border-radius:12px 12px 0 0; background:#f7f8fa; }
+        /* 버튼·셀렉트·색상 높이/테두리 통일(34px, border-box) */
+        .rte-toolbar .rte-btn, .rte-toolbar .rte-select, .rte-toolbar .rte-color { box-sizing:border-box; height:34px; border:1px solid #d5d9e0; border-radius:8px; background:#fff; color:#333; cursor:pointer; vertical-align:middle; margin:0; box-shadow:0 1px 2px rgba(0,0,0,0.08); transition:transform .15s ease, box-shadow .15s ease, background .15s ease; }
+        .rte-toolbar .rte-btn { min-width:34px; padding:0 8px; font-size:14px; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
+        .rte-toolbar .rte-btn:hover, .rte-toolbar .rte-select:hover, .rte-toolbar .rte-color:hover { transform:translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,0.13); background-color:#fbfcfe; }
+        .rte-toolbar .rte-btn:active, .rte-toolbar .rte-select:active, .rte-toolbar .rte-color:active { transform:translateY(0); box-shadow:0 1px 2px rgba(0,0,0,0.1); }
+        .rte-toolbar .rte-sep { width:1px; height:20px; background:#d5d9e0; margin:0 4px; }
+        .rte-toolbar .rte-select { -webkit-appearance:none; appearance:none; font-size:13px; padding:0 26px 0 8px; background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 7px center; }
+        .rte-toolbar .rte-color { display:inline-flex; align-items:center; justify-content:center; width:34px; position:relative; overflow:hidden; font-size:14px; font-weight:700; padding:0; }
+        .rte-toolbar .rte-color input[type=color] { position:absolute; left:0; top:0; width:100%; height:100%; padding:0; margin:0; border:none; opacity:0; cursor:pointer; }
+        .rte-editor { min-height:220px; max-height:50vh; overflow-y:auto; border:1px solid #d5d9e0; border-radius:0 0 12px 12px; padding:14px 16px; margin-bottom:16px; font-size:15px; line-height:1.7; text-align:left; background:#fff; outline:none; box-sizing:border-box; }
+        .rte-editor:empty:before { content: attr(data-placeholder); color:#aeb4bd; }
+        .rte-editor:focus { border-color:#44aa6b; }
+        .rte-editor ul, .rte-editor ol { padding-left:1.5em; margin:0.4em 0; }
+        .post-content { text-align:left; }
+        .post-content ul, .post-content ol { padding-left:1.5em; }
+        @media (max-width:600px){ .rte-toolbar .rte-btn, .rte-toolbar .rte-select, .rte-toolbar .rte-color{ height:30px; } .rte-toolbar .rte-btn{ min-width:30px; padding:0 6px; font-size:13px; } }
+    </style>
     <!-- 글쓰기 폼 -->
     <div id="write-form" class="write-form">
         <h2>게시글 작성</h2>
         <input type="text" id="write-title" placeholder="제목">
         <input type="text" id="write-author" placeholder="작성자">
-        <textarea id="write-content" placeholder="내용"></textarea>
+        <div id="write-rte-toolbar" class="rte-toolbar" aria-label="문서 편집 도구">
+            <button type="button" class="rte-btn" data-cmd="bold" title="굵게"><b>B</b></button>
+            <button type="button" class="rte-btn" data-cmd="italic" title="기울임"><i>I</i></button>
+            <button type="button" class="rte-btn" data-cmd="underline" title="밑줄"><u>U</u></button>
+            <button type="button" class="rte-btn" data-cmd="strikeThrough" title="취소선"><s>S</s></button>
+            <span class="rte-sep"></span>
+            <select class="rte-select" id="rte-fontsize" title="글자 크기(pt) — 글자를 선택한 뒤 크기를 고르세요">
+                <option value="">크기</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="14">14</option>
+                <option value="16">16</option>
+                <option value="18">18</option>
+                <option value="20">20</option>
+                <option value="24">24</option>
+                <option value="28">28</option>
+                <option value="36">36</option>
+                <option value="48">48</option>
+            </select>
+            <label class="rte-color" title="글자 색">가<input type="color" id="rte-forecolor" value="#000000"></label>
+            <label class="rte-color" title="형광펜" style="background:#fff7a8;">🖍<input type="color" id="rte-backcolor" value="#ffff00"></label>
+            <span class="rte-sep"></span>
+            <button type="button" class="rte-btn" data-cmd="insertUnorderedList" title="글머리 기호 목록">•&nbsp;목록</button>
+            <button type="button" class="rte-btn" data-cmd="insertOrderedList" title="번호 매기기 목록">1.&nbsp;목록</button>
+            <span class="rte-sep"></span>
+            <button type="button" class="rte-btn" data-cmd="justifyLeft" title="왼쪽 정렬"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
+            <button type="button" class="rte-btn" data-cmd="justifyCenter" title="가운데 정렬"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></button>
+            <button type="button" class="rte-btn" data-cmd="justifyRight" title="오른쪽 정렬"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
+            <span class="rte-sep"></span>
+            <button type="button" class="rte-btn" data-cmd="removeFormat" title="서식 지우기">서식↺</button>
+        </div>
+        <div id="write-content" class="rte-editor" contenteditable="true" data-placeholder="내용을 입력하세요"></div>
         <!-- 파일 첨부 (A/S 처리결과 게시판일 때만 표시) -->
         <div id="file-upload-section" style="display: none; margin-top: 20px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057; font-size: 15px;"><strong>첨부 파일</strong></label>
@@ -7351,7 +7498,7 @@
         const membersPerPage = 10;
 
         // 회원 목록 로드 (user 확정 후에만 호출)
-        async function loadMembers() {
+        async function loadMembers(retryCount = 0) {
             // user가 확정되지 않았으면 실행하지 않음
             if (!staffAccessGranted) {
                 console.warn('[Staff 페이지] loadMembers() - 접근 권한 없음, 실행 안 함');
@@ -7360,9 +7507,20 @@
                 renderMembers();
                 return;
             }
-            
+
             if (!db) {
                 initStaffDB();
+            }
+
+            // 첫 접속 시 Firebase 연결/인증 토큰 복원이 늦으면 users 조회가 막혀(또는 빈 채로) 회원목록이
+            // 안 뜨는 문제가 있었음 → db 또는 Auth 토큰이 준비될 때까지 짧게 재시도(최대 ~3초)
+            const authReady = (typeof auth !== 'undefined' && auth && auth.currentUser);
+            if ((!db || !authReady) && retryCount < 10) {
+                console.warn(`[Staff 페이지] 회원목록 로드 대기(db/auth 준비 전) - 재시도 ${retryCount + 1}/10`);
+                const tbodyLoading = document.getElementById('member-tbody');
+                if (tbodyLoading) tbodyLoading.innerHTML = '<div class="table-empty">회원 목록을 불러오는 중…</div>';
+                setTimeout(() => loadMembers(retryCount + 1), 300);
+                return;
             }
             if (!db) {
                 console.warn('Firebase 미연결');
@@ -7407,7 +7565,21 @@
                 // 전체 조회 후 클라이언트 정렬.
                 // (orderBy('createdAt')를 쓰면 createdAt 필드가 없는 문서가 결과에서 누락되어
                 //  방금 가입한 회원이 승인대기 목록에 안 뜨는 문제가 발생함)
-                const rawSnapshot = await db.collection('users').get();
+                // 인증 토큰이 막 복원되는 중이면 권한 규칙 평가가 일시적으로 실패할 수 있어 재시도
+                let rawSnapshot;
+                for (let attempt = 0; ; attempt++) {
+                    try {
+                        rawSnapshot = await db.collection('users').get();
+                        break;
+                    } catch (e) {
+                        if (e.code === 'permission-denied' && attempt < 3) {
+                            console.warn(`[Staff 페이지] users 조회 일시 거부 - 재시도 ${attempt + 1}/3`);
+                            await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+                            continue;
+                        }
+                        throw e;
+                    }
+                }
                 const docs = [];
                 rawSnapshot.forEach(doc => docs.push(doc));
                 docs.sort((a, b) => {
