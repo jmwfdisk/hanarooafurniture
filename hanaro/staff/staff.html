@@ -8935,6 +8935,8 @@
         // 주의: db / staffAccessGranted 등은 기존 전역을 그대로 사용(재선언 금지)
         let calYear = null, calMonth = null;
         let companyEvents = [];
+        let companyEventsCache = {};   // ym('YYYY-MM') -> events[]  (월 이동 시 재요청 방지)
+        let calLoadSeq = 0;            // 빠른 월 이동 시 늦게 도착한 응답을 무시하기 위한 시퀀스
         let currentNoticeSegment = 'post';
         let dayModalDate = null;
 
@@ -8968,20 +8970,25 @@
         function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } loadAndRenderCalendar(); }
 
         async function loadAndRenderCalendar() {
-            await loadCompanyEvents();
-            renderCalendar();
-        }
-
-        async function loadCompanyEvents() {
-            companyEvents = [];
-            if (!db) return;
             const ym = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
+            const seq = ++calLoadSeq;                       // 이전 진행 중 요청 무효화
+            // 1) 격자는 즉시 렌더(캐시가 있으면 일정까지 함께 표시) — 네트워크를 기다리지 않음
+            companyEvents = companyEventsCache[ym] || [];
+            renderCalendar();
+            if (companyEventsCache[ym]) return;             // 캐시 적중 → 네트워크 불필요
+            if (!db) return;
+            // 2) 캐시에 없을 때만 해당 월 문서만 서버에서 조회(범위 쿼리로 전송량 최소화)
             try {
-                const snap = await db.collection('companyCalendar').get();
-                snap.forEach(d => {
-                    const ev = { id: d.id, ...d.data() };
-                    if ((ev.date || '').startsWith(ym)) companyEvents.push(ev);
-                });
+                const snap = await db.collection('companyCalendar')
+                    .where('date', '>=', `${ym}-01`)
+                    .where('date', '<=', `${ym}-31`)
+                    .get();
+                if (seq !== calLoadSeq) return;             // 그 사이 다른 달로 이동 → 결과 폐기
+                const arr = [];
+                snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+                companyEventsCache[ym] = arr;
+                companyEvents = arr;
+                renderCalendar();                           // 일정 채워 재렌더
             } catch (e) {
                 console.error('회사일정 로드 실패:', e);
             }
@@ -9102,8 +9109,8 @@
                 document.getElementById('day-ev-title').value = '';
                 document.getElementById('day-ev-time').value = '';
                 document.getElementById('day-ev-memo').value = '';
-                await loadCompanyEvents();
-                renderCalendar();
+                companyEventsCache = {};   // 다일정은 여러 달에 걸칠 수 있으므로 캐시 전체 무효화
+                await loadAndRenderCalendar();
                 renderDayModal();
                 if (dates.length > 1) alert(`${dates.length}일(${startVal} ~ ${endVal})에 일정을 등록했습니다.`);
             } catch (e) {
@@ -9117,8 +9124,8 @@
             if (!(await showStaffConfirm('이 일정을 삭제하시겠습니까?'))) return;
             try {
                 await db.collection('companyCalendar').doc(id).delete();
-                await loadCompanyEvents();
-                renderCalendar();
+                companyEventsCache = {};   // 다일정은 여러 달에 걸칠 수 있으므로 캐시 전체 무효화
+                await loadAndRenderCalendar();
                 renderDayModal();
             } catch (e) {
                 console.error('일정 삭제 실패:', e);
