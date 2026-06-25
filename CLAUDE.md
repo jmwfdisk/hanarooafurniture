@@ -86,7 +86,7 @@ New registrations are created with `status: 'pending'` and require admin approva
 |------------|---------|-----------------|
 | `users` | all pages | self (limited) / admin |
 | `asPosts/posts` | AS.html ↔ staff A/S 처리결과 | authenticated (read public) |
-| `staffPosts/{board}` | staff 직원게시판·회사운영 | employee (`asResult` needs `permFor('asResult')`) |
+| `staffPosts/{board}` | staff 직원게시판·회사운영 (boards: `notice`/`staff`/`staff-data`/`staff-report`/`suggestion`/`as-result`) | employee (`as-result` needs `permFor('asResult')`; `staff-report`(업무보고 본사) read+write need `permFor('report')`) |
 | `activityPhotos` | staff 활동사진첩 | owner or admin (per-doc) |
 | `materials/{id}` | staff 자재관리 (one doc per row) | employee |
 | `inventory/{main\|YYYY-MM-DD\|_index}` | staff 재고현황: `main`=최신본, `YYYY-MM-DD`=날짜별 스냅샷, `_index.dates[]`=저장된 날짜 목록 | `permFor('inventory')` |
@@ -94,7 +94,7 @@ New registrations are created with `status: 'pending'` and require admin approva
 | `companyCalendar/{id}` | staff 회사운영 캘린더 | `permFor('company')` |
 | `appConfig/{memberOrder\|asAssignees}` | staff | admin |
 
-Permission helper `userCan(area)` (areas: `all/company/photos/schedule/asResult/inventory`) gates UI; admin overrides. Stored in `users.permissions`.
+Permission helper `userCan(area)` (areas: `all/company/photos/schedule/asResult/inventory/report`) gates UI; admin overrides. Stored in `users.permissions`. `report` controls the 직원게시판 **업무보고(본사)** segment (`staff-report` board): the segment button is hidden and access blocked for users without it. Areas are data-driven via `PERM_AREAS` (drives the 권한설정 modal checkboxes `#perm-<area>`).
 
 ### Staff Page Modules (`hanaro/staff/staff.html`)
 
@@ -102,6 +102,7 @@ This single large file (~9k lines, several inline `<script>` blocks) holds all e
 - **재고현황 / 일정관리** share one in-house spreadsheet engine (`sheet*` functions: `sheetRenderTable`, `sheetBind`, `sheetEditCell` double-click edit, drag-select via `schedSel`, right-click `#sheet-ctxmenu`, merge/align, undo/redo `sheetPushUndo`). Model: `{columns, grid, merges, aligns, ...}`. 재고현황 adds per-group `rowColors`.
 - **자재관리** uses **Tabulator** (row = Firestore doc, structured fields), NOT the sheet engine. Has its own right-click menu, app-level undo/redo (native history is wiped by realtime `replaceData`), CSV/JSON/Excel import-export.
 - **활동사진첩**: photos carry an optional `title`. The viewer groups photos by identical title (next/prev cycles within the group), supports mobile swipe. Upload assigns one common title to the batch; grid titles are double-click editable by owner/admin only.
+- **게시판 글쓰기 리치 에디터**: the shared write form (`#write-form`) uses a `contenteditable` editor (`#write-content`, `.rte-editor`) + toolbar (`#write-rte-toolbar`), not a textarea. Bold/italic/underline/strike/list/align run via `document.execCommand`; font color/highlight via `foreColor`/`hiliteColor`; **pt font size wraps the selection (or caret, via a ZWSP span) in `<span style="font-size:Npt">`** since execCommand fontSize only supports 1–7. Post body is stored as **HTML, sanitized with `rteSanitize()` (DOMPurify allowlist) on save and on render** — legacy plain-text posts are auto-detected and rendered with `escape + nl2br`. Helpers: `rteSanitize`, `rteToText`, `initRteToolbar` (tracks the last selection range so the OS color picker doesn't lose it). Applies to ALL boards sharing the form.
 - **A/S 처리결과** is `asPosts`-backed with assignee management (`appConfig/asAssignees`), replies, and completion handling. Kept live via an `onSnapshot` listener on `asPosts/posts` (`startAsrRealtime`, started from `startStaffListeners`) so new AS.html applications and processing updates appear without re-clicking the tab; while the detail modal (`asr-modal`) is open, incoming changes are buffered in `asrPendingPosts` and applied on `closeAsrModal` to avoid `asrCurrentIdx` desync. (AS.html's applicant-side list is still one-shot `.get()`.)
 
 ### External Libraries (CDN)
@@ -109,6 +110,7 @@ This single large file (~9k lines, several inline `<script>` blocks) holds all e
 - **Firebase 10.7.1** — compat mode (`firebase-app-compat.js`, etc.)
 - **SheetJS xlsx-0.20.1** — Excel parsing/writing. Used by `school.html` (delivery list upload) and `staff.html` (자재관리·재고현황·일정관리 Excel import/export).
 - **Tabulator.js 6.3.x** — Spreadsheet/table UI. Used by `school.html` (delivery list) and `staff.html` 자재관리. `hanaro/lib/tabulator/` + `hanaro/school/lib/tabulator/` are local fallbacks.
+- **DOMPurify 3.1.6** — HTML sanitizer (jsDelivr CDN), loaded by `staff.html` for the board write rich-text editor. `rteSanitize()` falls back to tag-stripped plain text if it fails to load, so missing CDN degrades safely (loses formatting, never injects).
 
 ### Key Patterns
 
