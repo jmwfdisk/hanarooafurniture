@@ -866,6 +866,11 @@
   .cs-list li { margin-bottom:6px; }
   .cs-cert-imgs { display:flex; flex-direction:column; align-items:center; gap:22px; }
   .cs-cert-imgs img { width:100%; max-width:760px; height:auto; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.1); }
+  .cs-construction { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    min-height:320px; padding:48px 24px; background:#f7f8fa; border:1px solid #e9ecef; border-radius:14px; }
+  .cs-construction-icon { font-size:56px; line-height:1; margin-bottom:18px; }
+  .cs-construction-title { font-size:22px; font-weight:700; color:#333; margin:0 0 8px; }
+  .cs-construction-sub { font-size:15px; color:#888; margin:0; }
   @media (max-width:900px) {
     .company-page { flex-direction:column; gap:24px; margin:20px auto 50px; }
     .company-sidebar { width:100%; }
@@ -881,6 +886,7 @@
       <a href="#" class="cs-link active" data-sec="intro"   onclick="showCompanySec('intro'); return false;">인사말</a>
       <a href="#" class="cs-link"        data-sec="status"  onclick="showCompanySec('status'); return false;">일반현황</a>
       <a href="#" class="cs-link"        data-sec="history" onclick="showCompanySec('history'); return false;">주요연혁</a>
+      <a href="#" class="cs-link"        data-sec="logo-ci" onclick="showCompanySec('logo-ci'); return false;">로고CI</a>
       <div class="cs-group" id="cs-cert-group">
         <button type="button" class="cs-parent" onclick="toggleCertMenu()">인증현황 <span class="cs-caret">▾</span></button>
         <div class="cs-sub">
@@ -935,6 +941,15 @@
         <li>2019년 6월 : 경영혁신형 중소기업 회원 지정</li>
         <li>2023년 4월 : 조달청 우수제품지정(H시리즈 이동식스툴테이블)</li>
       </ul>
+    </section>
+
+    <section class="cs-section" id="sec-logo-ci">
+      <h1 class="cs-h1">로고CI</h1>
+      <div class="cs-construction">
+        <div class="cs-construction-icon">🚧</div>
+        <p class="cs-construction-title">현재 개편 작업 중입니다.</p>
+        <p class="cs-construction-sub">빠른 시일 내에 새로운 모습으로 찾아뵙겠습니다.</p>
+      </div>
     </section>
 
     <section class="cs-section" id="sec-cert-excellent">
