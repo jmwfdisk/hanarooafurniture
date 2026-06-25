@@ -38,7 +38,7 @@ hanaro/
   css/auth.css          ← Login modal styles
   AS/AS.html            ← A/S 신청 페이지
   Gallery/Gallery.html  ← 갤러리
-  company/company.html  ← 회사 소개 (좌측 메뉴 + 우측 내용, 인증현황 드롭다운)
+  company/company.html  ← 회사 소개 (좌측 메뉴 + 우측 내용, 인증현황 드롭다운, 로고・CI; 모바일은 좌측메뉴가 제목 아래 가로 스크롤 칩)
   support/support.html  ← 고객지원 (Apple 지원 스타일: 제품 카테고리 + 퀵카드)
   support/repair.html   ← 수리 및 서비스 (A/S기간·하자보증·접수방법)
   support/faq.html      ← 자주묻는 질문 (아코디언)
@@ -94,7 +94,7 @@ New registrations are created with `status: 'pending'` and require admin approva
 | `companyCalendar/{id}` | staff 회사운영 캘린더 | `permFor('company')` |
 | `appConfig/{memberOrder\|asAssignees}` | staff | admin |
 
-Permission helper `userCan(area)` (areas: `all/company/photos/schedule/asResult/inventory/report`) gates UI; admin overrides. Stored in `users.permissions`. `report` controls the 직원게시판 **업무보고(본사)** segment (`staff-report` board): the segment button is hidden and access blocked for users without it. Areas are data-driven via `PERM_AREAS` (drives the 권한설정 modal checkboxes `#perm-<area>`).
+Permission helper `userCan(area)` (areas: `all/company/photos/schedule/asResult/inventory/report`) gates UI; admin overrides. Stored in `users.permissions`. `report` controls the 직원게시판 **업무보고(본사)** segment (`staff-report` board): the segment button is hidden and access blocked for users without it. Areas are data-driven via `PERM_AREAS` (drives the 권한설정 modal checkboxes `#perm-<area>`). The **회원관리** nav (`switchBoard('member-management')`) is **admin-only** — the nav link is `display:none` by default and revealed only for admins in `checkStaffAccess`; `switchBoard` also blocks non-admins.
 
 ### Staff Page Modules (`hanaro/staff/staff.html`)
 
