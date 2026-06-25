@@ -940,17 +940,11 @@
     } else {
       reveals.forEach(function (el) { el.classList.add('in'); });
     }
-    // 보조네비 활성 표시
+    // 보조네비 활성 표시 — 이 페이지에 존재하는 섹션의 항목만 활성화(페이지당 섹션 1개)
     var ids = ['sec-h', 'sec-hs', 'sec-oa'];
-    var secs = ids.map(function (id) { return document.getElementById(id); });
     var items = document.querySelectorAll('.prod-item');
-    function onScroll() {
-      var y = window.scrollY + 150, active = 0;
-      secs.forEach(function (s, i) { if (s && s.offsetTop <= y) active = i; });
-      items.forEach(function (it, i) { it.classList.toggle('active', i === active); });
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    var cur = ids.findIndex(function (id) { return document.getElementById(id); });
+    items.forEach(function (it, i) { it.classList.toggle('active', i === cur); });
   })();
 </script>
 
