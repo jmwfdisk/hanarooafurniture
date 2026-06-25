@@ -1856,14 +1856,12 @@
             /* 회원관리 테이블 모바일 스타일 - 이름, 회원유형, 승인여부만 표시 */
             #member-section {
                 padding: 20px 12px !important;
-                overflow-x: visible;
-                -webkit-overflow-scrolling: touch;
+                overflow: hidden;   /* .board-section::before 스윕이 우측 빈 영역 스크롤 만드는 것 차단 */
             }
 
             #member-section .board-table {
                 width: 100%;
-                overflow-x: visible;
-                -webkit-overflow-scrolling: touch;
+                overflow-x: hidden;
             }
 
             #member-section .table-header {
@@ -2716,7 +2714,7 @@
         <a href="#" onclick="openInventoryModal(); return false;" data-board="inventory">📊 재고현황</a>
         <a href="#" onclick="openScheduleModal(); return false;" data-board="schedule">📅 일정관리</a>
         <a href="#" onclick="switchBoard('photo-gallery'); return false;" data-board="photo-gallery">📷 활동사진첩</a>
-        <a href="#" onclick="switchBoard('member-management'); return false;" data-board="member-management" style="background: rgba(255,215,0,0.2);">👥 회원관리</a>
+        <a href="#" onclick="switchBoard('member-management'); return false;" data-board="member-management" style="background: rgba(255,215,0,0.2); display:none;">👥 회원관리</a>
     </nav>
 
     <!-- 공통 인증 스크립트 -->
@@ -3057,6 +3055,11 @@
             // 권한 확인 완료 - 여기서부터 Firestore 리스너 시작
             console.log('[Staff 페이지] 권한 확인 완료, Firestore 리스너 시작');
             staffAccessGranted = true;
+
+            // 회원관리 메뉴는 관리자만 노출 (접근 차단은 switchBoard에서도 이중 처리)
+            const isAdminUser = userData.isAdmin === true || userData.username === 'admin';
+            const memberNav = document.querySelector('[data-board="member-management"]');
+            if (memberNav) memberNav.style.display = isAdminUser ? '' : 'none';
             
             // Firestore 리스너 시작 (user 확정 후)
             startStaffBoards(); // loadAllPosts 등 Firestore 접근 시작 (이름 충돌 방지를 위해 별도 함수)
@@ -6277,7 +6280,7 @@
         </div>
         
         <!-- 탭 버튼 -->
-        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <div class="member-tabs">
             <button class="member-tab active" onclick="showMemberTab('pending')" data-tab="pending">
                 승인 대기 <span id="pending-count" style="background: #ff6b6b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px;">0</span>
             </button>
@@ -7416,6 +7419,7 @@
     </script>
 
     <style>
+        .member-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
         .member-tab {
             padding: 10px 20px;
             border: 2px solid #e9ecef;
@@ -7426,6 +7430,18 @@
             font-weight: 600;
             color: #495057;
             transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        /* 모바일: 보조네비바처럼 가로 스크롤(줄바꿈 방지) */
+        @media (max-width: 768px) {
+            .member-tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 6px;
+                scrollbar-width: thin;
+            }
+            .member-tabs .member-tab { flex: 0 0 auto; padding: 9px 15px; font-size: 13px; }
         }
         .member-tab:hover {
             border-color: #44aa6b;
