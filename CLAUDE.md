@@ -20,6 +20,8 @@ gsutil cors set cors.json gs://hanarooa-f227d.firebasestorage.app
 
 Firestore security rules are maintained in `Firestore_보안규칙_완성본.txt` and must be manually pasted into the Firebase Console → Firestore → Rules.
 
+Commit messages are written in Korean, describing the user-facing change concisely (e.g. `바로가기 카테고리 소제목 색상 초록색(#2e9e54)`, `바로가기 드롭다운 카테고리별 그룹화`). Follow this convention.
+
 ## Architecture
 
 ### Page Structure
@@ -30,7 +32,7 @@ The site is a hybrid: `index.html` is a single-page app (SPA) that renders multi
 index.html              ← Main SPA (home, product sections, search)
 hanaro/
   js/auth.js            ← Shared Firebase auth singleton (loaded on every page)
-  js/footer-bar.js      ← Shared footer; replaces <footer> content on every page (legal info + cert marks + links/SNS). Cert images in image/ (cert-*.png)
+  js/footer-bar.js      ← Shared footer; replaces <footer> content on every page (legal info + cert marks + links/SNS). Cert images in image/ (cert-*.png). Also injects the **'바로가기' dropdown** into `.partner-logos` — STAFF PAGE ONLY (guarded by `location.pathname` `/staff/`). Links live in `SITE_LINKS`, a category-grouped array `[{category, links:[{label,url}]}]`; each include is cache-busted with `?v=YYYYMMDD…` (bump on every edit, all pages).
   js/router.js          ← SPA route handler + School section logic
   css/common.css        ← Shared design system
   css/auth.css          ← Login modal styles
@@ -114,6 +116,7 @@ This single large file (~9k lines, several inline `<script>` blocks) holds all e
 - `sessionStorage` keys: `loggedInUser` (JSON), `loggedIn` ("true"), `lastLoginTime`, `lastLoginMessage`.
 - `setLoggedInState(bool, userData)` is the single function that toggles login/logout UI across the page; it has protective logic that blocks `false` calls when sessionStorage shows the user is still logged in (to handle Firebase Auth restore delay on page load).
 - `window.checkStaffAccess` is a hook that `staff.html` registers to enforce access control; `auth.js` calls it after every auth state change.
+- **Centered dialogs (staff.html)**: native `alert`/`confirm`/`prompt` are replaced by centered popups. `window.alert` is globally overridden by `showStaffAlertPopup`; use `await showStaffConfirm(msg)` (Promise<bool>, so the enclosing fn must be `async`) instead of `confirm`, and `await showStaffPrompt(msg, def)` instead of `prompt`. `showStaffDonePopup` / AS.html `showAsDonePopup` are success toasts. Don't reintroduce native dialogs.
 - **XSS**: user-supplied values (post titles, member 소속/이름/이메일, file names, photo titles) must be escaped before `innerHTML`. Reuse the local escape helpers already present (`asEsc`, `photoEsc`, `schedEsc`, per-render `esc`). Prefer `textContent` where no markup is needed. Values placed inside `onclick="...('${x}')"` need JS-string escaping too, not just HTML escaping.
 
 ## Docs
