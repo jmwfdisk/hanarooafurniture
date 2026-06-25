@@ -3572,7 +3572,7 @@
         }
         // 본문 HTML 살균(XSS 방지). DOMPurify 미로딩 시 태그 제거 + escape로 안전 폴백
         function rteSanitize(html) {
-            const s = String(html || '');
+            const s = String(html || '').replace(/​/g, ''); // 크기지정용 폭 0 공백 제거
             if (window.DOMPurify && typeof DOMPurify.sanitize === 'function') {
                 return DOMPurify.sanitize(s, {
                     ALLOWED_TAGS: ['p','div','span','br','b','strong','i','em','u','s','strike','font','ul','ol','li','h3','blockquote'],
@@ -3621,17 +3621,28 @@
                 const sel = window.getSelection();
                 if (rteSavedRange) { sel.removeAllRanges(); sel.addRange(rteSavedRange); }
                 if (!sel.rangeCount) return;
+                // pt 크기는 span으로 적용(execCommand fontSize는 1~7만 지원)
                 const range = sel.getRangeAt(0);
-                if (range.collapsed) { alert('크기를 적용할 글자를 먼저 선택하세요.'); return; }
-                // 선택 영역을 font-size 지정 span으로 감싸 임의의 pt 크기 적용(execCommand는 1~7만 지원)
                 const span = document.createElement('span');
                 span.style.fontSize = pt + 'pt';
-                try { range.surroundContents(span); }
-                catch (e) { const frag = range.extractContents(); span.appendChild(frag); range.insertNode(span); }
-                const nr = document.createRange();
-                nr.selectNodeContents(span);
-                sel.removeAllRanges(); sel.addRange(nr);
-                rteSavedRange = nr.cloneRange();
+                if (range.collapsed) {
+                    // 선택이 없으면: 빈 크기지정 영역을 만들고 커서를 그 안에 두어 '다음 타이핑'부터 적용(워드/한글 방식)
+                    const zwsp = document.createTextNode('​'); // 폭 0 공백(저장 시 제거)
+                    span.appendChild(zwsp);
+                    range.insertNode(span);
+                    const nr = document.createRange();
+                    nr.setStart(zwsp, 1); nr.collapse(true);
+                    sel.removeAllRanges(); sel.addRange(nr);
+                    rteSavedRange = nr.cloneRange();
+                } else {
+                    // 선택이 있으면: 선택한 글자에 적용
+                    try { range.surroundContents(span); }
+                    catch (e) { const frag = range.extractContents(); span.appendChild(frag); range.insertNode(span); }
+                    const nr = document.createRange();
+                    nr.selectNodeContents(span);
+                    sel.removeAllRanges(); sel.addRange(nr);
+                    rteSavedRange = nr.cloneRange();
+                }
             });
             const fc = document.getElementById('rte-forecolor');
             if (fc) fc.addEventListener('input', () => applyCmd('foreColor', fc.value));
@@ -6055,7 +6066,7 @@
             <button type="button" class="rte-btn" data-cmd="underline" title="밑줄"><u>U</u></button>
             <button type="button" class="rte-btn" data-cmd="strikeThrough" title="취소선"><s>S</s></button>
             <span class="rte-sep"></span>
-            <select class="rte-select" id="rte-fontsize" title="글자 크기(pt) — 글자를 선택한 뒤 크기를 고르세요">
+            <select class="rte-select" id="rte-fontsize" title="글자 크기(pt)">
                 <option value="">크기</option>
                 <option value="8">8</option>
                 <option value="9">9</option>
