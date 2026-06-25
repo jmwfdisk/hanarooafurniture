@@ -68,7 +68,7 @@
     ]},
     { category: '협력사', links: [
       { label: '퍼맥스',                url: 'https://furmax.co.kr' },
-      { label: '포맥스체어',             url: 'http://www.formaxchair.co.kr/main.html' }
+      { label: '기영포맥스',             url: 'http://www.formaxchair.co.kr/main.html' }
     ]},
     { category: '기타', links: [
       { label: '네이트 메일',            url: 'https://mail.nate.com/' },
