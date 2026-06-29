@@ -8,7 +8,16 @@
     <meta name="description" content="하나로오에이퍼니처 - 임직원 게시판">
     <meta name="keywords" content="하나로오에이퍼니처, 임직원, 게시판">
     <title>하나로오에이퍼니처 임직원</title>
-    
+
+    <!-- 외부 출처 사전 연결: 인증/DB/CDN 핸드셰이크를 미리 끝내 초기 로딩 단축 -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
+    <link rel="dns-prefetch" href="https://www.googleapis.com">
+    <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com">
+    <link rel="dns-prefetch" href="https://unpkg.com">
+    <link rel="dns-prefetch" href="https://cdn.sheetjs.com">
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -20,12 +29,12 @@
     <!-- 공통 디자인 시스템 CSS -->
     <link rel="stylesheet" href="../css/common.css">
     
-    <!-- MATERIALS: CDN -->
+    <!-- MATERIALS: CDN (자재관리 표 — 모달 열 때만 필요 → defer로 초기 렌더 비차단) -->
     <link href="https://unpkg.com/tabulator-tables@6.3.0/dist/css/tabulator.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/tabulator-tables@6.3.0/dist/js/tabulator.min.js"></script>
+    <script defer src="https://unpkg.com/tabulator-tables@6.3.0/dist/js/tabulator.min.js"></script>
 
-    <!-- SheetJS (일정관리 엑셀 업로드/내보내기) -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- SheetJS (엑셀 가져오기/내보내기 — 사용 시점이 늦음 → defer로 초기 렌더 비차단) -->
+    <script defer src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
         /* 모든 버튼에 손가락 커서 적용 */
@@ -1298,7 +1307,7 @@
             color: #6c757d; font-size: 15px; font-weight: 500;
             width: 100%; max-width: 700px; margin: 20px auto; box-sizing: border-box;
         }
-        .table-loading .table-spinner {
+        .table-spinner {
             width: 34px; height: 34px;
             border: 3px solid #e3e8ef; border-top-color: #3b82f6;
             border-radius: 50%; animation: btnspin 0.7s linear infinite;
@@ -3156,6 +3165,10 @@
                 return;
             }
             
+            // 캐시(localStorage) 우선 렌더 → 서버 응답 전이라도 즉시 내용 표시(체감 속도↑)
+            // 첫 방문(캐시 없음)만 스피너가 보이고, 재방문은 캐시가 곧바로 채워진다.
+            if (loadFromLocalStorage()) { postsLoaded = true; renderPosts(); }
+
             if (db) {
                 // Firebase Firestore 사용
                 try {
@@ -3173,6 +3186,8 @@
                         const snapshot = settled.value;
                         if (snapshot.exists) {
                             allPosts[board] = snapshot.data().posts || [];
+                            // 다음 방문 즉시 렌더용 캐시 갱신(용량 초과 등은 조용히 무시)
+                            try { localStorage.setItem(`staffPosts_${board}`, JSON.stringify(allPosts[board])); } catch (e) {}
                         } else {
                             // 기존 localStorage 데이터 마이그레이션(쓰기는 await 불필요)
                             const stored = localStorage.getItem(`staffPosts_${board}`);
@@ -3198,12 +3213,14 @@
         }
 
         function loadFromLocalStorage() {
+            let found = false;
             Object.keys(allPosts).forEach(board => {
                 const stored = localStorage.getItem(`staffPosts_${board}`);
                 if (stored) {
-                    allPosts[board] = JSON.parse(stored);
+                    try { allPosts[board] = JSON.parse(stored); found = true; } catch (e) {}
                 }
             });
+            return found; // 캐시를 하나라도 불러왔는지
         }
 
         // Firebase Firestore에 게시글 저장
@@ -3212,10 +3229,12 @@
                 // Firebase Firestore 사용
                 try {
                     await db.collection('staffPosts').doc(board).set({ posts: allPosts[board] });
+                    // 저장 성공 → 다음 방문 즉시 렌더용 캐시도 갱신(용량 초과 등은 무시)
+                    try { localStorage.setItem(`staffPosts_${board}`, JSON.stringify(allPosts[board])); } catch (e) {}
                 } catch (error) {
                     console.error('Firebase 저장 실패:', error);
                     // 실패 시 localStorage에 백업
-                    localStorage.setItem(`staffPosts_${board}`, JSON.stringify(allPosts[board]));
+                    try { localStorage.setItem(`staffPosts_${board}`, JSON.stringify(allPosts[board])); } catch (e) {}
                     // 저장 실패를 사용자에게 알림 (조용히 사라지는 문제 방지)
                     let hint = '';
                     if (error && error.code === 'permission-denied') {
@@ -6433,10 +6452,7 @@
         
         <!-- 사진 그리드 -->
         <div class="photo-grid" id="photo-grid">
-            <div class="photo-empty">
-                <span>📷</span>
-                <p>아직 업로드된 사진이 없습니다.</p>
-            </div>
+            <div class="photo-loading"><span class="table-spinner"></span>사진을 불러오는 중…</div>
         </div>
     </div>
 
@@ -6664,6 +6680,14 @@
             justify-content: center;
             padding: 80px;
             color: #6c757d;
+        }
+
+        /* 활동사진첩 로딩 스피너 */
+        .photo-loading {
+            grid-column: 1 / -1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 14px; padding: 70px 20px;
+            color: #6c757d; font-size: 15px; font-weight: 500;
         }
 
         .photo-empty span {
@@ -6955,6 +6979,7 @@
     <script>
         // 활동사진첩 변수
         let allPhotos = [];
+        let photosLoaded = false; // 서버에서 사진을 한 번이라도 불러왔는지 (로딩 스피너 표시 판단)
         let currentPhotoIndex = 0;
         let selectedPhotoFiles = [];
         let selectedPhotoTitles = [];
@@ -6985,6 +7010,7 @@
             }
             if (!db) {
                 console.warn('Firebase 미연결');
+                photosLoaded = true; renderPhotoGrid();
                 return;
             }
 
@@ -6994,15 +7020,17 @@
                 const snapshot = await db.collection('activityPhotos')
                     .orderBy('createdAt', 'desc')
                     .get();
-                
+
                 allPhotos = [];
                 snapshot.forEach(doc => {
                     allPhotos.push({ id: doc.id, ...doc.data() });
                 });
 
+                photosLoaded = true;   // 로드 완료 → 이후 빈 사진첩은 안내 표시
                 renderPhotoGrid();
             } catch (error) {
                 console.error('[Staff 페이지] 사진 로드 오류:', error);
+                photosLoaded = true; renderPhotoGrid();   // 실패해도 스피너는 멈춤
                 // permission-denied 시 signOut 호출하지 않음
                 if (error.code === 'permission-denied') {
                     alert('사진을 불러올 권한이 없습니다.');
@@ -7015,6 +7043,11 @@
         // 사진 그리드 렌더링
         function renderPhotoGrid() {
             const grid = document.getElementById('photo-grid');
+            // 아직 서버에서 한 번도 못 불러왔고 사진도 없으면 로딩 스피너
+            if (!photosLoaded && allPhotos.length === 0) {
+                grid.innerHTML = '<div class="photo-loading"><span class="table-spinner"></span>사진을 불러오는 중…</div>';
+                return;
+            }
             const COLS = 5, MIN_ROWS = 2;
 
             let html = allPhotos.map((photo, index) => {
