@@ -8092,6 +8092,8 @@
             { key: 'schedule',  label: '일정관리' },
             { key: 'asResult',  label: 'A/S처리결과' },
             { key: 'asAssignee', label: 'A/S 출동담당자 관리' },
+            { key: 'asApprove', label: 'A/S 결재(권한부여자)' },
+            { key: 'asApproveCeo', label: 'A/S 결재(대표)' },
             { key: 'inventory', label: '재고현황' },
             { key: 'report',    label: '업무보고(본사)' }
         ];
@@ -8293,6 +8295,7 @@
         <div class="asr-modal-header">
           <h3 id="asr-modal-title">A/S 신청 상세</h3>
           <div style="display:flex;align-items:center;gap:10px;">
+            <button id="asr-approve-btn" type="button" onclick="approveAsr()" title="결재 단계를 확인 처리" style="display:none;align-items:center;gap:6px;background:#0071e3;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">🖊 결재확인</button>
             <button id="asr-export-btn" type="button" onclick="exportAsrDetailExcel()" title="신청상세 내용을 엑셀로 다운로드" style="display:none;align-items:center;gap:6px;background:#1f9d57;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">📥 엑셀 다운로드</button>
             <button class="tool-modal-close" onclick="closeAsrModal()">&times;</button>
           </div>
@@ -8349,12 +8352,26 @@
         .asr-modal-body { padding:18px; }
 
         /* 상태 바 */
-        .asr-statusbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#fff; border:1px solid #e9edf2; border-radius:12px; padding:12px 16px; margin-bottom:14px; }
+        .asr-statusbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#fff; border:1px solid #e9edf2; border-radius:12px; padding:8px 12px; margin-bottom:14px; }
         .asr-st-badge { padding:5px 12px; border-radius:20px; font-size:13px; font-weight:700; }
         .asr-st-badge.wait { background:#fff4e6; color:#e8590c; }
         .asr-st-badge.done { background:#e6f7ec; color:#2f9e44; }
         .asr-st-assignee { margin-left:auto; font-size:13px; color:#495057; display:flex; align-items:center; gap:6px; }
         .asr-st-assignee b { color:#1c64d8; }
+        /* 결재선 (출동담당자 → 권한부여자 → 대표) — 상태바 오른쪽 끝 컴팩트 박스 */
+        .asr-approval { display:flex; border:1px solid #e1e5ea; border-radius:8px; overflow:hidden; background:#fff; margin-left:auto; }
+        .asr-appr-cell { flex:0 0 auto; min-width:82px; text-align:center; border-right:1px solid #eef0f3; }
+        .asr-appr-cell:last-child { border-right:none; }
+        .asr-appr-head { font-size:10px; font-weight:700; color:#fff; background:#5b6677; padding:3px 6px; }
+        .asr-appr-body { padding:5px 8px; min-height:34px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+        .asr-appr-name { font-size:12px; font-weight:700; color:#2b3340; line-height:1.25; }
+        .asr-appr-sub { font-size:9px; color:#9aa3ad; }
+        .asr-appr-date { font-size:10px; color:#8a93a0; }
+        .asr-appr-wait { font-size:11px; color:#c2c7cf; }
+        @media (max-width:600px){
+            .asr-approval { margin-left:0; width:100%; }
+            .asr-appr-cell { flex:1; min-width:0; }
+        }
 
         /* 정보 카드 그리드 */
         .asr-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
@@ -8421,6 +8438,18 @@
         }
         // 출동 담당자 추가/삭제 권한: 관리자 또는 'asAssignee'(또는 전체) 권한 보유자 (userCan이 admin·all 처리)
         function asrCanManageAssignee(){ return (typeof userCan === 'function') ? userCan('asAssignee') : asrIsAdmin(); }
+        // 결재 권한: 권한부여자 / 대표 (userCan이 admin·all 처리)
+        function asrCanApprove(){ return (typeof userCan === 'function') ? userCan('asApprove') : false; }
+        function asrCanApproveCeo(){ return (typeof userCan === 'function') ? userCan('asApproveCeo') : false; }
+        // 현재 사용자가 지금 찍을 수 있는 결재 단계 반환 (순차: 권한부여자 → 대표). 없으면 null
+        function asrApprovalRole(p){
+            if (!p || p.status !== 'done') return null;
+            const authDone = !!(p.apprAuth && p.apprAuth.date);
+            const ceoDone  = !!(p.apprCeo && p.apprCeo.date);
+            if (asrCanApprove() && !authDone) return 'auth';
+            if (asrCanApproveCeo() && authDone && !ceoDone) return 'ceo';
+            return null;
+        }
 
         async function loadAsResult() {
             if (!db && typeof initStaffDB === 'function') initStaffDB();
@@ -8614,7 +8643,7 @@
             let body = `
                 <div class="asr-statusbar">
                     ${statusBadge}
-                    <div class="asr-st-assignee">출동 담당자 <b>${asrEsc(p.assignee || '미지정')}</b></div>
+                    ${done ? asrApprovalHtml(p) : `<div class="asr-st-assignee">출동 담당자 <b>${asrEsc(p.assignee || '미지정')}</b></div>`}
                 </div>
                 <div class="asr-grid">
                     <div class="asr-cell"><div class="lbl">구분</div><div class="val">${asrEsc(p.type||'기타')}</div></div>
@@ -8650,9 +8679,44 @@
             // 엑셀 다운로드 버튼: A/S 완료 건에서만 노출
             const exBtn = document.getElementById('asr-export-btn');
             if (exBtn) exBtn.style.display = done ? 'inline-flex' : 'none';
+            // 결재확인 버튼: 완료 건 + 현재 사용자가 찍을 결재 단계가 있을 때만
+            const apBtn = document.getElementById('asr-approve-btn');
+            if (apBtn) apBtn.style.display = (done && asrApprovalRole(p)) ? 'inline-flex' : 'none';
             document.getElementById('asr-modal').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
+        // 결재선 HTML (출동담당자 자동확인 → 권한부여자 → 대표)
+        function asrApprovalHtml(p) {
+            const stamp = (s) => (s && s.date)
+                ? `<div class="asr-appr-name">${asrEsc(((s.title ? s.title + ' ' : '') + (s.name || '')).trim())}</div><div class="asr-appr-date">${asrEsc(s.date)}</div>`
+                : '<div class="asr-appr-wait">미결재</div>';
+            const dispatcher = (p.assignee || p.completedBy)
+                ? `<div class="asr-appr-name">${asrEsc(p.assignee || p.completedBy)}</div><div class="asr-appr-date">${asrEsc(p.completedDate || '')}</div>`
+                : '<div class="asr-appr-wait">-</div>';
+            return `<div class="asr-approval">
+                <div class="asr-appr-cell"><div class="asr-appr-head">출동담당자</div><div class="asr-appr-body">${dispatcher}<div class="asr-appr-sub">처리완료시 자동확인</div></div></div>
+                <div class="asr-appr-cell"><div class="asr-appr-head">권한부여자</div><div class="asr-appr-body">${stamp(p.apprAuth)}</div></div>
+                <div class="asr-appr-cell"><div class="asr-appr-head">대표</div><div class="asr-appr-body">${stamp(p.apprCeo)}</div></div>
+            </div>`;
+        }
+
+        // 결재확인: 현재 사용자가 찍을 수 있는 단계(권한부여자→대표)에 직책+이름+날짜 기록
+        async function approveAsr() {
+            const p = asrData[asrCurrentIdx];
+            if (!p) return;
+            const role = asrApprovalRole(p);
+            if (!role) { alert('결재할 권한이 없거나 이미 결재가 완료되었습니다.'); return; }
+            const isCeo = role === 'ceo';
+            const title = await showStaffPrompt(isCeo ? '대표 직책을 입력하세요 (예: 대표이사)' : '직책을 입력하세요 (예: 상무)', isCeo ? '대표이사' : '');
+            if (title === null) return; // 취소
+            let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+            const stamp = { title: (title || '').trim(), name: u.name || u.username || '임직원', date: new Date().toLocaleDateString('ko-KR') };
+            const label = ((stamp.title ? stamp.title + ' ' : '') + stamp.name).trim();
+            if (!(await showStaffConfirm(`${isCeo ? '대표' : '권한부여자'} 결재로 확인하시겠습니까?\n\n${label} · ${stamp.date}`))) return;
+            if (isCeo) p.apprCeo = stamp; else p.apprAuth = stamp;
+            if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
+        }
+
         function closeAsrModal() {
             document.getElementById('asr-modal').style.display = 'none';
             document.body.style.overflow = '';
@@ -8706,6 +8770,14 @@
             data.push(['A/S 기사 (처리 내용)', v(p.asReport || '')]);
             data.push(['완료자', v(p.completedBy || '')]);
             data.push(['완료일', v(p.completedDate || '')]);
+
+            // 결재선
+            const apprStr = (s) => (s && s.date) ? `${((s.title ? s.title + ' ' : '') + (s.name || '')).trim()} · ${s.date}` : '미결재';
+            data.push([]);
+            data.push(['[결재]']);
+            data.push(['출동담당자', `${v(p.assignee || p.completedBy || '-')}${p.completedDate ? ' · ' + v(p.completedDate) : ''}`]);
+            data.push(['권한부여자', apprStr(p.apprAuth)]);
+            data.push(['대표', apprStr(p.apprCeo)]);
 
             const ws = XLSX.utils.aoa_to_sheet(data);
             ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 44 }];
@@ -9327,6 +9399,8 @@
           <label class="perm-row"><span>일정관리</span><input type="checkbox" id="perm-schedule"></label>
           <label class="perm-row"><span>A/S처리결과</span><input type="checkbox" id="perm-asResult"></label>
           <label class="perm-row"><span>A/S 출동담당자 관리</span><input type="checkbox" id="perm-asAssignee"></label>
+          <label class="perm-row"><span>A/S 결재(권한부여자)</span><input type="checkbox" id="perm-asApprove"></label>
+          <label class="perm-row"><span>A/S 결재(대표)</span><input type="checkbox" id="perm-asApproveCeo"></label>
           <label class="perm-row"><span>재고현황</span><input type="checkbox" id="perm-inventory"></label>
           <label class="perm-row"><span>업무보고(본사)</span><input type="checkbox" id="perm-report"></label>
         </div>
