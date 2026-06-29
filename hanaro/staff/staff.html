@@ -8457,6 +8457,18 @@
             if (asrPerm('asApproveCeo') && aDone && !cDone) return 'ceo';
             return null;
         }
+        // 현재 로그인 사용자가 그 건의 '출동담당자'인지 (이름 일치; assignee는 "직책 이름" 형태일 수 있어 부분일치 허용)
+        function asrIsDispatcher(p){
+            if (!p) return false;
+            const a = (p.assignee || '').trim();
+            if (!a) return false;
+            let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
+            const name = (u.name || u.username || '').trim();
+            if (!name) return false;
+            return a === name || a.includes(name) || name.includes(a);
+        }
+        // 구매이력 확인 메모 작성 권한: 결재 권한(담당자/관리자/대표) 중 하나라도 보유
+        function asrCanPurchase(){ return asrPerm('asApprStaff') || asrPerm('asApprove') || asrPerm('asApproveCeo'); }
 
         async function loadAsResult() {
             if (!db && typeof initStaffDB === 'function') initStaffDB();
@@ -8663,6 +8675,14 @@
                 </div>
 
                 <div class="asr-card">
+                    <h4>🧾 구매이력 확인</h4>
+                    ${(p.purchaseNote && p.purchaseNote.text)
+                        ? `<div class="asr-cell content" style="border:none;padding:0;"><div class="val" style="background:#fafbfc;border-radius:8px;padding:10px;white-space:pre-wrap;">${asrEsc(p.purchaseNote.text)}</div></div>${p.purchaseNote.by ? `<div class="asr-empty-line" style="margin-top:6px;">작성: ${asrEsc(p.purchaseNote.by)} · ${asrEsc(p.purchaseNote.date || '')}</div>` : ''}`
+                        : (asrCanPurchase() ? '' : '<div class="asr-empty-line">등록된 구매이력 메모가 없습니다.</div>')}
+                    ${asrCanPurchase() ? `<div style="margin-top:10px;"><textarea id="asr-purchase-input" class="asr-input" placeholder="구매이력 확인 메모를 입력하세요">${asrEsc((p.purchaseNote && p.purchaseNote.text) || '')}</textarea><div class="asr-row2"><button class="asr-btn primary" onclick="saveAsrPurchase()">구매이력 저장</button></div></div>` : ''}
+                </div>
+
+                <div class="asr-card">
                     <h4>💬 답글 / 메모 ${replies.length ? `<span class="cnt">${replies.length}</span>` : ''}</h4>
                     ${repliesHtml}
                     ${canEdit ? `<div style="margin-top:10px;"><textarea id="asr-reply-input" class="asr-input" placeholder="답글/메모를 입력하세요"></textarea><div class="asr-row2"><button class="asr-btn primary" onclick="addAsrReply()">답글 등록</button></div></div>` : ''}
@@ -8670,15 +8690,20 @@
 
             if (done) {
                 body += `<div class="asr-card">
-                    <h4>🛠 A/S 기사 (처리 내용)</h4>
+                    <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
                     <div class="asr-cell content" style="border:none;padding:0;"><div class="val" style="background:#fafbfc;border-radius:8px;padding:10px;">${asrEsc(p.asReport||'')}</div></div>
                     <div class="asr-empty-line" style="margin-top:8px;">완료: ${asrEsc(p.completedBy||'')} · ${asrEsc(p.completedDate||'')}</div>
                     ${canEdit ? `<div class="asr-row2"><button class="asr-btn ghost" onclick="reopenAsr()">↩ 신청목록으로 되돌리기</button></div>` : ''}</div>`;
-            } else if (canEdit) {
+            } else if (asrIsDispatcher(p)) {
                 body += `<div class="asr-card">
-                    <h4>🛠 A/S 기사 (처리 내용)</h4>
-                    <textarea id="asr-report-input" class="asr-input" placeholder="처리 내용/기사를 작성하세요">${asrEsc(p.asReport||'')}</textarea>
-                    <button class="asr-btn done" onclick="completeAsr()">✅ A/S 기사 저장 + 완료 처리</button></div>`;
+                    <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
+                    <textarea id="asr-report-input" class="asr-input" placeholder="처리 내용을 작성하세요">${asrEsc(p.asReport||'')}</textarea>
+                    <button class="asr-btn done" onclick="completeAsr()">✅ 처리내용 저장 + 완료 처리</button></div>`;
+            } else {
+                body += `<div class="asr-card">
+                    <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
+                    ${p.asReport ? `<div class="asr-cell content" style="border:none;padding:0;"><div class="val" style="background:#fafbfc;border-radius:8px;padding:10px;">${asrEsc(p.asReport)}</div></div>` : ''}
+                    <div class="asr-empty-line">출동담당자로 지정된 분만 처리내용을 작성·완료할 수 있습니다.</div></div>`;
             }
 
             document.getElementById('asr-modal-title').textContent = '🧾 A/S 신청 상세';
@@ -8772,9 +8797,14 @@
                 data.push(['', '등록된 답글이 없습니다.']);
             }
 
-            // A/S 기사 (처리 내용)
+            // 구매이력 확인
             data.push([]);
-            data.push(['A/S 기사 (처리 내용)', v(p.asReport || '')]);
+            data.push(['구매이력 확인', v((p.purchaseNote && p.purchaseNote.text) || '')]);
+            if (p.purchaseNote && p.purchaseNote.by) data.push(['', `작성: ${v(p.purchaseNote.by)} · ${v(p.purchaseNote.date || '')}`]);
+
+            // A/S 출동담당자 (처리 내용)
+            data.push([]);
+            data.push(['A/S 출동담당자 (처리 내용)', v(p.asReport || '')]);
             data.push(['완료자', v(p.completedBy || '')]);
             data.push(['완료일', v(p.completedDate || '')]);
 
@@ -8815,13 +8845,23 @@
             p.replies.splice(ri, 1);
             if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
         }
+        // 구매이력 확인 메모 저장 (결재 권한자만)
+        async function saveAsrPurchase() {
+            const p = asrData[asrCurrentIdx]; if (!p) return;
+            if (!asrCanPurchase()) { alert('구매이력 확인은 결재 권한자만 작성할 수 있습니다.'); return; }
+            const ta = document.getElementById('asr-purchase-input');
+            const text = (ta ? ta.value : '').trim();
+            let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
+            p.purchaseNote = { text, by: u.name || u.username || '임직원', date: new Date().toLocaleDateString('ko-KR') };
+            if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
+        }
 
         async function completeAsr() {
-            if (!asrCanEdit()) return;
             const p = asrData[asrCurrentIdx]; if (!p) return;
+            if (!asrIsDispatcher(p)) { alert('출동담당자로 지정된 분만 처리내용 작성·완료할 수 있습니다.'); return; }
             const rep = document.getElementById('asr-report-input');
             const report = (rep.value || '').trim();
-            if (!report) { alert('A/S 기사(처리 내용)를 작성하세요.'); return; }
+            if (!report) { alert('처리 내용을 작성하세요.'); return; }
             if (!(await showStaffConfirm('A/S 완료 처리하시겠습니까?'))) return;
             let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
             p.asReport = report;
