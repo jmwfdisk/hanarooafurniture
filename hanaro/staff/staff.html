@@ -8759,16 +8759,7 @@
             data.push(['상태', p.status === 'done' ? '처리 완료' : '처리 대기']);
             data.push(['신청 내용', v(p.content || '')]);
 
-            // 첨부파일 (파일명 + URL)
-            if (Array.isArray(p.files) && p.files.length) {
-                data.push([]);
-                data.push(['첨부파일']);
-                p.files.forEach((nm, fi) => {
-                    let url = (p.fileUrls && p.fileUrls[fi]) ? p.fileUrls[fi] : '';
-                    if (!url && p.fileData && p.fileData[fi]) { const it = p.fileData[fi]; url = it.url || ''; }
-                    data.push(['', v(nm), v(url)]);
-                });
-            }
+            // (첨부파일은 엑셀에 포함하지 않음)
 
             // 답글 / 메모
             data.push([]);
