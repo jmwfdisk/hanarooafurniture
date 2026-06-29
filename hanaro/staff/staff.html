@@ -6437,7 +6437,7 @@
                 <span id="member-last-col-header">추가관리 권한부여</span>
             </div>
             <div id="member-tbody" class="table-body">
-                <div class="table-empty">회원이 없습니다.</div>
+                <div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>
             </div>
         </div>
         <div id="member-pagination" style="display: flex; justify-content: center; margin-top: 15px; font-size: 20px;"></div>
@@ -7671,6 +7671,7 @@
     <script>
         // 회원 관리 변수
         let allMembers = [];
+        let membersLoaded = false; // 서버에서 회원 목록을 한 번이라도 불러왔는지 (로딩 스피너 표시 판단)
         let memberOrder = [];   // 승인완료 회원 표시 순서 (UID 배열)
         let currentMemberTab = 'pending';
         let memberCurrentPage = 1;
@@ -7678,10 +7679,17 @@
 
         // 회원 목록 로드 (user 확정 후에만 호출)
         async function loadMembers(retryCount = 0) {
+            // 회원관리를 열면(첫 시도) 즉시 로딩 스피너 표시 → 로드 완료 전 '없습니다' 오표시 방지
+            if (retryCount === 0) {
+                membersLoaded = false;
+                const tb = document.getElementById('member-tbody');
+                if (tb) tb.innerHTML = '<div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>';
+            }
             // user가 확정되지 않았으면 실행하지 않음
             if (!staffAccessGranted) {
                 console.warn('[Staff 페이지] loadMembers() - 접근 권한 없음, 실행 안 함');
                 allMembers = [];
+                membersLoaded = true;
                 updatePendingCount();
                 renderMembers();
                 return;
@@ -7697,13 +7705,14 @@
             if ((!db || !authReady) && retryCount < 10) {
                 console.warn(`[Staff 페이지] 회원목록 로드 대기(db/auth 준비 전) - 재시도 ${retryCount + 1}/10`);
                 const tbodyLoading = document.getElementById('member-tbody');
-                if (tbodyLoading) tbodyLoading.innerHTML = '<div class="table-empty">회원 목록을 불러오는 중…</div>';
+                if (tbodyLoading) tbodyLoading.innerHTML = '<div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>';
                 setTimeout(() => loadMembers(retryCount + 1), 300);
                 return;
             }
             if (!db) {
                 console.warn('Firebase 미연결');
                 allMembers = [];
+                membersLoaded = true;
                 updatePendingCount();
                 renderMembers();
                 return;
@@ -7714,6 +7723,7 @@
             if (!loggedInUser) {
                 console.warn('[Staff 페이지] 로그인 정보 없음');
                 allMembers = [];
+                membersLoaded = true;
                 updatePendingCount();
                 renderMembers();
                 return;
@@ -7725,6 +7735,7 @@
             } catch (e) {
                 console.error('[Staff 페이지] 사용자 정보 파싱 오류:', e);
                 allMembers = [];
+                membersLoaded = true;
                 updatePendingCount();
                 renderMembers();
                 return;
@@ -7734,6 +7745,7 @@
             if (!userData.isAdmin && userData.username !== 'admin') {
                 console.warn('[Staff 페이지] 관리자 권한 없음');
                 allMembers = [];
+                membersLoaded = true;
                 updatePendingCount();
                 renderMembers();
                 return;
@@ -7801,6 +7813,7 @@
                 }
 
                 console.log(`[Staff 페이지] 회원 목록 로드 완료: ${allMembers.length}명`);
+                membersLoaded = true;
                 updatePendingCount();
                 renderMembers();
             } catch (error) {
@@ -7822,6 +7835,7 @@
                     alert('회원 목록을 불러오는 중 오류가 발생했습니다.\n오류: ' + (error.message || error.code || '알 수 없는 오류'));
                 }
                 allMembers = [];
+                membersLoaded = true;
                 updatePendingCount();
                 renderMembers();
             }
@@ -7888,6 +7902,12 @@
             }
 
             if (filteredMembers.length === 0) {
+                // 아직 서버에서 못 불러왔으면 '없습니다' 대신 로딩 스피너
+                if (!membersLoaded) {
+                    tbody.innerHTML = '<div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>';
+                    document.getElementById('member-pagination').innerHTML = '';
+                    return;
+                }
                 const messages = {
                     'pending': '승인 대기 중인 회원이 없습니다.',
                     'admin': '관리자가 없습니다.',
