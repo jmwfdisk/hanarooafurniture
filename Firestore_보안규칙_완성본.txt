@@ -273,9 +273,11 @@ service cloud.firestore {
     // ========== 앱 설정/메타 (appConfig) ==========
     // 예: doc('memberOrder') = { order: [uid...] } 승인완료 회원 표시 순서
     match /appConfig/{docId} {
-      // 읽기: 임직원, 쓰기: 관리자만
+      // 읽기: 임직원
       allow read: if isEmployee();
-      allow write: if isAdmin();
+      // 쓰기: 기본은 관리자만. 단, asAssignees(A/S 출동담당자 목록)는
+      //       'asAssignee' 권한 보유자(또는 전체/관리자)도 수정 가능
+      allow write: if docId == 'asAssignees' ? permFor('asAssignee') : isAdmin();
     }
 
     // ========== 회사운영 달력 (companyCalendar) ==========

@@ -164,7 +164,8 @@
     '.fbz-sl-btn:hover{border-color:#888;}' +
     '.fbz-sl-caret{font-size:22px;color:#666;line-height:1;transition:transform .15s ease;}' +
     '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
-    '.fbz-sl-menu{display:none;position:absolute;left:0;right:auto;top:calc(100% + 6px);min-width:170px;' +
+    /* position:fixed → 정부로고 가로 스크롤(overflow) 컨테이너에 잘리지 않도록 좌표는 JS가 계산 */
+    '.fbz-sl-menu{display:none;position:fixed;z-index:3000;min-width:170px;' +
       'background:#fff;border:1px solid #cfcfcf;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
       'overflow-y:auto;overflow-x:hidden;max-height:340px;padding:4px 0;text-align:left;' +
       '-webkit-overflow-scrolling:touch;}' +
@@ -182,7 +183,6 @@
     '@media (max-width:768px){' +
       '.fbz-sitelinks{position:relative;transform:none;right:auto;top:auto;flex-basis:100%;' +
         'display:flex;justify-content:center;margin-top:12px;}' +
-      '.fbz-sl-menu{left:50%;right:auto;transform:translateX(-50%);top:calc(100% + 6px);}' +
     '}';
 
   var styleEl = document.createElement('style');
@@ -322,17 +322,45 @@
         '<div class="fbz-sl-menu">' + items + '</div>';
       pl.appendChild(wrap);
       var btn = wrap.querySelector('.fbz-sl-btn');
+      var menu = wrap.querySelector('.fbz-sl-menu');
+
+      // 메뉴는 position:fixed 라서 버튼 위치를 기준으로 좌표를 직접 계산한다.
+      // (정부로고 가로 스크롤 컨테이너의 overflow에 잘리는 문제 해결 + 아래 공간 부족 시 위로 펼침)
+      function positionMenu() {
+        var r = btn.getBoundingClientRect();
+        var vw = window.innerWidth, vh = window.innerHeight;
+        menu.style.minWidth = Math.max(170, r.width) + 'px';
+        var mw = menu.offsetWidth || 170;
+        var left = Math.min(Math.max(8, r.left), vw - mw - 8);
+        menu.style.left = left + 'px';
+        var spaceBelow = vh - r.bottom, spaceAbove = r.top;
+        if (spaceBelow < 180 && spaceAbove > spaceBelow) { // 위로 펼침
+          menu.style.top = 'auto';
+          menu.style.bottom = (vh - r.top + 6) + 'px';
+          menu.style.maxHeight = Math.min(340, spaceAbove - 12) + 'px';
+        } else {                                            // 아래로 펼침
+          menu.style.bottom = 'auto';
+          menu.style.top = (r.bottom + 6) + 'px';
+          menu.style.maxHeight = Math.min(340, spaceBelow - 12) + 'px';
+        }
+      }
+      function closeMenu() {
+        wrap.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var open = wrap.classList.toggle('open');
         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) positionMenu();
       });
       document.addEventListener('click', function (e) {
-        if (!wrap.contains(e.target)) {
-          wrap.classList.remove('open');
-          btn.setAttribute('aria-expanded', 'false');
-        }
+        if (!wrap.contains(e.target)) closeMenu();
       });
+      // 열린 상태에서 스크롤/리사이즈 시 좌표 갱신(가로 스크롤 strip 포함)
+      window.addEventListener('resize', function () { if (wrap.classList.contains('open')) positionMenu(); });
+      window.addEventListener('scroll', function () { if (wrap.classList.contains('open')) positionMenu(); }, true);
     });
   }
 

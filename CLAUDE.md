@@ -8,10 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Production domain: `hanarooa.com`
 - Firebase project: `hanarooa-f227d`
+- Repo: `github.com/jmwfdisk/hanarooafurniture` (branch `main`)
 
 ## Development
 
 Open HTML files directly in a browser, or use VS Code **Live Server** extension at `http://127.0.0.1:5500`. There is no build step, test suite, or package manager.
+
+**Deployment is GitHub Pages from `main`** (CNAME `hanarooa.com`, no Actions workflow). Pushing/merging to `main` publishes straight to production — there is no staging. Browsers may cache `auth.js`/`footer-bar.js`/etc., so bump the `?v=YYYYMMDD…` query string on changed includes (see footer-bar note below) so users get the new file.
 
 To apply Firebase Storage CORS settings after changes to `cors.json`:
 ```
@@ -32,7 +35,7 @@ The site is a hybrid: `index.html` is a single-page app (SPA) that renders multi
 index.html              ← Main SPA (home, product sections, search)
 hanaro/
   js/auth.js            ← Shared Firebase auth singleton (loaded on every page)
-  js/footer-bar.js      ← Shared footer; replaces <footer> content on every page (legal info + cert marks + links/SNS). Cert images in image/ (cert-*.png). Also injects the **'바로가기' dropdown** into `.partner-logos` — STAFF PAGE ONLY (guarded by `location.pathname` `/staff/`). Links live in `SITE_LINKS`, a category-grouped array `[{category, links:[{label,url}]}]`; each include is cache-busted with `?v=YYYYMMDD…` (bump on every edit, all pages).
+  js/footer-bar.js      ← Shared footer; replaces <footer> content on every page (legal info + cert marks + links/SNS). Cert images in image/ (cert-*.png). Also injects the **'바로가기' dropdown** into `.partner-logos` — STAFF PAGE ONLY (guarded by `location.pathname` `/staff/`). Links live in `SITE_LINKS`, a category-grouped array `[{category, links:[{label,url}]}]`; each include is cache-busted with `?v=YYYYMMDD…` (bump on every edit, all pages). The dropdown menu (`.fbz-sl-menu`) is `position:fixed` with JS-computed coordinates (`positionMenu`, opens upward when there's no room below) — NOT `absolute` — because `.partner-logos` is a horizontal-scroll (`overflow-x:auto`) strip on mobile that would otherwise clip the menu.
   js/router.js          ← SPA route handler + School section logic
   css/common.css        ← Shared design system
   css/auth.css          ← Login modal styles
@@ -92,9 +95,9 @@ New registrations are created with `status: 'pending'` and require admin approva
 | `inventory/{main\|YYYY-MM-DD\|_index}` | staff 재고현황: `main`=최신본, `YYYY-MM-DD`=날짜별 스냅샷, `_index.dates[]`=저장된 날짜 목록 | `permFor('inventory')` |
 | `deliverySchedule/{YYYY-MM-DD}` | staff 일정관리 | `permFor('schedule')` |
 | `companyCalendar/{id}` | staff 회사운영 캘린더 | `permFor('company')` |
-| `appConfig/{memberOrder\|asAssignees}` | staff | admin |
+| `appConfig/{memberOrder\|asAssignees}` | staff | `memberOrder`=admin; `asAssignees`(A/S 출동담당자 목록)=`permFor('asAssignee')` |
 
-Permission helper `userCan(area)` (areas: `all/company/photos/schedule/asResult/inventory/report`) gates UI; admin overrides. Stored in `users.permissions`. `report` controls the 직원게시판 **업무보고(본사)** segment (`staff-report` board): the segment button is hidden and access blocked for users without it. Areas are data-driven via `PERM_AREAS` (drives the 권한설정 modal checkboxes `#perm-<area>`). The **회원관리** nav (`switchBoard('member-management')`) is **admin-only** — the nav link is `display:none` by default and revealed only for admins in `checkStaffAccess`; `switchBoard` also blocks non-admins.
+Permission helper `userCan(area)` (areas: `all/company/photos/schedule/asResult/asAssignee/inventory/report`) gates UI; admin overrides. Stored in `users.permissions`. `report` controls the 직원게시판 **업무보고(본사)** segment (`staff-report` board): the segment button is hidden and access blocked for users without it. `asAssignee` controls the A/S 처리결과 **출동 담당자 관리**(추가/삭제 of `appConfig/asAssignees`) — gated in UI via `asrCanManageAssignee()` (button visibility + `openAssigneeManager`/`addAssignee`/`removeAssignee`) and enforced in the Firestore rule for `appConfig/asAssignees`. Areas are data-driven via `PERM_AREAS` (drives the 권한설정 modal checkboxes `#perm-<area>`). The **회원관리** nav (`switchBoard('member-management')`) is **admin-only** — the nav link is `display:none` by default and revealed only for admins in `checkStaffAccess`; `switchBoard` also blocks non-admins.
 
 ### Staff Page Modules (`hanaro/staff/staff.html`)
 
@@ -103,7 +106,8 @@ This single large file (~9k lines, several inline `<script>` blocks) holds all e
 - **자재관리** uses **Tabulator** (row = Firestore doc, structured fields), NOT the sheet engine. Has its own right-click menu, app-level undo/redo (native history is wiped by realtime `replaceData`), CSV/JSON/Excel import-export.
 - **활동사진첩**: photos carry an optional `title`. The viewer groups photos by identical title (next/prev cycles within the group), supports mobile swipe. Upload assigns one common title to the batch; grid titles are double-click editable by owner/admin only.
 - **게시판 글쓰기 리치 에디터**: the shared write form (`#write-form`) uses a `contenteditable` editor (`#write-content`, `.rte-editor`) + toolbar (`#write-rte-toolbar`), not a textarea. Bold/italic/underline/strike/list/align run via `document.execCommand`; font color/highlight via `foreColor`/`hiliteColor`; **pt font size wraps the selection (or caret, via a ZWSP span) in `<span style="font-size:Npt">`** since execCommand fontSize only supports 1–7. Post body is stored as **HTML, sanitized with `rteSanitize()` (DOMPurify allowlist) on save and on render** — legacy plain-text posts are auto-detected and rendered with `escape + nl2br`. Helpers: `rteSanitize`, `rteToText`, `initRteToolbar` (tracks the last selection range so the OS color picker doesn't lose it). Applies to ALL boards sharing the form.
-- **A/S 처리결과** is `asPosts`-backed with assignee management (`appConfig/asAssignees`), replies, and completion handling. Kept live via an `onSnapshot` listener on `asPosts/posts` (`startAsrRealtime`, started from `startStaffListeners`) so new AS.html applications and processing updates appear without re-clicking the tab; while the detail modal (`asr-modal`) is open, incoming changes are buffered in `asrPendingPosts` and applied on `closeAsrModal` to avoid `asrCurrentIdx` desync. (AS.html's applicant-side list is still one-shot `.get()`.)
+- **게시판 검색** (`searchPosts`): there is ONE shared search element (`.search-group#board-search`, a 제목/내용 select + input + magnifier button). `placeBoardSearch()` **relocates it to the right end of the active segment menu** (`.notice-segment` row) — `#notice-segment` (공지사항), `#staff-segment` (직원게시판), `#asresult-segment` (A/S) — styled as a `.seg-search` pill (알약형) with the select hidden so it searches title **and** content (`searchType='all'`). 제안활동 has no segment menu, so it uses a right-aligned bar `#suggestion-search-bar` at the top of `#notice-post-view`. The search is hidden on 캘린더/활동사진첩/회원관리. `placeBoardSearch()` is called from `switchBoard`, `setNoticeSegment`, `setAsrSegment` and **clears the query on every move**; the parked `.board-footer` home is `display:none`. **A/S 처리결과 uses a separate data path** (`asrData`/`renderAsResult`, not `allPosts`): `searchPosts` delegates to `searchAsr()`, which sets `asrSearchQuery`; `renderAsResult` filters rows by 제목·작성자·구분·내용·담당자.
+- **A/S 처리결과** is `asPosts`-backed with assignee management (`appConfig/asAssignees`), replies, and completion handling. Kept live via an `onSnapshot` listener on `asPosts/posts` (`startAsrRealtime`, started from `startStaffListeners`) so new AS.html applications and processing updates appear without re-clicking the tab; while the detail modal (`asr-modal`) is open, incoming changes are buffered in `asrPendingPosts` and applied on `closeAsrModal` to avoid `asrCurrentIdx` desync. (AS.html's applicant-side list is still one-shot `.get()`.) The detail modal of a **완료(done)** item shows a `#asr-export-btn` that calls `exportAsrDetailExcel()` — builds an AOA (구분·제목·작성자·신청일·담당자·신청내용·첨부·답글·처리내용·완료자/일) and `XLSX.writeFile`s `A_S신청상세_<제목>_<완료일>.xlsx` via the already-loaded SheetJS.
 
 ### External Libraries (CDN)
 

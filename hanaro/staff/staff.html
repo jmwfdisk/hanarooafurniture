@@ -1105,6 +1105,50 @@
             background: #2563eb;
         }
 
+        /* 게시판 검색: 세그먼트 메뉴 오른쪽 끝 알약형 검색 필드 */
+        .notice-segment { align-items: center; flex-wrap: wrap; }
+        .seg-search-bar { display: flex; justify-content: flex-end; width: 900px; max-width: 100%; margin: 0 auto 14px; }
+        .board-footer:empty { display: none; }
+        .search-group.seg-search {
+            flex: 0 0 auto;
+            margin-left: auto;            /* 세그먼트 버튼은 왼쪽, 검색은 오른쪽 끝 */
+            gap: 0;
+            flex-wrap: nowrap;
+            background: #fff;
+            border: 1px solid #d5d9e0;
+            border-radius: 999px;         /* 알약형 */
+            padding: 0 5px 0 14px;
+            box-shadow: 0 1px 2px rgba(0,0,0,.05);
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+        .search-group.seg-search:focus-within {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+        }
+        .search-group.seg-search select { display: none; }   /* 제목/내용 숨김 → 제목+내용 동시 검색 */
+        .search-group.seg-search input {
+            border: none; background: transparent; box-shadow: none;
+            width: 190px; padding: 8px 6px; border-radius: 0; font-size: 14px;
+        }
+        .search-group.seg-search input:focus { border: none; box-shadow: none; }
+        .search-group.seg-search button {
+            flex: 0 0 auto;
+            width: 30px; height: 30px; padding: 0;
+            border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .search-group.seg-search button svg { width: 16px; height: 16px; display: block; }
+        @media (max-width: 1024px) {
+            .notice-segment .search-group.seg-search,
+            .seg-search-bar .search-group.seg-search {
+                width: 100%; margin-left: 0;
+                flex-direction: row; gap: 0;
+            }
+            .search-group.seg-search input { flex: 1 1 auto; width: auto; min-width: 0; min-height: 40px; }
+            .search-group.seg-search button { width: 34px; height: 34px; min-height: 34px; }
+            .seg-search-bar { margin-bottom: 10px; }
+        }
+
         .action-buttons {
             display: flex;
             gap: 10px;
@@ -1246,6 +1290,19 @@
             vertical-align: -2px; margin-right: 8px;
         }
         @keyframes btnspin { to { transform: rotate(360deg); } }
+
+        /* 게시판 로딩 상태(서버에서 글 불러오는 중) */
+        .table-loading {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 14px; text-align: center; padding: 60px 20px;
+            color: #6c757d; font-size: 15px; font-weight: 500;
+            width: 100%; max-width: 700px; margin: 20px auto; box-sizing: border-box;
+        }
+        .table-loading .table-spinner {
+            width: 34px; height: 34px;
+            border: 3px solid #e3e8ef; border-top-color: #3b82f6;
+            border-radius: 50%; animation: btnspin 0.7s linear infinite;
+        }
 
         .write-form button {
             padding: 12px 24px;
@@ -2721,7 +2778,7 @@
 
     <!-- 공통 인증 스크립트 -->
     <script src="../js/auth.js"></script>
-    <script src="../js/footer-bar.js?v=20260625"></script>
+    <script src="../js/footer-bar.js?v=20260626"></script>
     <!-- 글쓰기 리치 에디터 본문 살균(XSS 방지). 미로딩 시 평문 폴백 -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
@@ -2943,6 +3000,7 @@
 
         let currentBoard = 'notice';
         let currentPage = {};
+        let postsLoaded = false; // 서버에서 게시글을 한 번이라도 불러왔는지 (로딩 스피너 표시 판단)
         let currentPostIndex = -1; // 현재 상세보기 중인 게시글 인덱스
         const postsPerPage = 10;
         let allPosts = {
@@ -2983,6 +3041,7 @@
             // (await 없이 switchBoard만 하면 빈 배열을 그린 채 끝나 공지사항이
             //  안 보이므로, 로드 완료 후 renderPosts로 반드시 채운다.)
             await loadAllPosts();
+            postsLoaded = true;   // 로드 완료(성공/로컬폴백 무관) → 이후 빈 보드는 '게시글이 없습니다'
             renderPosts();
 
             // 작성 버튼 표시 여부 초기화
@@ -3221,6 +3280,7 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'block';
                 if (photoSection) photoSection.style.display = 'none';
+                if (typeof placeBoardSearch === 'function') placeBoardSearch();
                 // user 확정 후에만 Firestore 접근
                 loadMembers();
                 return;
@@ -3235,6 +3295,7 @@
                 boardSection.style.display = 'none';
                 memberSection.style.display = 'none';
                 if (photoSection) photoSection.style.display = 'block';
+                if (typeof placeBoardSearch === 'function') placeBoardSearch();
                 // user 확정 후에만 Firestore 접근
                 loadPhotos();
                 return;
@@ -3296,6 +3357,7 @@
                 if (postView) postView.style.display = 'none';   // 기존 게시판 테이블 숨김
                 if (calView) calView.style.display = 'none';
                 updateWriteButtonVisibility();
+                if (typeof placeBoardSearch === 'function') placeBoardSearch();
                 if (typeof loadAsResult === 'function') loadAsResult();
                 return; // 일반 renderPosts 사용 안 함
             } else {
@@ -3308,8 +3370,11 @@
 
             // 게시글 렌더링
             renderPosts();
+
+            // 검색 알약을 현재 게시판 세그먼트(또는 제안활동 바)로 배치
+            if (typeof placeBoardSearch === 'function') placeBoardSearch();
         }
-        
+
         // 작성 버튼 표시 여부 업데이트
         function updateWriteButtonVisibility() {
             const writeBtn = document.querySelector('.write');
@@ -3346,7 +3411,10 @@
             tbody.innerHTML = '';
 
             if (posts.length === 0) {
-                tbody.innerHTML = '<div class="table-empty">게시글이 없습니다.</div>';
+                // 아직 서버에서 한 번도 불러오지 못했으면 스피너, 불러온 뒤 비어 있으면 안내 문구
+                tbody.innerHTML = postsLoaded
+                    ? '<div class="table-empty">게시글이 없습니다.</div>'
+                    : '<div class="table-loading"><span class="table-spinner"></span>게시글을 불러오는 중…</div>';
                 renderPagination();
                 return;
             }
@@ -4341,23 +4409,29 @@
         }
 
         function searchPosts() {
-            const searchType = document.getElementById('search-type').value;
+            // A/S 처리결과는 별도 데이터(asrData) 기반이므로 전용 검색으로 분기
+            if (currentBoard === 'as-result') { searchAsr(); return; }
+            const typeEl = document.getElementById('search-type');
+            // 모바일에서는 제목/내용 선택이 숨겨지므로(offsetParent=null) 제목·내용 모두 검색
+            const searchType = (typeEl && typeEl.offsetParent !== null) ? typeEl.value : 'all';
             const searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
-            
+
             if (!searchQuery) {
                 renderPosts();
                 return;
             }
 
+            const matchContent = (post) => {
+                // 리치 에디터 HTML은 태그를 제거한 평문으로 검색
+                const c = post.content || '';
+                const plain = /<[a-z!/][^>]*>/i.test(c) ? rteToText(c) : c;
+                return plain.toLowerCase().includes(searchQuery);
+            };
             const filtered = allPosts[currentBoard].filter(post => {
-                if (searchType === 'title') {
-                    return post.title.toLowerCase().includes(searchQuery);
-                } else {
-                    // 리치 에디터 HTML은 태그를 제거한 평문으로 검색
-                    const c = post.content || '';
-                    const plain = /<[a-z!/][^>]*>/i.test(c) ? rteToText(c) : c;
-                    return plain.toLowerCase().includes(searchQuery);
-                }
+                const inTitle = post.title.toLowerCase().includes(searchQuery);
+                if (searchType === 'title') return inTitle;
+                if (searchType === 'content') return matchContent(post);
+                return inTitle || matchContent(post); // 'all'
             });
 
             // 검색 결과를 임시로 저장하고 렌더링
@@ -4370,6 +4444,45 @@
             setTimeout(() => {
                 allPosts[currentBoard] = originalPosts;
             }, 0);
+        }
+
+        // A/S 처리결과 전용 검색 (제목·작성자·구분·내용·담당자 대상)
+        function searchAsr() {
+            const inp = document.getElementById('search-input');
+            asrSearchQuery = (inp ? inp.value : '').trim().toLowerCase();
+            if (typeof renderAsResult === 'function') renderAsResult();
+        }
+
+        // 검색 알약을 현재 게시판의 세그먼트 메뉴 오른쪽 끝으로 이동시킨다.
+        // 세그먼트가 없는 게시판(제안활동)은 표 위 우측정렬 바(#suggestion-search-bar)로,
+        // 검색 대상이 없는 화면(캘린더/활동사진첩/회원관리)에서는 숨긴다.
+        function placeBoardSearch() {
+            const sg = document.getElementById('board-search');
+            if (!sg) return;
+            const sugBar = document.getElementById('suggestion-search-bar');
+            const inp = document.getElementById('search-input');
+            // 게시판/세그먼트 전환 시 이전 검색어·결과 초기화
+            if (inp) inp.value = '';
+            asrSearchQuery = '';
+
+            let target = null;
+            const b = currentBoard;
+            if (b === 'notice') {
+                target = (currentNoticeSegment === 'calendar') ? null : document.getElementById('notice-segment');
+            } else if (b === 'staff' || b === 'staff-data' || b === 'staff-report') {
+                target = document.getElementById('staff-segment');
+            } else if (b === 'as-result') {
+                target = document.getElementById('asresult-segment');
+            } else if (b === 'suggestion') {
+                target = sugBar;
+            }
+            // 제안활동 전용 바는 해당 게시판일 때만 표시
+            if (sugBar) sugBar.style.display = (target === sugBar) ? 'flex' : 'none';
+
+            if (!target) { sg.style.display = 'none'; return; }
+            sg.style.display = '';
+            sg.classList.add('seg-search');
+            if (sg.parentElement !== target) target.appendChild(sg);
         }
 
         // 오버레이 클릭 이벤트 (auth.js에서 로그인 관련 처리)
@@ -6011,6 +6124,8 @@
         <button class="seg-btn" data-seg="done" onclick="setAsrSegment('done')">A/S 완료</button>
     </div>
     <div id="notice-post-view">
+    <!-- 세그먼트 메뉴가 없는 게시판(제안활동)용 우측정렬 검색 바 -->
+    <div id="suggestion-search-bar" class="seg-search-bar" style="display:none;"></div>
     <div class="board-table">
       <div class="table-header">
         <span>번&nbsp;호</span>
@@ -6020,21 +6135,21 @@
         <span>조&nbsp;회</span>
     </div>
       <div id="board-tbody" class="table-body">
-        <div class="table-empty">게시글이 없습니다.</div>
+        <div class="table-loading"><span class="table-spinner"></span>게시글을 불러오는 중…</div>
     </div>
     </div>
         <div class="board-toolbar">
             <button class="write" onclick="showWriteForm()">글쓰기</button>
         </div>
         <div id="pagination" style="display: flex; justify-content: center; align-items: center; margin-top: 18px; flex-wrap: wrap; gap: 2px;"></div>
-    <div class="board-footer">
-      <div class="search-group">
+    <div class="board-footer" style="display:none;"><!-- 검색은 placeBoardSearch()가 세그먼트로 이동시킴; 빈 푸터는 숨김 -->
+      <div class="search-group" id="board-search">
                 <select id="search-type">
                     <option value="title">제목</option>
                     <option value="content">내용</option>
         </select>
                 <input type="text" id="search-input" placeholder="검색어를 입력하세요" onkeypress="if(event.key==='Enter') searchPosts();" />
-                <button onclick="searchPosts()">조회</button>
+                <button onclick="searchPosts()" aria-label="검색" title="검색"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       </div>
     </div>
     </div><!-- /notice-post-view -->
@@ -7902,6 +8017,7 @@
             { key: 'photos',    label: '활동사진첩' },
             { key: 'schedule',  label: '일정관리' },
             { key: 'asResult',  label: 'A/S처리결과' },
+            { key: 'asAssignee', label: 'A/S 출동담당자 관리' },
             { key: 'inventory', label: '재고현황' },
             { key: 'report',    label: '업무보고(본사)' }
         ];
@@ -8102,7 +8218,10 @@
       <div class="asr-modal-card">
         <div class="asr-modal-header">
           <h3 id="asr-modal-title">A/S 신청 상세</h3>
-          <button class="tool-modal-close" onclick="closeAsrModal()">&times;</button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button id="asr-export-btn" type="button" onclick="exportAsrDetailExcel()" title="신청상세 내용을 엑셀로 다운로드" style="display:none;align-items:center;gap:6px;background:#1f9d57;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">📥 엑셀 다운로드</button>
+            <button class="tool-modal-close" onclick="closeAsrModal()">&times;</button>
+          </div>
         </div>
         <div class="asr-modal-body" id="asr-modal-body"></div>
       </div>
@@ -8217,6 +8336,8 @@
         let asrData = [];
         let asrAssignees = ASR_DEFAULT_ASSIGNEES.slice();
         let asrSeg = 'pending';
+        let asrSearchQuery = '';
+        let asrLoaded = false; // A/S 데이터를 서버에서 한 번이라도 받았는지 (로딩 스피너 표시 판단)
         let asrCurrentIdx = -1;
 
         function asrEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -8224,6 +8345,8 @@
         function asrIsAdmin(){
             try { const u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); return u.isAdmin === true || u.username === 'admin'; } catch(e){ return false; }
         }
+        // 출동 담당자 추가/삭제 권한: 관리자 또는 'asAssignee'(또는 전체) 권한 보유자 (userCan이 admin·all 처리)
+        function asrCanManageAssignee(){ return (typeof userCan === 'function') ? userCan('asAssignee') : asrIsAdmin(); }
 
         async function loadAsResult() {
             if (!db && typeof initStaffDB === 'function') initStaffDB();
@@ -8232,7 +8355,7 @@
             // 이미 확보한 데이터(onSnapshot 등)로 먼저 동기 렌더 → 표가 통째로 비는 현상 방지.
             // (await 뒤에서 렌더하면 .get()이 멈출 때 renderAsResult까지 도달하지 못함)
             renderAsResult();
-            if (!db) return;
+            if (!db) { asrLoaded = true; renderAsResult(); return; }
             // 담당자 목록 보강(실패해도 위 렌더 유지)
             try {
                 const a = await db.collection('appConfig').doc('asAssignees').get();
@@ -8243,6 +8366,7 @@
                 const snap = await db.collection('asPosts').doc('posts').get();
                 if (snap.exists && Array.isArray(snap.data().posts) && !asrModalIsOpen()) asrData = snap.data().posts;
             } catch (e) { console.error('A/S 신청 로드 실패:', e); }
+            asrLoaded = true;   // 로드 완료 → 이후 빈 목록은 안내 문구 표시
             renderAsResult();
         }
 
@@ -8257,6 +8381,7 @@
         }
         function applyAsrPosts(posts) {
             asrData = Array.isArray(posts) ? posts : [];
+            asrLoaded = true;   // onSnapshot으로 데이터 도착 → 로딩 종료
             if (currentBoard === 'as-result' && typeof renderAsResult === 'function') renderAsResult();
         }
         function startAsrRealtime() {
@@ -8287,6 +8412,7 @@
         function setAsrSegment(seg) {
             asrSeg = seg;
             document.querySelectorAll('#asresult-segment .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.seg === seg));
+            if (typeof placeBoardSearch === 'function') placeBoardSearch();
             renderAsResult();
         }
 
@@ -8297,14 +8423,24 @@
             const isDone = asrSeg === 'done';
 
             // 마스터 인덱스 보존하여 필터
-            const rows = [];
+            let rows = [];
             asrData.forEach((p, i) => {
                 const done = p.status === 'done';
                 if (isDone === done) rows.push({ p, i });
             });
+            // 검색어 필터 (제목·작성자·구분·내용·담당자)
+            if (asrSearchQuery) {
+                rows = rows.filter(({ p }) => {
+                    const c = p.content || '';
+                    const plain = /<[a-z!/][^>]*>/i.test(c) ? rteToText(c) : c;
+                    const hay = [p.title, p.name, p.username, p.type, plain, p.assignee]
+                        .filter(Boolean).join(' ').toLowerCase();
+                    return hay.includes(asrSearchQuery);
+                });
+            }
 
             let html = '';
-            if (asrIsAdmin()) {
+            if (asrCanManageAssignee()) {
                 html += `<div class="asr-toolbar"><button class="asr-manage-btn" onclick="openAssigneeManager()">👷 출동 담당자 관리</button></div>`;
             }
             html += '<div class="asr-table-wrap"><table class="asr-table"><thead><tr>' +
@@ -8314,7 +8450,12 @@
                 '<th style="width:80px;">상태</th></tr></thead><tbody>';
 
             if (!rows.length) {
-                html += `<tr><td colspan="7" class="asr-empty">${isDone ? '완료된 A/S가 없습니다.' : '접수된 A/S 신청이 없습니다.'}</td></tr>`;
+                if (!asrLoaded && !asrSearchQuery) {
+                    html += `<tr><td colspan="7" class="asr-empty"><div class="table-loading"><span class="table-spinner"></span>A/S 목록을 불러오는 중…</div></td></tr>`;
+                } else {
+                    const emptyMsg = asrSearchQuery ? '검색 결과가 없습니다.' : (isDone ? '완료된 A/S가 없습니다.' : '접수된 A/S 신청이 없습니다.');
+                    html += `<tr><td colspan="7" class="asr-empty">${emptyMsg}</td></tr>`;
+                }
             } else {
                 rows.forEach((r, n) => {
                     const p = r.p, idx = r.i;
@@ -8432,6 +8573,9 @@
 
             document.getElementById('asr-modal-title').textContent = '🧾 A/S 신청 상세';
             document.getElementById('asr-modal-body').innerHTML = body;
+            // 엑셀 다운로드 버튼: A/S 완료 건에서만 노출
+            const exBtn = document.getElementById('asr-export-btn');
+            if (exBtn) exBtn.style.display = done ? 'inline-flex' : 'none';
             document.getElementById('asr-modal').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
@@ -8441,6 +8585,62 @@
             asrCurrentIdx = -1;
             // 모달이 열려 있는 동안 실시간으로 들어온 변경을 이제 반영
             if (asrPendingPosts) { const p = asrPendingPosts; asrPendingPosts = null; applyAsrPosts(p); }
+        }
+
+        // A/S 신청상세(완료 건)를 엑셀(.xlsx)로 다운로드
+        function exportAsrDetailExcel() {
+            if (typeof XLSX === 'undefined') { alert('엑셀 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'); return; }
+            const p = asrData[asrCurrentIdx];
+            if (!p) { alert('대상 신청 건을 찾을 수 없습니다.'); return; }
+            const v = (s) => String(s == null ? '' : s).replace(/\r\n/g, '\n');
+
+            const data = [];
+            data.push(['A/S 신청 상세']);
+            data.push([]);
+            data.push(['구분', v(p.type || '기타')]);
+            data.push(['제목', v(p.title || '')]);
+            data.push(['작성자', v(p.name || p.username || '-')]);
+            data.push(['신청일', v(p.date || '-')]);
+            data.push(['출동 담당자', v(p.assignee || '미지정')]);
+            data.push(['상태', p.status === 'done' ? '처리 완료' : '처리 대기']);
+            data.push(['신청 내용', v(p.content || '')]);
+
+            // 첨부파일 (파일명 + URL)
+            if (Array.isArray(p.files) && p.files.length) {
+                data.push([]);
+                data.push(['첨부파일']);
+                p.files.forEach((nm, fi) => {
+                    let url = (p.fileUrls && p.fileUrls[fi]) ? p.fileUrls[fi] : '';
+                    if (!url && p.fileData && p.fileData[fi]) { const it = p.fileData[fi]; url = it.url || ''; }
+                    data.push(['', v(nm), v(url)]);
+                });
+            }
+
+            // 답글 / 메모
+            data.push([]);
+            data.push(['답글 / 메모']);
+            const replies = Array.isArray(p.replies) ? p.replies : [];
+            if (replies.length) {
+                data.push(['작성자', '내용', '날짜']);
+                replies.forEach(r => data.push([v(r.author), v(r.text), v(r.date)]));
+            } else {
+                data.push(['', '등록된 답글이 없습니다.']);
+            }
+
+            // A/S 기사 (처리 내용)
+            data.push([]);
+            data.push(['A/S 기사 (처리 내용)', v(p.asReport || '')]);
+            data.push(['완료자', v(p.completedBy || '')]);
+            data.push(['완료일', v(p.completedDate || '')]);
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 44 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'A_S 신청상세');
+
+            const safeTitle = (String(p.title || '').replace(/[\\/:*?"<>|\n\r]/g, ' ').trim().slice(0, 40)) || 'AS신청상세';
+            const dateTag = String(p.completedDate || p.date || new Date().toISOString().slice(0, 10)).replace(/[^0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            XLSX.writeFile(wb, `A_S신청상세_${safeTitle}_${dateTag}.xlsx`);
         }
 
         async function addAsrReply() {
@@ -8484,9 +8684,9 @@
             if (await saveAsrData()) { closeAsrModal(); setAsrSegment('pending'); }
         }
 
-        // ===== 출동 담당자 관리 (관리자) =====
+        // ===== 출동 담당자 관리 (관리자 또는 'A/S 출동담당자 관리' 권한 보유자) =====
         function openAssigneeManager() {
-            if (!asrIsAdmin()) { alert('관리자만 사용할 수 있습니다.'); return; }
+            if (!asrCanManageAssignee()) { alert('출동 담당자 관리 권한이 없습니다.'); return; }
             renderAssigneeList();
             document.getElementById('assignee-modal').style.display = 'flex';
             document.body.style.overflow = 'hidden';
@@ -8510,6 +8710,7 @@
             } catch (e) { console.error('담당자 저장 실패:', e); alert('담당자 저장 실패 (관리자 권한/규칙 확인)\n'+(e.message||'')); return false; }
         }
         async function addAssignee() {
+            if (!asrCanManageAssignee()) { alert('출동 담당자 관리 권한이 없습니다.'); return; }
             const inp = document.getElementById('assignee-new');
             const name = (inp.value || '').trim();
             if (!name) { alert('담당자 이름을 입력하세요.'); return; }
@@ -8519,6 +8720,7 @@
             else asrAssignees.pop();
         }
         async function removeAssignee(i) {
+            if (!asrCanManageAssignee()) { alert('출동 담당자 관리 권한이 없습니다.'); return; }
             if (!(await showStaffConfirm(`'${asrAssignees[i]}' 담당자를 삭제할까요?`))) return;
             const removed = asrAssignees.splice(i, 1);
             if (await saveAssignees()) { renderAssigneeList(); renderAsResult(); }
@@ -9041,6 +9243,7 @@
           <label class="perm-row"><span>활동사진첩</span><input type="checkbox" id="perm-photos"></label>
           <label class="perm-row"><span>일정관리</span><input type="checkbox" id="perm-schedule"></label>
           <label class="perm-row"><span>A/S처리결과</span><input type="checkbox" id="perm-asResult"></label>
+          <label class="perm-row"><span>A/S 출동담당자 관리</span><input type="checkbox" id="perm-asAssignee"></label>
           <label class="perm-row"><span>재고현황</span><input type="checkbox" id="perm-inventory"></label>
           <label class="perm-row"><span>업무보고(본사)</span><input type="checkbox" id="perm-report"></label>
         </div>
@@ -9187,6 +9390,7 @@
                 if (postView) postView.style.display = '';
                 if (calView) calView.style.display = 'none';
             }
+            if (typeof placeBoardSearch === 'function') placeBoardSearch();
         }
 
         function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } loadAndRenderCalendar(); }
