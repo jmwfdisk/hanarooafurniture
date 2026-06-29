@@ -1142,11 +1142,11 @@
         .search-group.seg-search input:focus { border: none; box-shadow: none; }
         .search-group.seg-search button {
             flex: 0 0 auto;
-            width: 30px; height: 30px; padding: 0;
+            width: 27px; height: 27px; padding: 0;
             border-radius: 50%;
             display: inline-flex; align-items: center; justify-content: center;
         }
-        .search-group.seg-search button svg { width: 16px; height: 16px; display: block; }
+        .search-group.seg-search button svg { width: 15px; height: 15px; display: block; }
         @media (max-width: 1024px) {
             .notice-segment .search-group.seg-search,
             .seg-search-bar .search-group.seg-search {
@@ -1154,7 +1154,7 @@
                 flex-direction: row; gap: 0;
             }
             .search-group.seg-search input { flex: 1 1 auto; width: auto; min-width: 0; min-height: 40px; }
-            .search-group.seg-search button { width: 34px; height: 34px; min-height: 34px; }
+            .search-group.seg-search button { width: 31px; height: 31px; min-height: 31px; }
             .seg-search-bar { margin-bottom: 10px; }
         }
 
@@ -1311,6 +1311,14 @@
             width: 34px; height: 34px;
             border: 3px solid #e3e8ef; border-top-color: #3b82f6;
             border-radius: 50%; animation: btnspin 0.7s linear infinite;
+        }
+        /* 표(td) 안 로딩 행 */
+        .table-loading td, td > .table-loading { width: 100%; }
+        /* 그리드(Tabulator 등) 위에 덮는 로딩 오버레이 */
+        .grid-loading {
+            position: absolute; inset: 0; z-index: 5;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 14px; background: #fff; color: #6c757d; font-size: 15px; font-weight: 500;
         }
 
         .write-form button {
@@ -1925,22 +1933,24 @@
                 overflow: hidden;   /* .board-section::before 스윕이 우측 빈 영역 스크롤 만드는 것 차단 */
             }
 
+            /* 모바일: 전체 컬럼을 가로 스와이프로 확인 (보조네비바처럼) */
             #member-section .board-table {
                 width: 100%;
-                overflow-x: hidden;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
             #member-section .table-header {
-                grid-template-columns: 1fr 100px 120px !important;
-                min-width: 100% !important;
-                width: 100% !important;
+                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px !important;
+                min-width: 805px !important;
+                width: 805px !important;
                 font-size: 12px;
                 padding: 8px 5px;
                 gap: 4px;
                 align-items: flex-end !important;
             }
 
-            /* 모바일에서 소속, 이메일, 신청일, 관리 컬럼 숨김 (이름·회원유형·승인여부만 표시) */
+            /* 모바일에서도 모든 컬럼 표시 (숨기지 않음) */
             #member-section .table-header span:nth-child(1),
             #member-section .table-header span:nth-child(3),
             #member-section .table-header span:nth-child(5),
@@ -1949,14 +1959,14 @@
             #member-section .table-row span:nth-child(3),
             #member-section .table-row span:nth-child(5),
             #member-section .table-row span:nth-child(7) {
-                display: none !important;
+                display: flex !important;
             }
 
 
             #member-section .table-row {
-                grid-template-columns: 1fr 100px 120px !important;
-                min-width: 100% !important;
-                width: 100% !important;
+                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px !important;
+                min-width: 805px !important;
+                width: 805px !important;
                 font-size: 13px !important;
                 padding: 8px 5px !important;
                 gap: 4px;
@@ -1964,12 +1974,12 @@
                 align-items: start !important;
             }
 
-            /* 모바일에서 소속, 이메일, 신청일, 관리 컬럼 숨김 (이름, 회원유형, 승인여부만 표시) */
+            /* (위에서 전체 컬럼 표시 — 행 컬럼도 숨기지 않음) */
             #member-section .table-row span:nth-child(1),
             #member-section .table-row span:nth-child(3),
             #member-section .table-row span:nth-child(5),
             #member-section .table-row span:nth-child(7) {
-                display: none !important;
+                display: flex !important;
             }
 
             #member-section .table-row span {
@@ -4569,6 +4579,10 @@
 
             modal.style.display = 'flex';
 
+            // 첫 데이터(onSnapshot) 도착 전까지 로딩 스피너 표시
+            const matLoading = document.getElementById('materials-loading');
+            if (matLoading) matLoading.style.display = 'flex';
+
             const { canEdit, user } = getMaterialsPermission();
             materialsUndoStack = [];
             materialsRedoStack = [];
@@ -5210,6 +5224,8 @@
                 initStaffDB();
                 if (!db) {
                     console.error('Firestore 초기화 실패');
+                    const matLoading = document.getElementById('materials-loading');
+                    if (matLoading) matLoading.style.display = 'none';
                     return;
                 }
             }
@@ -5223,11 +5239,15 @@
                 .orderBy('sku')
                 .onSnapshot(
                     (snapshot) => {
+                        // 첫 데이터 도착 → 로딩 스피너 숨김
+                        const matLoading = document.getElementById('materials-loading');
+                        if (matLoading) matLoading.style.display = 'none';
+
                         // 삭제 작업 중이면 업데이트 무시
                         if (materialsDeleting) {
                             return;
                         }
-                        
+
                         const rows = [];
                         snapshot.forEach((doc) => {
                             rows.push({
@@ -6388,7 +6408,8 @@
             </div>
             
             <!-- 모달 본문 -->
-            <div class="materials-modal-body">
+            <div class="materials-modal-body" style="position:relative;">
+                <div id="materials-loading" class="grid-loading"><span class="table-spinner"></span>자재 목록을 불러오는 중…</div>
                 <div id="materials-grid"></div>
             </div>
         </div>
@@ -8973,6 +8994,14 @@
         // 저장된 재고현황 날짜 목록 (inventory/_index 의 dates)
         let invDateList = [];
 
+        // 표(thead/tbody) 기반 모듈(재고현황·일정관리)에 로딩 스피너 행 주입
+        function injectTableSpinner(theadId, tbodyId, msg) {
+            const th = document.getElementById(theadId);
+            const tb = document.getElementById(tbodyId);
+            if (th) th.innerHTML = '';
+            if (tb) tb.innerHTML = `<tr><td colspan="50"><div class="table-loading"><span class="table-spinner"></span>${msg}</div></td></tr>`;
+        }
+
         async function openInventoryModal() {
             if (!staffAccessGranted) { alert('로그인이 필요합니다.'); return; }
             if (!db && typeof initStaffDB === 'function') initStaffDB();
@@ -9035,6 +9064,7 @@
         // dateKey 없으면 최신본(main), 있으면 해당 날짜 스냅샷(inventory/{date}) 로드
         async function loadInventory(dateKey) {
             inventoryData = invDefaultData();
+            injectTableSpinner('inventory-thead', 'inventory-tbody', '재고현황을 불러오는 중…');
             if (db) {
                 try {
                     const docId = dateKey ? dateKey : 'main';
@@ -9832,6 +9862,7 @@
         // 특정 기준일의 일정 로드
         async function loadScheduleForDate(dateKey) {
             scheduleCurrentDate = dateKey;
+            injectTableSpinner('schedule-thead', 'schedule-tbody', '일정을 불러오는 중…');
             if (db) {
                 try {
                     const snap = await db.collection('deliverySchedule').doc(dateKey).get();
