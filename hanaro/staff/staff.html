@@ -831,23 +831,19 @@
             overflow: visible;
         }
 
-        /* 4. 이메일: 길면 말줄임 대신 가로 스크롤로 전체 확인 (왼쪽 정렬, 얇은 스크롤바) */
+        /* 4. 이메일: 길면 가로 스크롤(트랙패드/휠)로 전체 확인 + 마우스 올리면 전체 이메일 툴팁.
+           스크롤바를 완전히 숨겨(자리 차지 X) 모든 이메일칸의 세로 위치를 일치시킨다
+           (트랙·바가 보이거나 스크롤 칸만 위로 밀리던 문제 제거). */
         #member-section .table-row span:nth-child(4) {
             justify-content: flex-start !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
             text-overflow: clip !important;
             white-space: nowrap !important;
-            scrollbar-width: thin;
-            scrollbar-color: transparent transparent; /* Firefox: 평소엔 썸 숨김 */
+            scrollbar-width: none;        /* Firefox: 스크롤바 숨김 */
+            -ms-overflow-style: none;     /* 구 Edge */
         }
-        /* 마우스를 올렸을 때만 스크롤바(썸) 표시 */
-        #member-section .table-row span:nth-child(4):hover {
-            scrollbar-color: #8a929c transparent;
-        }
-        #member-section .table-row span:nth-child(4)::-webkit-scrollbar { height: 2px; }
-        #member-section .table-row span:nth-child(4)::-webkit-scrollbar-thumb { background: transparent; border-radius: 1px; }
-        #member-section .table-row span:nth-child(4):hover::-webkit-scrollbar-thumb { background: #8a929c; }
+        #member-section .table-row span:nth-child(4)::-webkit-scrollbar { display: none; } /* Chrome/Safari: 스크롤바 숨김 */
 
         #member-tbody {
             width: 100%;
@@ -8043,6 +8039,7 @@
                         username: data.username || '',
                         name: data.name || '',
                         org: data.org || '',
+                        position: data.position || '', // 직급 / 직책
                         email: data.email || '',
                         phone: data.phone || '',
                         userType: data.userType || 'general',
@@ -8269,7 +8266,7 @@
                     <span>${orgCell}</span>
                     <span>${positionCell}</span>
                     <span>${member.name ? esc(member.name) : '-'}</span>
-                    <span>${member.email ? esc(member.email) : '-'}</span>
+                    <span title="${member.email ? esc(member.email).replace(/"/g,'&quot;') : ''}">${member.email ? esc(member.email) : '-'}</span>
                     <span>${userTypeCell}</span>
                     <span>${date}</span>
                     <span>${statusHtml}</span>
