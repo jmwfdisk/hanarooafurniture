@@ -101,7 +101,7 @@ Permission helper `userCan(area)` (areas: `all/company/photos/schedule/asResult/
 
 ### Staff Page Modules (`hanaro/staff/staff.html`)
 
-This single large file (~9k lines, several inline `<script>` blocks) holds all employee tools:
+This single large file (~10.6k lines, several inline `<script>` blocks) holds all employee tools:
 - **재고현황 / 일정관리** share one in-house spreadsheet engine (`sheet*` functions: `sheetRenderTable`, `sheetBind`, `sheetEditCell` double-click edit, drag-select via `schedSel`, right-click `#sheet-ctxmenu`, merge/align, undo/redo `sheetPushUndo`). Model: `{columns, grid, merges, aligns, ...}`. 재고현황 adds per-group `rowColors`.
 - **자재관리** uses **Tabulator** (row = Firestore doc, structured fields), NOT the sheet engine. Has its own right-click menu, app-level undo/redo (native history is wiped by realtime `replaceData`), CSV/JSON/Excel import-export.
 - **활동사진첩**: photos carry an optional `title`. The viewer groups photos by identical title (next/prev cycles within the group), supports mobile swipe. Upload assigns one common title to the batch; grid titles are double-click editable by owner/admin only.
@@ -118,6 +118,7 @@ This single large file (~9k lines, several inline `<script>` blocks) holds all e
 
 ### Key Patterns
 
+- **Board writes go through `commitBoardChange(board, mutator)` (Firestore transaction), NOT the old whole-array `savePosts`.** `staffPosts/{board}` stores all of a board's posts in one `posts` array and clients load it one-shot (no live listener). The legacy `savePosts(board)` did `doc.set({posts: allPosts[board]})` from the *local* copy, so a stale client re-saving (notably `viewPost` re-saving on every view to bump 조회수) would clobber posts others had added since page load — attachments "disappeared over time". `commitBoardChange` re-reads the server array inside a transaction and applies `mutator(serverPosts)` so concurrent additions survive. Posts carry a stable `id` (`makePostId`); identity is `postMatches` (id, else title+author+date). Modal edit/delete resolve the target by reference (`currentPostRef`/`editingPostRef`), not by a possibly-shifted index. **Don't reintroduce full-array `set()` for post mutations.** Attachments must go to Storage via `uploadFilesToStorage` (URL only in the doc) — never embed base64 in the Firestore doc when `db` exists (1MB limit → silent loss); base64 fallback is allowed only in pure-local `!db` dev mode.
 - All pages re-include the Firebase SDK scripts individually (no shared loader).
 - `sessionStorage` keys: `loggedInUser` (JSON), `loggedIn` ("true"), `lastLoginTime`, `lastLoginMessage`.
 - `setLoggedInState(bool, userData)` is the single function that toggles login/logout UI across the page; it has protective logic that blocks `false` calls when sessionStorage shows the user is still logged in (to handle Firebase Auth restore delay on page load).

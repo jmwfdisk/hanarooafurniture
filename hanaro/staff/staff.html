@@ -1455,9 +1455,32 @@
         .post-modal-actions {
             display: flex;
             justify-content: flex-end;
+            gap: 10px;
             margin-top: 20px;
             padding-top: 20px;
             border-top: 1px solid #e9ecef;
+        }
+
+        .post-edit-btn {
+            background: linear-gradient(135deg, #4dabf7 0%, #3b82f6 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .post-edit-btn:hover {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .post-edit-btn:active {
+            transform: translateY(0);
         }
 
         .post-delete-btn {
@@ -2189,14 +2212,15 @@
                 gap: 10px;
             }
 
-            .post-delete-btn {
+            .post-delete-btn,
+            .post-edit-btn {
                 width: 100%;
                 padding: 14px 20px;
                 font-size: 15px;
                 min-height: 44px;
                 box-sizing: border-box;
             }
-            
+
             .partner-logos {
                 gap: 16px;
                 padding: 25px 15px;
@@ -3021,6 +3045,9 @@
         let currentPage = {};
         let postsLoaded = false; // 서버에서 게시글을 한 번이라도 불러왔는지 (로딩 스피너 표시 판단)
         let currentPostIndex = -1; // 현재 상세보기 중인 게시글 인덱스
+        let currentPostRef = null; // 현재 상세보기 중인 글 객체(인덱스가 흔들려도 식별용)
+        let editingPostIndex = -1; // 수정 중인 게시글 인덱스 (-1이면 새 글 작성)
+        let editingPostRef = null; // 수정 중인 글 객체(인덱스가 흔들려도 식별용)
         const postsPerPage = 10;
         let allPosts = {
             notice: [],
@@ -3259,6 +3286,73 @@
                 // localStorage 사용
                 localStorage.setItem(`staffPosts_${board}`, JSON.stringify(allPosts[board]));
             }
+        }
+
+        // 게시글 고유 ID (여러 사용자/세션 간 동일 글을 식별하기 위함)
+        function makePostId() {
+            return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+        }
+        // 두 글이 같은 글인지 판정: id 우선, 없으면 제목+작성자+작성일로 보조 매칭(레거시 글)
+        function postMatches(a, b) {
+            if (!a || !b) return false;
+            if (a.id && b.id) return a.id === b.id;
+            return a.title === b.title && a.author === b.author && a.date === b.date;
+        }
+
+        // 게시판 문서를 '트랜잭션'으로 안전하게 변경한다.
+        // 핵심: 저장 직전 서버 최신본을 다시 읽어(mutator에 넘김) 변경을 적용하므로,
+        //       내 메모리가 오래됐어도 다른 사용자가 그사이 추가/수정한 글을 덮어쓰지 않는다.
+        //       (기존 savePosts는 내 배열로 문서 전체를 통째로 set → 조회수 저장 등으로 최신 글이 사라지던 원인)
+        // mutator(serverPosts): 서버 최신 배열의 복사본을 받아 '변경된 새 배열'을 반환해야 함.
+        async function commitBoardChange(board, mutator) {
+            if (!db) {
+                const base = Array.isArray(allPosts[board]) ? allPosts[board].map(p => ({ ...p })) : [];
+                const next = mutator(base) || base;
+                allPosts[board] = next;
+                try { localStorage.setItem(`staffPosts_${board}`, JSON.stringify(next)); } catch (e) {}
+                return next;
+            }
+            const ref = db.collection('staffPosts').doc(board);
+            let result = null;
+            try {
+                await db.runTransaction(async (tx) => {
+                    const snap = await tx.get(ref);
+                    const serverPosts = (snap.exists && Array.isArray(snap.data().posts)) ? snap.data().posts : [];
+                    const next = mutator(serverPosts.map(p => ({ ...p }))) || serverPosts;
+                    tx.set(ref, { posts: next });
+                    result = next;
+                });
+                allPosts[board] = result;
+                try { localStorage.setItem(`staffPosts_${board}`, JSON.stringify(result)); } catch (e) {}
+                return result;
+            } catch (error) {
+                console.error('게시판 저장(트랜잭션) 실패:', error);
+                try { localStorage.setItem(`staffPosts_${board}`, JSON.stringify(allPosts[board] || [])); } catch (e) {}
+                let hint = '';
+                if (error && error.code === 'permission-denied') {
+                    hint = '\n\n원인: 저장 권한이 없습니다. Firestore 보안 규칙(staffPosts)이 게시되었는지 확인하세요.';
+                } else if (error && /exceeds the maximum|too large|longer than|1048576/i.test(error.message || '')) {
+                    hint = '\n\n원인: 문서 용량 초과(첨부가 너무 큼). 파일은 Storage 업로드로 저장되어야 합니다.';
+                }
+                alert('게시글이 서버에 저장되지 않았습니다.' + hint + '\n\n(' + (error && error.message ? error.message : error) + ')');
+                throw error;
+            }
+        }
+
+        // 첨부파일을 Firebase Storage에 업로드하고 메타({name,url,type,size}) 배열을 반환(문서엔 URL만 저장 → 가벼움)
+        async function uploadFilesToStorage(files) {
+            if (!storage && typeof firebase !== 'undefined' && firebase.storage) {
+                try { storage = firebase.storage(); } catch (e) {}
+            }
+            if (!storage) throw new Error('파일 저장소(Storage) 연결을 확인할 수 없습니다.');
+            const uploaded = await Promise.all(files.map(async (file) => {
+                const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${file.name}`;
+                const ref = storage.ref(`as-result-files/${fileName}`);
+                const snap = await ref.put(file);
+                const url = await snap.ref.getDownloadURL();
+                return { name: file.name, url: url, type: file.type, size: file.size };
+            }));
+            return uploaded;
         }
 
         function switchBoard(boardType) {
@@ -3525,16 +3619,18 @@
                 return;
             }
             
+            const target = post; // 삭제 대상 글(식별용)
+            const boardAtDelete = currentBoard;
             showStaffConfirmPopup("정말 삭제하시겠습니까?", () => {
-                allPosts[currentBoard].splice(index, 1);
-                savePosts(currentBoard).then(() => {
+                // 트랜잭션: 서버 최신본에서 '이 글'만 제거 → 다른 사용자가 그사이 올린 글은 보존
+                commitBoardChange(boardAtDelete, posts => posts.filter(p => !postMatches(p, target))).then(() => {
                     // 현재 페이지가 비어있으면 이전 페이지로 이동
-                    const totalPages = Math.ceil(allPosts[currentBoard].length / postsPerPage);
-                    if (currentPage[currentBoard] > totalPages && totalPages > 0) {
-                        currentPage[currentBoard] = totalPages;
+                    const totalPages = Math.ceil((allPosts[boardAtDelete] || []).length / postsPerPage);
+                    if (currentPage[boardAtDelete] > totalPages && totalPages > 0) {
+                        currentPage[boardAtDelete] = totalPages;
                     }
                     renderPosts();
-                });
+                }).catch(() => { /* commitBoardChange가 이미 원인 알림 */ });
             });
         }
 
@@ -3604,15 +3700,20 @@
             
             const writeForm = document.getElementById('write-form');
             const overlay = document.getElementById('overlay');
-            
+
             if (!writeForm || !overlay) {
                 console.error('write-form 또는 overlay 요소를 찾을 수 없습니다.');
                 return;
             }
-            
+
+            // 새 글 작성 모드로 초기화 (수정 모드 잔여 상태 복원)
+            editingPostIndex = -1;
+            editingPostRef = null;
+            setWriteFormMode(false);
+
             writeForm.style.display = 'block';
             overlay.style.display = 'block';
-            
+
             const titleInput = document.getElementById('write-title');
             const authorInput = document.getElementById('write-author');
             const contentInput = document.getElementById('write-content');
@@ -3654,8 +3755,13 @@
             const fileUpload = document.getElementById('write-file-upload');
             if (fileUpload) fileUpload.value = '';
 
+            // 수정 모드 해제 + 폼 라벨 복원
+            editingPostIndex = -1;
+            editingPostRef = null;
+
             // 제출 잠금 해제
             resetSubmitLock();
+            setWriteFormMode(false);
         }
 
         // 등록 잠금 해제 (성공/실패/취소 공통)
@@ -3666,6 +3772,107 @@
                 submitBtn.disabled = false; submitBtn.style.opacity = '';
                 if (submitBtn.dataset.orig != null) { submitBtn.innerHTML = submitBtn.dataset.orig; delete submitBtn.dataset.orig; }
             }
+        }
+
+        // 글쓰기 폼을 '작성'(false)/'수정'(true) 모드로 전환 — 제목/버튼 라벨 + 기존첨부 안내 정리
+        function setWriteFormMode(isEdit) {
+            const writeForm = document.getElementById('write-form');
+            if (!writeForm) return;
+            const header = writeForm.querySelector('h2');
+            if (header) header.textContent = isEdit ? '게시글 수정' : '게시글 작성';
+            const submitBtn = document.querySelector('#write-form .write-submit, #write-form button[onclick="submitPost()"]');
+            if (submitBtn && submitBtn.dataset.orig == null) submitBtn.textContent = isEdit ? '수정' : '등록';
+            if (!isEdit) {
+                const note = document.getElementById('edit-existing-files');
+                if (note) { note.style.display = 'none'; note.innerHTML = ''; }
+            }
+        }
+
+        // 상세 모달의 '수정' 버튼 → 현재 글을 작성 폼에 채워 수정 모드로 연다
+        function editPostFromModal() {
+            const ref = currentPostRef;
+            if (!ref) return;
+            closePostModal();
+            // 인덱스가 흔들렸을 수 있으니 식별자로 현재 위치를 다시 찾는다
+            const index = (allPosts[currentBoard] || []).findIndex(p => postMatches(p, ref));
+            if (index === -1) { alert('이미 삭제되었거나 찾을 수 없는 글입니다.'); return; }
+            openEditForm(index);
+        }
+
+        // 작성 폼을 기존 글 내용으로 채워 수정 모드로 표시
+        function openEditForm(index) {
+            const post = allPosts[currentBoard] && allPosts[currentBoard][index];
+            if (!post) return;
+
+            // 권한 체크 (삭제와 동일: 공지=관리자, 그 외=작성자 또는 관리자)
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            if (!loggedInUser) { alert('로그인이 필요합니다.'); return; }
+            let userData;
+            try { userData = JSON.parse(loggedInUser); } catch (e) { alert('사용자 정보를 확인할 수 없습니다.'); return; }
+            const isAdmin = userData.isAdmin || userData.username === 'admin';
+            let canEdit;
+            if (currentBoard === 'notice') {
+                canEdit = isAdmin;
+                if (!canEdit) { alert('공지사항은 관리자만 수정할 수 있습니다.'); return; }
+            } else {
+                const isAuthor = post.author === userData.name ||
+                                 post.author === userData.username ||
+                                 (post.uid && post.uid === userData.uid);
+                canEdit = isAdmin || isAuthor;
+                if (!canEdit) { alert('작성자 또는 관리자만 수정할 수 있습니다.'); return; }
+            }
+
+            const writeForm = document.getElementById('write-form');
+            const overlay = document.getElementById('overlay');
+            if (!writeForm || !overlay) return;
+
+            editingPostIndex = index;
+            editingPostRef = post;
+            setWriteFormMode(true);
+
+            writeForm.style.display = 'block';
+            overlay.style.display = 'block';
+
+            const titleInput = document.getElementById('write-title');
+            const authorInput = document.getElementById('write-author');
+            const contentInput = document.getElementById('write-content');
+            if (titleInput) titleInput.value = post.title || '';
+            if (authorInput) authorInput.value = post.author || '';
+            if (contentInput) {
+                const raw = post.content || '';
+                const looksHtml = /<[a-z!/][^>]*>/i.test(raw);
+                contentInput.innerHTML = looksHtml
+                    ? rteSanitize(raw)
+                    : String(raw).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+            }
+
+            // 첨부 가능 게시판: 업로드 섹션 표시 + 기존 첨부 안내(보존됨, 새 파일은 추가됨)
+            const fileUploadSection = document.getElementById('file-upload-section');
+            const fileUpload = document.getElementById('write-file-upload');
+            const note = document.getElementById('edit-existing-files');
+            if (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
+                if (fileUploadSection) fileUploadSection.style.display = 'block';
+                if (fileUpload) { fileUpload.value = ''; fileUpload.onchange = handleFileSelect; }
+                if (note) {
+                    const files = Array.isArray(post.files) ? post.files : [];
+                    if (files.length) {
+                        const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                        note.innerHTML = '<div style="font-size:13px;color:#6c757d;margin-bottom:6px;">기존 첨부파일 (그대로 유지됩니다. 새로 추가한 파일은 뒤에 더해집니다.)</div>'
+                            + files.map(n => '<span style="display:inline-block;background:#eef1f4;border-radius:6px;padding:4px 10px;margin:0 6px 6px 0;font-size:13px;color:#495057;">📎 ' + esc(n) + '</span>').join('');
+                        note.style.display = 'block';
+                    } else {
+                        note.style.display = 'none'; note.innerHTML = '';
+                    }
+                }
+            } else {
+                if (fileUploadSection) fileUploadSection.style.display = 'none';
+                if (note) { note.style.display = 'none'; note.innerHTML = ''; }
+            }
+
+            // 새로 추가할 파일 미리보기 초기화
+            selectedFiles = [];
+            const filePreview = document.getElementById('write-file-preview');
+            if (filePreview) filePreview.innerHTML = '';
         }
 
         // ===== 글쓰기 리치 에디터 (워드/한글 스타일 기본 서식) =====
@@ -3993,7 +4200,7 @@
             if (submitBtn) {
                 if (submitBtn.dataset.orig == null) submitBtn.dataset.orig = submitBtn.innerHTML;
                 submitBtn.disabled = true; submitBtn.style.opacity = '0.8';
-                submitBtn.innerHTML = '<span class="btn-spinner"></span>등록 중…';
+                submitBtn.innerHTML = '<span class="btn-spinner"></span>' + (editingPostIndex >= 0 ? '수정 중…' : '등록 중…');
             }
 
             // 현재 사용자 정보 가져오기 (작성자 확인용)
@@ -4013,6 +4220,46 @@
                 }
             }
             
+            // ===== 수정 모드: 기존 글을 갱신 (제목·작성자·내용, 첨부는 유지하고 새 파일만 추가) =====
+            if (editingPostIndex >= 0 && editingPostRef) {
+                const target = editingPostRef; // 어떤 글을 고치는지 식별용(인덱스가 흔들려도 안전)
+                const editedDate = new Date().toLocaleDateString('ko-KR');
+                const boardAtSave = currentBoard;
+                const isFileBoard = (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data');
+
+                // 1) 새 첨부가 있으면 먼저 Storage 업로드(문서엔 URL만) → 2) 트랜잭션으로 해당 글만 갱신
+                const uploadStep = (isFileBoard && selectedFiles.length > 0)
+                    ? uploadFilesToStorage(selectedFiles)
+                    : Promise.resolve([]);
+
+                uploadStep.then((newFiles) => {
+                    return commitBoardChange(boardAtSave, posts => {
+                        const p = posts.find(x => postMatches(x, target));
+                        if (p) {
+                            p.title = title;
+                            p.author = author;
+                            p.content = content;
+                            p.editedDate = editedDate;
+                            if (newFiles && newFiles.length) {
+                                p.files = (Array.isArray(p.files) ? p.files : []).concat(newFiles.map(f => f.name));
+                                p.fileUrls = (Array.isArray(p.fileUrls) ? p.fileUrls : []).concat(newFiles.map(f => f.url));
+                                p.fileData = (Array.isArray(p.fileData) ? p.fileData : []).concat(newFiles);
+                            }
+                        }
+                        return posts;
+                    });
+                }).then(() => {
+                    renderPosts();
+                    hideWriteForm();
+                    showStaffDonePopup('게시글이 수정되었습니다.');
+                }).catch((e) => {
+                    // 트랜잭션 실패 시 allPosts는 변경되지 않음 → 잠금만 해제
+                    alert('수정 내용을 저장하지 못했습니다. 다시 시도해주세요.\n' + (e && e.message ? e.message : e));
+                    resetSubmitLock();
+                });
+                return;
+            }
+
             // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 처리
             if ((currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') && selectedFiles.length > 0) {
                 // 파일 크기 검증
@@ -4029,13 +4276,19 @@
                 // Firebase Storage에 업로드 (URL만 저장 → 문서 가벼움)
                 if (storage) {
                     uploadFilesToFirebase(selectedFiles, title, author, content, uid, username, name);
-                } else {
+                } else if (!db) {
+                    // 순수 로컬(개발) 모드에서만 base64 임시 저장 허용
                     alert('파일 저장소(Storage) 연결을 확인할 수 없어 임시 저장합니다.\n새로고침 시 사라질 수 있으니, 잠시 후 다시 시도해주세요.');
                     uploadFilesToLocalStorage(selectedFiles, title, author, content, uid, username, name);
+                } else {
+                    // db는 있는데 Storage만 실패 → base64를 본문 문서에 넣으면 용량 초과로 '나중에 사라지는' 원인이 되므로 저장 중단
+                    alert('파일 저장소(Storage) 연결을 확인할 수 없습니다.\n잠시 후 다시 시도해주세요.\n\n(파일을 글 문서에 직접 넣으면 용량 초과로 사라질 수 있어 저장을 중단했습니다.)');
+                    resetSubmitLock();
                 }
             } else {
-                // 파일이 없는 경우 바로 저장
+                // 파일이 없는 경우 바로 저장 (트랜잭션으로 다른 사용자의 글을 덮어쓰지 않게 머지)
                 const newPost = {
+                    id: makePostId(),
                     title: title,
                     author: author,
                     content: content,
@@ -4048,19 +4301,14 @@
                     fileUrls: []
                 };
 
-                if (!allPosts[currentBoard]) {
-                    allPosts[currentBoard] = [];
-                }
-                
-                allPosts[currentBoard].unshift(newPost);
-                savePosts(currentBoard).then(() => {
-                    currentPage[currentBoard] = 1;
+                const boardAtSave = currentBoard;
+                commitBoardChange(boardAtSave, posts => { posts.unshift(newPost); return posts; }).then(() => {
+                    currentPage[boardAtSave] = 1;
                     renderPosts();
                     hideWriteForm();
                     showStaffDonePopup('게시글이 등록되었습니다.');
                 }).catch(() => {
-                    // 저장 실패 시 로컬 추가분 되돌리고 잠금 해제 (savePosts가 이미 원인 알림)
-                    allPosts[currentBoard].shift();
+                    // 트랜잭션 실패 시 allPosts는 변경되지 않음 → 잠금만 해제 (commitBoardChange가 이미 원인 알림)
                     resetSubmitLock();
                 });
             }
@@ -4101,8 +4349,9 @@
                     });
                 });
                 
-                // 게시글 저장
+                // 게시글 저장 (트랜잭션: 서버 최신본에 prepend → 다른 사용자 글을 덮어쓰지 않음)
                 const newPost = {
+                    id: makePostId(),
                     title: title,
                     author: author,
                     content: content,
@@ -4115,30 +4364,13 @@
                     fileUrls: fileUrls
                 };
 
-                if (!allPosts[currentBoard]) {
-                    allPosts[currentBoard] = [];
-                }
-                
                 const boardAtSave = currentBoard;
-                allPosts[boardAtSave].unshift(newPost);
-                await savePosts(boardAtSave);
-
-                // 저장 검증: 서버에서 다시 읽어 실제 반영 여부 확인
-                let persisted = false;
-                try {
-                    const verify = await db.collection('staffPosts').doc(boardAtSave).get();
-                    const cnt = (verify.exists && Array.isArray(verify.data().posts)) ? verify.data().posts.length : 0;
-                    persisted = cnt >= allPosts[boardAtSave].length;
-                } catch (ve) { console.warn('저장 검증 읽기 실패:', ve); }
+                await commitBoardChange(boardAtSave, posts => { posts.unshift(newPost); return posts; });
 
                 currentPage[boardAtSave] = 1;
                 renderPosts();
                 hideWriteForm();
-                if (persisted) {
-                    showStaffDonePopup('게시글이 등록되었습니다.');
-                } else {
-                    alert('주의: 파일은 업로드됐지만 게시글이 서버에 저장되지 않았습니다.\n새로고침하면 사라집니다. (Firestore staffPosts 쓰기 권한/규칙을 확인하세요)');
-                }
+                showStaffDonePopup('게시글이 등록되었습니다.');
             } catch (error) {
                 console.error('파일 업로드 오류:', error);
                 alert('파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.\n' + (error && error.message ? error.message : error));
@@ -4172,6 +4404,7 @@
                     if (processedFiles === files.length) {
                         if (!hasError) {
                             const newPost = {
+                                id: makePostId(),
                                 title: title,
                                 author: author,
                                 content: content,
@@ -4211,6 +4444,7 @@
                     if (processedFiles === files.length) {
                         if (!hasError) {
                             const newPost = {
+                                id: makePostId(),
                                 title: title,
                                 author: author,
                                 content: content,
@@ -4252,15 +4486,24 @@
             if (!post) return;
 
             currentPostIndex = index; // 현재 게시글 인덱스 저장
+            currentPostRef = post;    // 인덱스가 흔들려도 이 글을 식별하기 위한 참조
 
-            // 조회수 증가 후 저장
+            // 조회수 증가: 화면엔 즉시 반영하고, 저장은 '트랜잭션으로 해당 글만' 올린다.
+            // (예전엔 savePosts로 내 배열 전체를 통째로 덮어써서, 내 화면이 오래됐을 때
+            //  다른 사람이 새로 올린 글이 조회 한 번에 사라지던 치명적 버그가 있었다.)
             post.views = (post.views || 0) + 1;
-            savePosts(currentBoard);
+            const viewTarget = post;
+            const boardAtView = currentBoard;
+            commitBoardChange(boardAtView, posts => {
+                const p = posts.find(x => postMatches(x, viewTarget));
+                if (p) p.views = (p.views || 0) + 1;
+                return posts;
+            }).catch(() => { /* 조회수 저장 실패는 무시(치명적 아님) */ });
 
             const escMeta = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             document.getElementById('post-title').textContent = post.title;
             document.getElementById('post-meta').innerHTML = `
-                <strong>작성자:</strong> ${escMeta(post.author)} &nbsp;|&nbsp; <strong>작성일:</strong> ${escMeta(post.date)} &nbsp;|&nbsp; <strong>조회:</strong> ${post.views || 0}
+                <strong>작성자:</strong> ${escMeta(post.author)} &nbsp;|&nbsp; <strong>작성일:</strong> ${escMeta(post.date)} &nbsp;|&nbsp; <strong>조회:</strong> ${post.views || 0}${post.editedDate ? ` &nbsp;|&nbsp; <span style="color:#868e96;">(수정됨: ${escMeta(post.editedDate)})</span>` : ''}
             `;
             // 본문: 리치 에디터 HTML이면 살균 후 렌더, 레거시 평문이면 escape + 줄바꿈 보존
             const _rawContent = post.content || '';
@@ -4320,36 +4563,33 @@
                 }
             }
             
-            // 삭제 버튼 표시 여부 결정
+            // 수정·삭제 버튼 표시 여부 결정 (권한 동일: 공지=관리자, 그 외=작성자 또는 관리자)
             const loggedInUser = sessionStorage.getItem('loggedInUser');
             const deleteBtn = document.getElementById('post-delete-btn');
-            
+            const editBtn = document.getElementById('post-edit-btn');
+
             if (loggedInUser) {
                 const userData = JSON.parse(loggedInUser);
                 const isAdmin = userData.isAdmin || userData.username === 'admin';
-                
-                let canDelete = false;
-                
+
+                let canModify = false;
+
                 if (currentBoard === 'notice') {
-                    // 공지사항: 관리자만 삭제 가능
-                    canDelete = isAdmin;
-                } else if (currentBoard === 'staff' || currentBoard === 'staff-data' || currentBoard === 'suggestion' || currentBoard === 'as-result') {
-                    // 직원게시판, 제안활동, A/S 처리결과: 작성자 또는 관리자만 삭제 가능
-                    const isAuthor = post.author === userData.name || 
-                                    post.author === userData.username ||
-                                    (post.uid && post.uid === userData.uid);
-                    canDelete = isAdmin || isAuthor;
+                    // 공지사항: 관리자만 수정/삭제 가능
+                    canModify = isAdmin;
                 } else {
-                    // 기타 게시판: 기본적으로 작성자 또는 관리자만 삭제 가능
-                    const isAuthor = post.author === userData.name || 
+                    // 그 외 게시판: 작성자 또는 관리자만 수정/삭제 가능
+                    const isAuthor = post.author === userData.name ||
                                     post.author === userData.username ||
                                     (post.uid && post.uid === userData.uid);
-                    canDelete = isAdmin || isAuthor;
+                    canModify = isAdmin || isAuthor;
                 }
-                
-                deleteBtn.style.display = canDelete ? 'block' : 'none';
+
+                deleteBtn.style.display = canModify ? 'block' : 'none';
+                if (editBtn) editBtn.style.display = canModify ? 'block' : 'none';
             } else {
                 deleteBtn.style.display = 'none';
+                if (editBtn) editBtn.style.display = 'none';
             }
             
             document.getElementById('post-modal').style.display = 'block';
@@ -4421,7 +4661,10 @@
             document.getElementById('post-modal').style.display = 'none';
             document.getElementById('overlay').style.display = 'none';
             currentPostIndex = -1; // 인덱스 초기화
+            currentPostRef = null;
             document.getElementById('post-delete-btn').style.display = 'none';
+            const editBtn = document.getElementById('post-edit-btn');
+            if (editBtn) editBtn.style.display = 'none';
             
             // 파일 표시 영역 초기화
             const postFiles = document.getElementById('post-files');
@@ -4432,8 +4675,12 @@
         
         // 모달에서 삭제 버튼 클릭 시 호출되는 함수
         function deletePostFromModal() {
-            if (currentPostIndex === -1) return;
-            deletePost(currentPostIndex);
+            const ref = currentPostRef;
+            if (!ref) return;
+            // 인덱스가 흔들렸을 수 있으니 식별자로 현재 위치를 다시 찾는다
+            const index = (allPosts[currentBoard] || []).findIndex(p => postMatches(p, ref));
+            if (index === -1) { alert('이미 삭제되었거나 찾을 수 없는 글입니다.'); closePostModal(); return; }
+            deletePost(index);
             closePostModal();
         }
 
@@ -6258,6 +6505,7 @@
         <div id="write-content" class="rte-editor" contenteditable="true" data-placeholder="내용을 입력하세요"></div>
         <!-- 파일 첨부 (A/S 처리결과 게시판일 때만 표시) -->
         <div id="file-upload-section" style="display: none; margin-top: 20px;">
+            <div id="edit-existing-files" style="display: none; margin-bottom: 12px;"></div>
             <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057; font-size: 15px;"><strong>첨부 파일</strong></label>
             <div style="position: relative; display: inline-block; width: 100%;">
                 <input type="file" id="write-file-upload" multiple style="width: 100%; padding: 12px; font-size: 14px; border: 2px dashed #ced4da; border-radius: 12px; background: #f8f9fa; color: #495057; cursor: pointer; transition: all 0.3s ease;">
@@ -6287,6 +6535,7 @@
             #post-file-images .post-file-dl:hover { background:#2563eb; }
         </style>
         <div class="post-modal-actions">
+            <button id="post-edit-btn" class="post-edit-btn" onclick="editPostFromModal()" style="display: none;">✏️ 수정</button>
             <button id="post-delete-btn" class="post-delete-btn" onclick="deletePostFromModal()" style="display: none;">🗑️ 삭제</button>
         </div>
     </div>
