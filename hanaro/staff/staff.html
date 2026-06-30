@@ -757,7 +757,7 @@
         
         /* 테이블 열 너비 고정: 아이디(120) 이름(100) 이메일(200) 회원유형(100) 신청일(120) 승인여부(150) 관리(80) */
         #member-section .table-header {
-            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px 110px;
+            grid-template-columns: 130px 96px 85px 1fr 80px 95px 84px 116px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -771,7 +771,7 @@
         #member-section .table-row {
             position: static;
             left: auto;
-            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px 110px;
+            grid-template-columns: 130px 96px 85px 1fr 80px 95px 84px 116px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -787,7 +787,7 @@
             box-shadow: none;
         }
 
-        /* 헤더 기본 스타일 - 중앙 정렬 */
+        /* 헤더 기본 스타일 - 중앙 정렬 (헤더 텍스트는 줄바꿈 금지) */
         #member-section .table-header span {
             padding: 0 !important;
             box-sizing: border-box;
@@ -795,6 +795,7 @@
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            white-space: nowrap !important;
         }
 
         /* 기본 행 스타일: 행 높이 고정, 줄바꿈 방지, 중앙 정렬 */
@@ -815,20 +816,38 @@
             color: #495057;
         }
 
-        /* 1~5 컬럼(소속·이름·이메일·회원유형·신청일): 너비는 그리드가 결정,
+        /* 컬럼 순서: 소속·직급/직책·이름·이메일·회원유형·신청일·승인여부·관리(권한부여)
            정렬·말줄임표는 기본 span 스타일(#member-section .table-row span) 사용 */
 
-        /* 6. 승인여부: 버튼 간격 (버튼이 셀 높이 23px보다 커서 잘리지 않도록 overflow 허용) */
-        #member-section .table-row span:nth-child(6) {
-            gap: 3px;
-            overflow: visible;
-        }
-
-        /* 7. 관리: 버튼 간격 (버튼 잘림 방지) */
+        /* 7. 승인여부: 버튼 간격 (버튼이 셀 높이 23px보다 커서 잘리지 않도록 overflow 허용) */
         #member-section .table-row span:nth-child(7) {
             gap: 3px;
             overflow: visible;
         }
+
+        /* 8. 관리: 버튼 간격 (버튼 잘림 방지) */
+        #member-section .table-row span:nth-child(8) {
+            gap: 3px;
+            overflow: visible;
+        }
+
+        /* 4. 이메일: 길면 말줄임 대신 가로 스크롤로 전체 확인 (왼쪽 정렬, 얇은 스크롤바) */
+        #member-section .table-row span:nth-child(4) {
+            justify-content: flex-start !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+            scrollbar-width: thin;
+            scrollbar-color: transparent transparent; /* Firefox: 평소엔 썸 숨김 */
+        }
+        /* 마우스를 올렸을 때만 스크롤바(썸) 표시 */
+        #member-section .table-row span:nth-child(4):hover {
+            scrollbar-color: #8a929c transparent;
+        }
+        #member-section .table-row span:nth-child(4)::-webkit-scrollbar { height: 2px; }
+        #member-section .table-row span:nth-child(4)::-webkit-scrollbar-thumb { background: transparent; border-radius: 1px; }
+        #member-section .table-row span:nth-child(4):hover::-webkit-scrollbar-thumb { background: #8a929c; }
 
         #member-tbody {
             width: 100%;
@@ -963,8 +982,8 @@
         #member-section .reject-reason.none { color: #adb5bd; }
 
         /* 승인여부 컬럼 내 버튼은 flex로 나란히 표시 (오버레이 스타일 제거) */
-        #member-section .table-row span:nth-child(6) .approve-btn,
-        #member-section .table-row span:nth-child(6) .reject-btn {
+        #member-section .table-row span:nth-child(7) .approve-btn,
+        #member-section .table-row span:nth-child(7) .reject-btn {
             position: relative;
             transform: none;
             margin: 0;
@@ -1964,7 +1983,7 @@
             }
 
             #member-section .table-header {
-                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px 110px !important;
+                grid-template-columns: 110px 110px 80px 200px 90px 95px 100px 130px !important;
                 min-width: 915px !important;
                 width: 915px !important;
                 font-size: 12px;
@@ -1987,7 +2006,7 @@
 
 
             #member-section .table-row {
-                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px 110px !important;
+                grid-template-columns: 110px 110px 80px 200px 90px 95px 100px 130px !important;
                 min-width: 915px !important;
                 width: 915px !important;
                 font-size: 13px !important;
@@ -2012,8 +2031,8 @@
                 text-overflow: ellipsis !important;
             }
 
-            /* 이름 컬럼 (2번째) - 중앙 정렬, 상단 정렬 */
-            #member-section .table-row span:nth-child(2) {
+            /* 이름 컬럼 (3번째) - 중앙 정렬, 상단 정렬 */
+            #member-section .table-row span:nth-child(3) {
                 text-align: center !important;
                 display: flex !important;
                 align-items: start !important;
@@ -2023,16 +2042,24 @@
                 vertical-align: top !important;
             }
 
-            /* 회원유형 컬럼 (4번째) - 중앙 정렬, 상단 정렬 */
-            #member-section .table-row span:nth-child(4) {
+            /* 회원유형 컬럼 (5번째) - 중앙 정렬, 상단 정렬 */
+            #member-section .table-row span:nth-child(5) {
                 text-align: center !important;
                 display: flex !important;
                 align-items: flex-start !important;
                 justify-content: center !important;
             }
 
-            /* 승인여부 컬럼 (6번째) - 중앙 정렬, 상단 정렬 */
-            #member-section .table-row span:nth-child(6) {
+            /* 모바일: 이메일(4번째)은 칸 내부 가로 스크롤 대신 말줄임 (표 전체가 이미 가로 스크롤) */
+            #member-section .table-row span:nth-child(4) {
+                justify-content: center !important;
+                overflow: hidden !important;
+                overflow-x: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            /* 승인여부 컬럼 (7번째) - 중앙 정렬, 상단 정렬 */
+            #member-section .table-row span:nth-child(7) {
                 text-align: center !important;
                 display: flex !important;
                 align-items: start !important;
@@ -2043,7 +2070,7 @@
             }
 
             /* 승인완료 탭의 체크 표시 스타일 */
-            #member-section .table-row span:nth-child(6) span {
+            #member-section .table-row span:nth-child(7) span {
                 display: inline-block !important;
                 color: #44aa6b !important;
                 font-size: 20px !important;
@@ -2051,9 +2078,9 @@
             }
 
             /* 승인여부 버튼 모바일에서 데스크톱 크기 유지 */
-            #member-section .table-row span:nth-child(6) .icon-btn,
-            #member-section .table-row span:nth-child(6) .approve-btn,
-            #member-section .table-row span:nth-child(6) .reject-btn {
+            #member-section .table-row span:nth-child(7) .icon-btn,
+            #member-section .table-row span:nth-child(7) .approve-btn,
+            #member-section .table-row span:nth-child(7) .reject-btn {
                 width: 17px !important;
                 height: 17px !important;
                 min-width: 17px !important;
@@ -2078,7 +2105,7 @@
             }
 
             /* 헤더의 이름 컬럼은 중앙 정렬 */
-            #member-section .table-header span:nth-child(2) {
+            #member-section .table-header span:nth-child(3) {
                 justify-content: center !important;
                 text-align: center !important;
             }
@@ -6653,13 +6680,13 @@
         <div class="board-table">
             <div class="table-header">
                 <span>소&nbsp;속</span>
+                <span>직급 / 직책</span>
                 <span>이&nbsp;름</span>
                 <span>이&nbsp;메&nbsp;일</span>
                 <span>회&nbsp;원&nbsp;유&nbsp;형</span>
                 <span>신&nbsp;청&nbsp;일</span>
                 <span>승&nbsp;인&nbsp;여&nbsp;부</span>
                 <span id="member-last-col-header">추가관리 권한부여</span>
-                <span>직급 / 직책</span>
             </div>
             <div id="member-tbody" class="table-body">
                 <div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>
@@ -8240,13 +8267,13 @@
                     : `<span>${posText}</span>`;
                 row.innerHTML = `
                     <span>${orgCell}</span>
+                    <span>${positionCell}</span>
                     <span>${member.name ? esc(member.name) : '-'}</span>
                     <span>${member.email ? esc(member.email) : '-'}</span>
                     <span>${userTypeCell}</span>
                     <span>${date}</span>
                     <span>${statusHtml}</span>
                     <span>${actionButtons}</span>
-                    <span>${positionCell}</span>
                 `;
                 tbody.appendChild(row);
             });
