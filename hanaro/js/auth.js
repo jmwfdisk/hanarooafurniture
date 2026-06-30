@@ -965,9 +965,50 @@ function showAuthTab(tab) {
         registerForm.style.display = 'none';
         if (tabs[0]) tabs[0].classList.add('active');
     } else {
+        setupRegisterForm();
         loginForm.style.display = 'none';
         registerForm.style.display = 'block';
         if (tabs[1]) tabs[1].classList.add('active');
+    }
+}
+
+// 회원가입 폼 보정 (폼 HTML이 여러 페이지에 정적으로 중복돼 있어 auth.js에서 일원화 주입):
+//  1) '직급 / 직책' 입력칸을 '이름' 입력칸 '위'에 보장
+//  2) 회원유형 드롭다운(reg-user-type) 제거
+//  3) 단일 '회원가입 신청' 버튼 → '임직원 가입신청' + '일반회원 가입신청' 2개로 교체
+function setupRegisterForm() {
+    const form = document.getElementById('register-form');
+    if (!form) return;
+
+    // 1) 직급/직책 입력칸 (이름 위)
+    if (!document.getElementById('reg-position')) {
+        const nameEl = document.getElementById('reg-name');
+        if (nameEl && nameEl.parentNode) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'reg-position';
+            input.placeholder = '직급 / 직책 (일반회원 필수)';
+            if (nameEl.className) input.className = nameEl.className; // 기존 입력칸과 동일 스타일
+            nameEl.insertAdjacentElement('beforebegin', input);
+        }
+    }
+
+    // 2) 회원유형 드롭다운 제거 (가입 버튼으로 대체)
+    const sel = document.getElementById('reg-user-type');
+    if (sel) sel.remove();
+
+    // 3) 단일 가입 버튼 → 임직원/일반회원 2개 버튼
+    if (!document.getElementById('reg-submit-employee')) {
+        const oldBtn = Array.from(form.querySelectorAll('button')).find(b =>
+            (b.getAttribute('onclick') || '').includes('register') || /회원가입\s*신청/.test(b.textContent || ''));
+        const wrap = document.createElement('div');
+        wrap.id = 'reg-submit-wrap';
+        wrap.style.cssText = 'display:flex;flex-direction:column;';
+        wrap.innerHTML =
+            '<button type="button" id="reg-submit-employee" onclick="register(\'employee\')">임직원 가입신청</button>' +
+            '<button type="button" id="reg-submit-general" onclick="register(\'general\')">일반회원 가입신청</button>';
+        if (oldBtn && oldBtn.parentNode) { oldBtn.parentNode.insertBefore(wrap, oldBtn); oldBtn.remove(); }
+        else form.appendChild(wrap);
     }
 }
 
@@ -1016,7 +1057,7 @@ function hideLogin() {
     if (overlay) overlay.style.display = 'none';
     if (loginContainer) loginContainer.style.display = 'none';
     
-    const fields = ['username', 'password', 'reg-password', 'reg-password-confirm', 'reg-name', 'reg-org', 'reg-email', 'reg-phone'];
+    const fields = ['username', 'password', 'reg-password', 'reg-password-confirm', 'reg-name', 'reg-position', 'reg-org', 'reg-email', 'reg-phone'];
     fields.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
@@ -1145,8 +1186,8 @@ async function login() {
     }
 }
 
-async function register() {
-    log('[회원가입] register() 함수 호출됨');
+async function register(userTypeArg) {
+    log('[회원가입] register() 함수 호출됨 - userType:', userTypeArg);
     const password = document.getElementById('reg-password').value;
     const passwordConfirm = document.getElementById('reg-password-confirm').value;
     const name = document.getElementById('reg-name').value.trim();
@@ -1154,7 +1195,11 @@ async function register() {
     const phone = document.getElementById('reg-phone').value.trim();
     const orgEl = document.getElementById('reg-org');
     const org = orgEl ? orgEl.value.trim() : '';
-    const userType = document.getElementById('reg-user-type') ? document.getElementById('reg-user-type').value : 'general';
+    const positionEl = document.getElementById('reg-position');
+    const position = positionEl ? positionEl.value.trim() : '';
+    // 회원유형: 가입 버튼이 넘긴 값('employee'/'general') 우선, 없으면 (구) 드롭다운 → 기본 general
+    const userType = userTypeArg
+        || (document.getElementById('reg-user-type') ? document.getElementById('reg-user-type').value : 'general');
     // 아이디와 이메일 통합: 이메일을 아이디(username)로 사용
     const username = email;
 
@@ -1175,6 +1220,12 @@ async function register() {
 
     if (!email.includes('@')) {
         alert('올바른 이메일 형식을 입력해주세요.');
+        return;
+    }
+
+    // 일반회원은 직급 / 직책 필수 (임직원은 선택 — 관리자가 회원관리에서 보완 가능)
+    if (userType === 'general' && !position) {
+        alert('일반회원은 직급 / 직책을 입력해주세요.');
         return;
     }
 
@@ -1215,6 +1266,7 @@ async function register() {
                 email: email,
                 phone: phone || '',
                 org: org || '',
+                position: position || '',
                 userType: userType,
                 status: 'pending',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),

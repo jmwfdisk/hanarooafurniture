@@ -757,7 +757,7 @@
         
         /* 테이블 열 너비 고정: 아이디(120) 이름(100) 이메일(200) 회원유형(100) 신청일(120) 승인여부(150) 관리(80) */
         #member-section .table-header {
-            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px;
+            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px 110px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -771,7 +771,7 @@
         #member-section .table-row {
             position: static;
             left: auto;
-            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px;
+            grid-template-columns: 150px 85px 1fr 80px 95px 100px 120px 110px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -1964,9 +1964,9 @@
             }
 
             #member-section .table-header {
-                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px !important;
-                min-width: 805px !important;
-                width: 805px !important;
+                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px 110px !important;
+                min-width: 915px !important;
+                width: 915px !important;
                 font-size: 12px;
                 padding: 8px 5px;
                 gap: 4px;
@@ -1987,9 +1987,9 @@
 
 
             #member-section .table-row {
-                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px !important;
-                min-width: 805px !important;
-                width: 805px !important;
+                grid-template-columns: 110px 80px 200px 90px 95px 100px 130px 110px !important;
+                min-width: 915px !important;
+                width: 915px !important;
                 font-size: 13px !important;
                 padding: 8px 5px !important;
                 gap: 4px;
@@ -6659,6 +6659,7 @@
                 <span>신&nbsp;청&nbsp;일</span>
                 <span>승&nbsp;인&nbsp;여&nbsp;부</span>
                 <span id="member-last-col-header">추가관리 권한부여</span>
+                <span>직급 / 직책</span>
             </div>
             <div id="member-tbody" class="table-body">
                 <div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>
@@ -8232,6 +8233,11 @@
                 const orgCell = isAdminViewer
                     ? `<span class="member-org editable" title="클릭하여 소속 수정" onclick="editMemberOrg('${member.id}', this)">${orgText} ✎</span>`
                     : `<span>${orgText}</span>`;
+                // 직급/직책: 관리자는 클릭하여 인라인 수정 (소속과 동일 패턴)
+                const posText = member.position ? esc(member.position) : '<span class="org-empty">- 미입력 -</span>';
+                const positionCell = isAdminViewer
+                    ? `<span class="member-org editable" title="클릭하여 직급 / 직책 수정" onclick="editMemberPosition('${member.id}', this)">${posText} ✎</span>`
+                    : `<span>${posText}</span>`;
                 row.innerHTML = `
                     <span>${orgCell}</span>
                     <span>${member.name ? esc(member.name) : '-'}</span>
@@ -8240,6 +8246,7 @@
                     <span>${date}</span>
                     <span>${statusHtml}</span>
                     <span>${actionButtons}</span>
+                    <span>${positionCell}</span>
                 `;
                 tbody.appendChild(row);
             });
@@ -8432,6 +8439,34 @@
             }
         }
 
+        // 직급/직책 수정 (관리자 전용) — 소속 인라인 편집과 동일 패턴
+        function editMemberPosition(userId, el) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) return;
+            const cur = member.position || '';
+            const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            el.outerHTML = `<input class="member-org-input" type="text" maxlength="40" value="${escAttr(cur)}" placeholder="직급 / 직책 입력"
+                              onblur="saveMemberPosition('${userId}', this.value)"
+                              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
+            const inp = document.querySelector('.member-org-input');
+            if (inp) { inp.focus(); inp.select(); }
+        }
+        async function saveMemberPosition(userId, value) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) { renderMembers(); return; }
+            const newPos = (value || '').trim();
+            if (newPos === (member.position || '')) { renderMembers(); return; }  // 변경 없음
+            try {
+                await db.collection('users').doc(userId).update({ position: newPos });
+                member.position = newPos;
+                renderMembers();
+            } catch (error) {
+                console.error('직급/직책 수정 오류:', error);
+                alert('직급/직책 수정 중 오류가 발생했습니다.\n관리자 권한 또는 보안 규칙을 확인해주세요.\n' + (error.message || ''));
+                renderMembers();
+            }
+        }
+
         // 회원 승인
         async function approveMember(userId) {
             const member = allMembers.find(m => m.id === userId);
@@ -8616,6 +8651,16 @@
         .asr-files a.asr-thumb { padding:0; width:84px; height:84px; border-radius:10px; overflow:hidden; background:#f2f4f8; border:1px solid #d6e4ff; }
         .asr-files a.asr-thumb:hover { border-color:#2563eb; }
         .asr-files a.asr-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        /* 처리내용 이미지 첨부 UI */
+        .asr-report-upload { display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
+        .asr-upload-btn { display:inline-flex; align-items:center; gap:6px; background:#eef4ff; color:#2563eb; border:1px solid #d6e4ff; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; }
+        .asr-upload-btn:hover { background:#dde9ff; }
+        .asr-upload-hint { font-size:12px; color:#8a929c; }
+        .asr-thumb-wrap { position:relative; width:84px; height:84px; }
+        .asr-thumb-wrap .asr-thumb { display:block; width:84px; height:84px; border-radius:10px; overflow:hidden; background:#f2f4f8; border:1px solid #d6e4ff; }
+        .asr-thumb-wrap .asr-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .asr-thumb-del { position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%; border:none; background:#e53935; color:#fff; font-size:14px; line-height:1; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+        .asr-thumb-del:hover { background:#c62828; }
         @media (max-width:560px){ .asr-grid { grid-template-columns:1fr; } }
         .assignee-modal-card { background:#fff; border-radius:14px; width:420px; max-width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.3); overflow:hidden; }
         .assignee-modal-body { padding:16px 20px; }
@@ -8636,6 +8681,7 @@
         let asrSearchQuery = '';
         let asrLoaded = false; // A/S 데이터를 서버에서 한 번이라도 받았는지 (로딩 스피너 표시 판단)
         let asrCurrentIdx = -1;
+        let asrReportSelected = []; // 처리내용에 첨부할 이미지(업로드 전 File 목록)
 
         function asrEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
         function asrCanEdit(){ return (typeof userCan === 'function') ? userCan('asResult') : false; }
@@ -8820,6 +8866,7 @@
             const p = asrData[idx];
             if (!p) return;
             asrCurrentIdx = idx;
+            asrReportSelected = []; // 새 상세 열 때 첨부 대기 이미지 초기화
             const canEdit = asrCanEdit();
             const done = p.status === 'done';
 
@@ -8896,17 +8943,27 @@
                 body += `<div class="asr-card">
                     <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
                     <div class="asr-cell content" style="border:none;padding:0;"><div class="val" style="background:#fafbfc;border-radius:8px;padding:10px;">${asrEsc(p.asReport||'')}</div></div>
+                    ${asrReportImagesHtml(p)}
                     <div class="asr-empty-line" style="margin-top:8px;">완료: ${asrEsc(p.completedBy||'')} · ${asrEsc(p.completedDate||'')}</div>
                     ${canEdit ? `<div class="asr-row2"><button class="asr-btn ghost" onclick="reopenAsr()">↩ 신청목록으로 되돌리기</button></div>` : ''}</div>`;
             } else if (asrIsDispatcher(p)) {
                 body += `<div class="asr-card">
                     <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
                     <textarea id="asr-report-input" class="asr-input" placeholder="처리 내용을 작성하세요">${asrEsc(p.asReport||'')}</textarea>
+                    ${asrReportImagesHtml(p)}
+                    <div class="asr-report-upload">
+                        <label class="asr-upload-btn">🖼 이미지 첨부
+                            <input type="file" id="asr-report-images" accept="image/*" multiple style="display:none;" onchange="asrOnReportImagesSelected(event)">
+                        </label>
+                        <span class="asr-upload-hint">처리 사진을 추가하면 썸네일로 표시됩니다 (이미지, 최대 10MB)</span>
+                    </div>
+                    <div id="asr-report-preview" class="asr-files" style="margin-top:8px;"></div>
                     <button class="asr-btn done" onclick="completeAsr()">✅ 처리내용 저장 + 완료 처리</button></div>`;
             } else {
                 body += `<div class="asr-card">
                     <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
                     ${p.asReport ? `<div class="asr-cell content" style="border:none;padding:0;"><div class="val" style="background:#fafbfc;border-radius:8px;padding:10px;">${asrEsc(p.asReport)}</div></div>` : ''}
+                    ${asrReportImagesHtml(p)}
                     <div class="asr-empty-line">출동담당자로 지정된 분만 처리내용을 작성·완료할 수 있습니다.</div></div>`;
             }
 
@@ -8935,26 +8992,26 @@
                 <div class="asr-appr-cell"><div class="asr-appr-head">출동담당자</div><div class="asr-appr-body">${dispatcher}</div></div>
                 <div class="asr-appr-cell"><div class="asr-appr-head">담당자</div><div class="asr-appr-body">${pendingCell('staff', p.apprStaff)}</div></div>
                 <div class="asr-appr-cell"><div class="asr-appr-head">관리자</div><div class="asr-appr-body">${pendingCell('auth', p.apprAuth)}</div></div>
-                <div class="asr-appr-cell"><div class="asr-appr-head">대표</div><div class="asr-appr-body">${pendingCell('ceo', p.apprCeo)}</div></div>
+                <div class="asr-appr-cell"><div class="asr-appr-head">대표이사</div><div class="asr-appr-body">${pendingCell('ceo', p.apprCeo)}</div></div>
             </div>`;
         }
 
-        // 결재확인: 현재 사용자가 찍을 수 있는 단계(담당자→관리자→대표)에 직책+이름+날짜 기록
+        // 결재확인: 현재 사용자가 찍을 수 있는 단계(담당자→관리자→대표이사)에 직책+이름+날짜 기록
+        // 직책·이름은 로그인 프로필(직급/직책·이름)에서 '자동'으로 채우고, 별도 입력 없이 '확인'만 한다.
         async function approveAsr(stage) {
             const p = asrData[asrCurrentIdx];
             if (!p) return;
             const role = asrApprovalRole(p);
             const target = stage || role;
             if (!role || target !== role) { alert('결재할 권한이 없거나 결재 순서가 아닙니다.'); return; }
-            const STAGE = { staff: { label: '담당자', def: '', ex: ' (예: 사원/대리)' },
-                            auth:  { label: '관리자', def: '', ex: ' (예: 과장/부장/상무)' },
-                            ceo:   { label: '대표',   def: '대표이사', ex: ' (예: 대표이사)' } };
+            const STAGE = { staff: { label: '담당자' }, auth: { label: '관리자' }, ceo: { label: '대표이사' } };
             const cfg = STAGE[target];
-            const title = await showStaffPrompt(`${cfg.label} 직책을 입력하세요${cfg.ex}`, cfg.def);
-            if (title === null) return; // 취소
             let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
-            const stamp = { title: (title || '').trim(), name: u.name || u.username || '임직원', date: new Date().toLocaleDateString('ko-KR') };
-            const label = ((stamp.title ? stamp.title + ' ' : '') + stamp.name).trim();
+            // 직책 자동: 프로필의 직급/직책 사용 (대표이사 단계는 직책 미설정 시 '대표이사'로 표기)
+            const title = (u.position || '').trim() || (target === 'ceo' ? '대표이사' : '');
+            const name = u.name || u.username || '임직원';
+            const stamp = { title, name, date: new Date().toLocaleDateString('ko-KR') };
+            const label = ((title ? title + ' ' : '') + name).trim();
             if (!(await showStaffConfirm(`${cfg.label} 결재로 확인하시겠습니까?\n\n${label} · ${stamp.date}`))) return;
             if (target === 'staff') p.apprStaff = stamp;
             else if (target === 'auth') p.apprAuth = stamp;
@@ -8966,6 +9023,7 @@
             document.getElementById('asr-modal').style.display = 'none';
             document.body.style.overflow = '';
             asrCurrentIdx = -1;
+            asrReportSelected = []; // 첨부 대기 이미지 초기화
             // 모달이 열려 있는 동안 실시간으로 들어온 변경을 이제 반영
             if (asrPendingPosts) { const p = asrPendingPosts; asrPendingPosts = null; applyAsrPosts(p); }
         }
@@ -9009,6 +9067,9 @@
             // A/S 출동담당자 (처리 내용)
             data.push([]);
             data.push(['A/S 출동담당자 (처리 내용)', v(p.asReport || '')]);
+            if (Array.isArray(p.asReportFiles) && p.asReportFiles.length) {
+                data.push(['처리 첨부이미지', p.asReportFiles.map(f => v(f.name || '')).join(', ')]);
+            }
             data.push(['완료자', v(p.completedBy || '')]);
             data.push(['완료일', v(p.completedDate || '')]);
 
@@ -9019,7 +9080,7 @@
             data.push(['출동담당자', `${v(p.assignee || p.completedBy || '-')}${p.completedDate ? ' · ' + v(p.completedDate) : ''}`]);
             data.push(['담당자', apprStr(p.apprStaff)]);
             data.push(['관리자', apprStr(p.apprAuth)]);
-            data.push(['대표', apprStr(p.apprCeo)]);
+            data.push(['대표이사', apprStr(p.apprCeo)]);
 
             const ws = XLSX.utils.aoa_to_sheet(data);
             ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 44 }];
@@ -9060,6 +9121,47 @@
             if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
         }
 
+        // 처리내용에 저장된 첨부 이미지 썸네일 HTML (이미지는 썸네일, 그 외는 파일 링크)
+        function asrReportImagesHtml(p) {
+            const imgs = Array.isArray(p.asReportFiles) ? p.asReportFiles : [];
+            if (!imgs.length) return '';
+            const cells = imgs.map(it => {
+                const url = it.url || (it.data ? 'data:' + it.type + ';base64,' + it.data : '');
+                const nm = it.name || 'image';
+                if (!url) return `<span>📎 ${asrEsc(nm)}</span>`;
+                const isImage = /^image\//.test(it.type || '') || /\.(jpg|jpeg|png|gif|webp)$/i.test(nm);
+                const clickAttr = `onclick="downloadFileDirect('${url.replace(/'/g, "\\'")}','${asrEsc(nm).replace(/'/g, '')}')"`;
+                return isImage
+                    ? `<a class="asr-thumb" title="${asrEsc(nm)}" ${clickAttr}><img src="${asrEsc(url)}" alt="${asrEsc(nm)}" loading="lazy"></a>`
+                    : `<a ${clickAttr}>📎 ${asrEsc(nm)}</a>`;
+            }).join('');
+            return `<div class="asr-files" style="margin-top:10px;">${cells}</div>`;
+        }
+        // 이미지 선택 → 검증 후 대기 목록에 추가 + 미리보기 렌더
+        function asrOnReportImagesSelected(ev) {
+            const files = Array.from((ev.target && ev.target.files) || []);
+            for (const f of files) {
+                if (!/^image\//.test(f.type)) { alert('이미지 파일만 첨부할 수 있습니다: ' + f.name); continue; }
+                if (f.size > 10 * 1024 * 1024) { alert('이미지 크기는 10MB 이하만 가능합니다: ' + f.name); continue; }
+                asrReportSelected.push(f);
+            }
+            if (ev.target) ev.target.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
+            asrRenderReportPreview();
+        }
+        // 업로드 대기 이미지 미리보기(썸네일 + 제거 버튼)
+        function asrRenderReportPreview() {
+            const box = document.getElementById('asr-report-preview');
+            if (!box) return;
+            box.innerHTML = asrReportSelected.map((f, i) => {
+                const url = URL.createObjectURL(f);
+                return `<div class="asr-thumb-wrap"><span class="asr-thumb"><img src="${url}" alt="${asrEsc(f.name)}"></span><button type="button" class="asr-thumb-del" title="제거" onclick="asrRemoveReportSelected(${i})">×</button></div>`;
+            }).join('');
+        }
+        function asrRemoveReportSelected(i) {
+            asrReportSelected.splice(i, 1);
+            asrRenderReportPreview();
+        }
+
         async function completeAsr() {
             const p = asrData[asrCurrentIdx]; if (!p) return;
             if (!asrIsDispatcher(p)) { alert('출동담당자로 지정된 분만 처리내용 작성·완료할 수 있습니다.'); return; }
@@ -9068,11 +9170,27 @@
             if (!report) { alert('처리 내용을 작성하세요.'); return; }
             if (!(await showStaffConfirm('A/S 완료 처리하시겠습니까?'))) return;
             let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
+
+            // 첨부 이미지 업로드 (Storage에 올리고 문서엔 URL만 저장)
+            let uploaded = [];
+            if (asrReportSelected.length) {
+                const doneBtn = document.querySelector('#asr-modal-body .asr-btn.done');
+                if (doneBtn) { doneBtn.disabled = true; doneBtn.textContent = '이미지 업로드 중…'; }
+                try {
+                    uploaded = await uploadFilesToStorage(asrReportSelected);
+                } catch (e) {
+                    alert('이미지 업로드 중 오류가 발생했습니다. 다시 시도해주세요.\n' + (e && e.message ? e.message : e));
+                    if (doneBtn) { doneBtn.disabled = false; doneBtn.textContent = '✅ 처리내용 저장 + 완료 처리'; }
+                    return;
+                }
+            }
+
             p.asReport = report;
+            if (uploaded.length) p.asReportFiles = (Array.isArray(p.asReportFiles) ? p.asReportFiles : []).concat(uploaded);
             p.status = 'done';
             p.completedBy = u.name || u.username || '임직원';
             p.completedDate = new Date().toLocaleDateString('ko-KR');
-            if (await saveAsrData()) { closeAsrModal(); setAsrSegment('done'); }
+            if (await saveAsrData()) { asrReportSelected = []; closeAsrModal(); setAsrSegment('done'); }
         }
         async function reopenAsr() {
             if (!asrCanEdit()) return;

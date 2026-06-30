@@ -2149,6 +2149,14 @@ function deleteAsPost(index) {
                             replies.map(rp => `<div style="margin-bottom:8px;"><div style="font-size:14px;color:#333;white-space:pre-wrap;">${esc(rp.text||'')}</div><div style="font-size:12px;color:#888;margin-top:4px;">${esc(rp.author||'')} · ${esc(rp.date||'')}</div></div>`).join('') +
                             `</div>`;
                     }
+                    // 담당자가 작성한 구매이력 확인 메모 (작성된 경우에만 표시)
+                    if (post.purchaseNote && post.purchaseNote.text) {
+                        h += `<div style="background:#fff8ec;border:1px solid #ffe2b0;border-radius:10px;padding:12px;margin-bottom:10px;">
+                                <div style="font-weight:700;color:#d9831f;font-size:13px;margin-bottom:6px;">구매이력 확인</div>
+                                <div style="font-size:14px;color:#333;white-space:pre-wrap;">${esc(post.purchaseNote.text)}</div>
+                                ${post.purchaseNote.by ? `<div style="font-size:12px;color:#888;margin-top:6px;">${esc(post.purchaseNote.by)} · ${esc(post.purchaseNote.date||'')}</div>` : ''}
+                              </div>`;
+                    }
                     if (done && post.asReport) {
                         h += `<div style="background:#f1fbf3;border:1px solid #c3ebcf;border-radius:10px;padding:12px;margin-bottom:10px;">
                                 <div style="font-weight:700;color:#2f9e44;font-size:13px;margin-bottom:6px;">A/S 처리 내용</div>
