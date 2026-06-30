@@ -3503,21 +3503,9 @@
             const writeBtn = document.querySelector('.write');
             if (!writeBtn) return;
             
-            // 공지사항은 관리자만 작성 가능
+            // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 작성 가능
             if (currentBoard === 'notice') {
-                const loggedInUser = sessionStorage.getItem('loggedInUser');
-                if (loggedInUser) {
-                    try {
-                        const userData = JSON.parse(loggedInUser);
-                        const isAdmin = userData.isAdmin || userData.username === 'admin';
-                        writeBtn.style.display = isAdmin ? 'block' : 'none';
-                    } catch (e) {
-                        console.error('사용자 정보 파싱 오류:', e);
-                        writeBtn.style.display = 'none';
-                    }
-                } else {
-                    writeBtn.style.display = 'none';
-                }
+                writeBtn.style.display = (typeof userCan === 'function' && userCan('notice')) ? 'block' : 'none';
             } else if (currentBoard === 'as-result') {
                 // A/S 처리결과는 작성 권한(asResult) 보유자만
                 writeBtn.style.display = (typeof userCan === 'function' && userCan('asResult')) ? 'block' : 'none';
@@ -3584,11 +3572,11 @@
             let errorMessage = '';
             
             if (currentBoard === 'notice') {
-                // 공지사항: 관리자만 삭제 가능
-                if (isAdmin) {
+                // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 삭제 가능
+                if (typeof userCan === 'function' && userCan('notice')) {
                     canDelete = true;
                 } else {
-                    errorMessage = '공지사항은 관리자만 삭제할 수 있습니다.';
+                    errorMessage = '공지사항 삭제 권한이 없습니다.';
                 }
             } else if (currentBoard === 'staff' || currentBoard === 'staff-data' || currentBoard === 'suggestion' || currentBoard === 'as-result') {
                 // 직원게시판, 제안활동, A/S 처리결과: 작성자 또는 관리자만 삭제 가능
@@ -3675,29 +3663,12 @@
         }
 
         function showWriteForm() {
-            // 공지사항은 관리자만 작성 가능
-            if (currentBoard === 'notice') {
-                const loggedInUser = sessionStorage.getItem('loggedInUser');
-                if (!loggedInUser) {
-                    alert('로그인이 필요합니다.');
-                    return;
-                }
-                
-                try {
-                    const userData = JSON.parse(loggedInUser);
-                    const isAdmin = userData.isAdmin || userData.username === 'admin';
-                    
-                    if (!isAdmin) {
-                        alert('공지사항은 관리자만 작성할 수 있습니다.');
-                        return;
-                    }
-                } catch (e) {
-                    console.error('사용자 정보 파싱 오류:', e);
-                    alert('사용자 정보를 확인할 수 없습니다.');
-                    return;
-                }
+            // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 작성 가능
+            if (currentBoard === 'notice' && !(typeof userCan === 'function' && userCan('notice'))) {
+                alert('공지사항 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
+                return;
             }
-            
+
             const writeForm = document.getElementById('write-form');
             const overlay = document.getElementById('overlay');
 
@@ -3812,8 +3783,8 @@
             const isAdmin = userData.isAdmin || userData.username === 'admin';
             let canEdit;
             if (currentBoard === 'notice') {
-                canEdit = isAdmin;
-                if (!canEdit) { alert('공지사항은 관리자만 수정할 수 있습니다.'); return; }
+                canEdit = (typeof userCan === 'function' && userCan('notice'));
+                if (!canEdit) { alert('공지사항 수정 권한이 없습니다.'); return; }
             } else {
                 const isAuthor = post.author === userData.name ||
                                  post.author === userData.username ||
@@ -4144,27 +4115,10 @@
             // 등록 버튼 연타로 인한 중복 저장 방지
             if (isSubmittingPost) return;
 
-            // 공지사항은 관리자만 작성 가능
-            if (currentBoard === 'notice') {
-                const loggedInUser = sessionStorage.getItem('loggedInUser');
-                if (!loggedInUser) {
-                    alert('로그인이 필요합니다.');
-                    return;
-                }
-                
-                try {
-                    const userData = JSON.parse(loggedInUser);
-                    const isAdmin = userData.isAdmin || userData.username === 'admin';
-                    
-                    if (!isAdmin) {
-                        alert('공지사항은 관리자만 작성할 수 있습니다.');
-                        return;
-                    }
-                } catch (e) {
-                    console.error('사용자 정보 파싱 오류:', e);
-                    alert('사용자 정보를 확인할 수 없습니다.');
-                    return;
-                }
+            // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 작성 가능
+            if (currentBoard === 'notice' && !(typeof userCan === 'function' && userCan('notice'))) {
+                alert('공지사항 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
+                return;
             }
 
             // A/S 처리결과는 작성 권한(asResult) 보유자만
@@ -4575,8 +4529,8 @@
                 let canModify = false;
 
                 if (currentBoard === 'notice') {
-                    // 공지사항: 관리자만 수정/삭제 가능
-                    canModify = isAdmin;
+                    // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 수정/삭제
+                    canModify = (typeof userCan === 'function' && userCan('notice'));
                 } else {
                     // 그 외 게시판: 작성자 또는 관리자만 수정/삭제 가능
                     const isAuthor = post.author === userData.name ||
@@ -8262,7 +8216,7 @@
                 let actionButtons = '';
                 if (isApprovedTab && isAdminViewer && !memberIsAdmin) {
                     const p = member.permissions || {};
-                    const hasAny = p.all || p.company || p.photos || p.schedule || p.asResult || p.inventory || p.report || member.scheduleEditor;
+                    const hasAny = p.all || p.notice || p.company || p.photos || p.schedule || p.asResult || p.asAssignee || p.asApprStaff || p.asApprove || p.asApproveCeo || p.inventory || p.report || member.scheduleEditor;
                     actionButtons = `<button class="member-perm-btn ${hasAny ? 'on' : ''}" onclick="openPermModal('${member.id}')" title="작성·관리 권한 설정">권한설정</button>`;
                 } else if (currentMemberTab === 'rejected') {
                     const reason = (member.rejectReason || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -8336,6 +8290,7 @@
         // ===== 작성·관리 권한 설정 모달 (관리자) =====
         const PERM_AREAS = [
             { key: 'all',       label: '전체' },
+            { key: 'notice',    label: '공지사항' },
             { key: 'company',   label: '회사운영' },
             { key: 'photos',    label: '활동사진첩' },
             { key: 'schedule',  label: '일정관리' },
@@ -9689,19 +9644,20 @@
         </div>
         <div class="perm-modal-body">
           <div class="perm-member" id="perm-member-name"></div>
-          <p class="perm-help">권한을 부여하면 해당 영역의 글/일정/사진을 작성·관리할 수 있습니다. ‘전체’는 모든 영역을 포함합니다.</p>
+          <p class="perm-help">권한을 부여하면 괄호 안의 작업(쓰기·읽기·수정·삭제 등)을 할 수 있습니다. 읽기만 따로 적힌 항목 외에는 <b>읽기는 전 직원이 가능</b>합니다. ‘전체’는 모든 영역을 포함합니다(단, A/S 결재·회원관리 제외).</p>
           <div class="perm-list">
-          <label class="perm-row"><span>전체</span><input type="checkbox" id="perm-all"></label>
-          <label class="perm-row"><span>회사운영</span><input type="checkbox" id="perm-company"></label>
-          <label class="perm-row"><span>활동사진첩</span><input type="checkbox" id="perm-photos"></label>
-          <label class="perm-row"><span>일정관리</span><input type="checkbox" id="perm-schedule"></label>
-          <label class="perm-row"><span>A/S처리결과</span><input type="checkbox" id="perm-asResult"></label>
-          <label class="perm-row"><span>A/S 출동담당자 관리</span><input type="checkbox" id="perm-asAssignee"></label>
-          <label class="perm-row"><span>A/S 결재(담당자)</span><input type="checkbox" id="perm-asApprStaff"></label>
-          <label class="perm-row"><span>A/S 결재(관리자)</span><input type="checkbox" id="perm-asApprove"></label>
-          <label class="perm-row"><span>A/S 결재(대표)</span><input type="checkbox" id="perm-asApproveCeo"></label>
-          <label class="perm-row"><span>재고현황</span><input type="checkbox" id="perm-inventory"></label>
-          <label class="perm-row"><span>업무보고(본사)</span><input type="checkbox" id="perm-report"></label>
+          <label class="perm-row"><span>전체 <small class="perm-desc">(아래 모든 권한 포함 — A/S 결재·회원관리 제외)</small></span><input type="checkbox" id="perm-all"></label>
+          <label class="perm-row"><span>공지사항 <small class="perm-desc">(쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-notice"></label>
+          <label class="perm-row"><span>회사운영 <small class="perm-desc">(회사운영 캘린더 일정 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-company"></label>
+          <label class="perm-row"><span>활동사진첩 <small class="perm-desc">(사진 업로드·수정·삭제)</small></span><input type="checkbox" id="perm-photos"></label>
+          <label class="perm-row"><span>일정관리 <small class="perm-desc">(납품 일정 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-schedule"></label>
+          <label class="perm-row"><span>A/S처리결과 <small class="perm-desc">(A/S 글 쓰기·답글·담당자지정·수정·삭제)</small></span><input type="checkbox" id="perm-asResult"></label>
+          <label class="perm-row"><span>A/S 출동담당자 관리 <small class="perm-desc">(출동담당자 목록 추가·삭제)</small></span><input type="checkbox" id="perm-asAssignee"></label>
+          <label class="perm-row"><span>A/S 결재(담당자) <small class="perm-desc">(A/S 완료건 담당자 단계 결재·승인)</small></span><input type="checkbox" id="perm-asApprStaff"></label>
+          <label class="perm-row"><span>A/S 결재(관리자) <small class="perm-desc">(A/S 완료건 관리자 단계 결재·승인)</small></span><input type="checkbox" id="perm-asApprove"></label>
+          <label class="perm-row"><span>A/S 결재(대표) <small class="perm-desc">(A/S 완료건 대표 단계 결재·승인)</small></span><input type="checkbox" id="perm-asApproveCeo"></label>
+          <label class="perm-row"><span>재고현황 <small class="perm-desc">(재고 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-inventory"></label>
+          <label class="perm-row"><span>업무보고(본사) <small class="perm-desc">(읽기·쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-report"></label>
           </div>
         </div>
         <div class="perm-modal-foot">
@@ -9801,6 +9757,8 @@
         .perm-member { font-weight:700; color:#333; margin-bottom:6px; }
         .perm-help { font-size:12px; color:#888; margin:0 0 12px; line-height:1.5; }
         .perm-row { display:flex; align-items:center; justify-content:space-between; padding:11px 12px; border:1px solid #eceef1; border-radius:8px; margin-bottom:8px; font-size:15px; font-weight:600; color:#333; cursor:pointer; }
+        .perm-row > span { flex:1; padding-right:10px; min-width:0; }
+        .perm-row .perm-desc { display:block; font-size:12px; font-weight:400; color:#8a929c; margin-top:3px; line-height:1.4; }
         /* 권한 카드 목록: 8개만 보이고 나머지는 스크롤 */
         .perm-list { max-height: 392px; overflow-y: auto; padding-right: 6px; }
         .perm-list .perm-row:last-child { margin-bottom: 0; }

@@ -150,6 +150,8 @@ service cloud.firestore {
         (board != 'staff-report' || permFor('report'));
 
       // 생성/수정: 임직원(게시판 일반) — 단, 'as-result'는 'A/S처리결과', 'staff-report'는 'report' 권한 보유자만
+      // (공지사항 'notice'는 클라이언트에서 userCan('notice')로 제어 — 서버는 전 임직원 update 허용:
+      //  조회수 증가(viewPost)도 update라서 서버까지 막으면 일반 직원이 공지 '읽기'만 해도 저장 거부 알림이 떠 UX가 깨짐)
       allow create: if isEmployee() &&
         board is string &&
         request.resource.data.keys().hasAny(['posts']) &&
