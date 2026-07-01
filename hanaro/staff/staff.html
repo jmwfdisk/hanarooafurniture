@@ -9556,7 +9556,17 @@
         #inventory-modal .inv-table .schedule-cell-ro { padding:6px; min-height:20px; color:#333; }
         #inventory-modal .inv-table td.sched-sel { background:#dbeafe !important; }
 
-        @media (max-width:768px){ .inv-modal { padding:0; } .inv-modal-card { height:100vh; border-radius:0; } #inventory-modal .inv-table-wrap { padding:0; } }
+        @media (max-width:768px){
+            .inv-modal { padding:0; }
+            .inv-modal-card { height:100vh; border-radius:0; }
+            #inventory-modal .inv-table-wrap { padding:0; }
+            /* 상단 상태바/노치 안전영역 확보(닫기 잘림 방지) */
+            .inv-modal-header { padding-top:max(14px, env(safe-area-inset-top)); }
+            /* 툴바(최신화날짜·날짜별조회 / 행·열·엑셀·내보내기·저장): 줄바꿈 대신 가로 스와이프(스크롤바 자동숨김) */
+            .inv-toolbar { flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; -webkit-overflow-scrolling:touch; scrollbar-width:none; -ms-overflow-style:none; }
+            .inv-toolbar::-webkit-scrollbar { display:none; }
+            .inv-toolbar-left, .inv-edit-tools { flex:0 0 auto; flex-wrap:nowrap; }
+        }
     </style>
 
     <script>
@@ -10625,9 +10635,19 @@
         @media (max-width:768px){
             .schedule-modal { padding:0; }
             .schedule-modal-card { height:100vh; border-radius:0; }
-            .schedule-modal-header { flex-wrap:wrap; }
-            .schedule-datenav { margin-left:0; flex-wrap:wrap; }
-            .schedule-date-label { width:100%; }
+            /* 헤더: 줄바꿈 대신 가로 스와이프(스크롤바 자동숨김) + 상단 상태바/노치 안전영역 확보 */
+            .schedule-modal-header {
+                flex-wrap:nowrap;
+                overflow-x:auto;
+                -webkit-overflow-scrolling:touch;
+                scrollbar-width:none;
+                -ms-overflow-style:none;
+                padding-top:max(14px, env(safe-area-inset-top));
+            }
+            .schedule-modal-header::-webkit-scrollbar { display:none; }
+            .schedule-modal-header > * { flex:0 0 auto; }
+            .schedule-datenav { margin-left:0; flex-wrap:nowrap; }
+            .schedule-date-label { width:auto; }
         }
     </style>
 
