@@ -1094,6 +1094,34 @@ function setLoginBtnLoading(loading) {
         });
     } catch (e) { /* 무시 */ }
 }
+// 회원가입(가입 신청) 버튼 로딩 스피너 — 클릭된 버튼에 스피너, 두 버튼 모두 비활성
+function setRegisterBtnLoading(loading, userTypeArg) {
+    try {
+        ensureAuthSpinnerStyle();
+        var btns = document.querySelectorAll('#reg-submit-employee, #reg-submit-general, button[onclick^="register("]');
+        var seen = [];
+        btns.forEach(function (btn) {
+            if (seen.indexOf(btn) !== -1) return; seen.push(btn);
+            var oc = btn.getAttribute('onclick') || '';
+            var isTarget = !userTypeArg
+                || oc.indexOf("register('" + userTypeArg + "')") !== -1
+                || oc.indexOf('register("' + userTypeArg + '")') !== -1
+                || oc.indexOf('register()') !== -1;   // 레거시 단일 버튼
+            if (loading) {
+                btn.disabled = true;
+                if (isTarget) {
+                    if (btn.dataset.origHtml == null) btn.dataset.origHtml = btn.innerHTML;
+                    btn.classList.add('auth-btn-loading');
+                    btn.innerHTML = '<span class="auth-spinner"></span>가입 신청 중…';
+                }
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('auth-btn-loading');
+                if (btn.dataset.origHtml != null) { btn.innerHTML = btn.dataset.origHtml; delete btn.dataset.origHtml; }
+            }
+        });
+    } catch (e) { /* 무시 */ }
+}
 
 async function login() {
     console.log('[로그인] login() 함수 호출됨');
@@ -1276,6 +1304,7 @@ async function register(userTypeArg) {
         return;
     }
 
+    setRegisterBtnLoading(true, userTypeArg);   // 가입 신청 처리 시작 → 버튼 스피너
     try {
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
@@ -1335,6 +1364,8 @@ async function register(userTypeArg) {
         } else {
             alert('회원가입 중 오류가 발생했습니다.\n' + (error.message || '잠시 후 다시 시도해주세요.'));
         }
+    } finally {
+        setRegisterBtnLoading(false);   // 성공·오류·중단 모든 경우 버튼 원복
     }
 }
 
