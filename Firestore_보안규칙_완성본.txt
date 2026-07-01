@@ -221,11 +221,11 @@ service cloud.firestore {
     // 구조: 개별 문서로 저장, 각 문서는 { sku, name, spec, unit, stock, safety, location, vendor, note, registeredAt, updatedAt, updatedBy }
     
     match /materials/{materialId} {
-      // 읽기: 임직원 또는 관리자만 가능
+      // 읽기: 임직원 전체 (권한 불필요)
       allow read: if isEmployee();
-      
-      // 생성: 임직원 또는 관리자만 가능
-      allow create: if isEmployee() &&
+
+      // 생성: '자재관리' 권한 보유자(또는 전체/관리자)만 가능
+      allow create: if permFor('materials') &&
         // 필수 필드 검증
         request.resource.data.keys().hasAll(['sku', 'updatedAt']) &&
         // 필드 타입 검증
@@ -242,8 +242,8 @@ service cloud.firestore {
         (!('registeredAt' in request.resource.data) || request.resource.data.registeredAt is timestamp) &&
         (!('updatedBy' in request.resource.data) || request.resource.data.updatedBy is string);
       
-      // 수정: 임직원 또는 관리자만 가능
-      allow update: if isEmployee() &&
+      // 수정: '자재관리' 권한 보유자(또는 전체/관리자)만 가능
+      allow update: if permFor('materials') &&
         // sku는 변경 불가
         (!('sku' in request.resource.data.diff(resource.data).affectedKeys()) ||
          request.resource.data.sku == resource.data.sku) &&
@@ -260,8 +260,8 @@ service cloud.firestore {
         (!('vendor' in request.resource.data) || request.resource.data.vendor is string) &&
         (!('note' in request.resource.data) || request.resource.data.note is string);
       
-      // 삭제: 임직원 또는 관리자만 가능
-      allow delete: if isEmployee();
+      // 삭제: '자재관리' 권한 보유자(또는 전체/관리자)만 가능
+      allow delete: if permFor('materials');
     }
 
     // ========== 납품 일정관리 (deliverySchedule) ==========

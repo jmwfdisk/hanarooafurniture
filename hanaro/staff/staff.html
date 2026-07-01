@@ -4764,9 +4764,8 @@
             
             try {
                 const user = JSON.parse(loggedInUser);
-                const canEdit = (user.isAdmin === true) || 
-                               (user.userType === 'employee') || 
-                               (user.username === 'admin');
+                // 읽기(모달 열기·조회)는 임직원 전체. 쓰기·수정·삭제는 '자재관리' 권한 보유자만.
+                const canEdit = (typeof userCan === 'function') ? userCan('materials') : (user.isAdmin === true);
                 return { canEdit, user };
             } catch (e) {
                 console.error('사용자 정보 파싱 오류:', e);
@@ -6690,7 +6689,7 @@
                 <div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>
             </div>
         </div>
-        <div id="member-pagination" style="display: flex; justify-content: center; margin-top: 15px; font-size: 20px;"></div>
+        <div id="member-pagination" style="display: flex; justify-content: center; align-items: center; margin-top: 18px; flex-wrap: wrap; gap: 2px;"></div>
     </div>
 
     <!-- 활동사진첩 섹션 -->
@@ -8299,25 +8298,46 @@
             renderMemberPagination(filteredMembers.length);
         }
 
-        // 회원 페이지네이션
+        // 회원 페이지네이션 (일반 게시판과 동일한 << 처음 / < 이전 / 번호 / 다음 > / 마지막 >> 스타일)
         function renderMemberPagination(total) {
             const pagination = document.getElementById('member-pagination');
             if (!pagination) return;
             pagination.innerHTML = '';
-            
+
             const totalPages = Math.ceil(total / membersPerPage);
             if (totalPages <= 1) return;
 
-            for (let i = 1; i <= totalPages; i++) {
-                const dot = document.createElement('span');
-                dot.textContent = '●';
-                dot.className = 'pagination-dot' + (i === memberCurrentPage ? ' active' : '');
-                dot.onclick = () => {
-                    memberCurrentPage = i;
-                    renderMembers();
-                };
-                pagination.appendChild(dot);
+            const cur = memberCurrentPage;
+
+            const makeBtn = (label, page, opts = {}) => {
+                const btn = document.createElement('span');
+                btn.className = 'page-btn' + (opts.nav ? ' nav' : '') +
+                    (opts.active ? ' active' : '') + (opts.disabled ? ' disabled' : '');
+                btn.textContent = label;
+                if (!opts.disabled && !opts.active) {
+                    btn.onclick = () => {
+                        memberCurrentPage = page;
+                        renderMembers();
+                    };
+                }
+                pagination.appendChild(btn);
+            };
+
+            // 처음 / 이전
+            makeBtn('<< 처음', 1, { nav: true, disabled: cur === 1 });
+            makeBtn('< 이전', cur - 1, { nav: true, disabled: cur === 1 });
+
+            // 페이지 번호 (최대 10개씩 묶음)
+            const windowSize = 10;
+            const startPage = Math.floor((cur - 1) / windowSize) * windowSize + 1;
+            const endPage = Math.min(startPage + windowSize - 1, totalPages);
+            for (let i = startPage; i <= endPage; i++) {
+                makeBtn(String(i), i, { active: i === cur });
             }
+
+            // 다음 / 마지막
+            makeBtn('다음 >', cur + 1, { nav: true, disabled: cur === totalPages });
+            makeBtn('마지막 >>', totalPages, { nav: true, disabled: cur === totalPages });
         }
 
         // ===== 작성·관리 권한 설정 모달 (관리자) =====
@@ -8333,6 +8353,7 @@
             { key: 'asApprove', label: 'A/S 결재(관리자)' },
             { key: 'asApproveCeo', label: 'A/S 결재(대표)' },
             { key: 'inventory', label: '재고현황' },
+            { key: 'materials', label: '자재관리' },
             { key: 'report',    label: '업무보고(본사)' }
         ];
         let permModalUserId = null;
@@ -9820,6 +9841,7 @@
           <label class="perm-row"><span>A/S 결재(관리자) <small class="perm-desc">(A/S 완료건 관리자 단계 결재·승인)</small></span><input type="checkbox" id="perm-asApprove"></label>
           <label class="perm-row"><span>A/S 결재(대표) <small class="perm-desc">(A/S 완료건 대표 단계 결재·승인)</small></span><input type="checkbox" id="perm-asApproveCeo"></label>
           <label class="perm-row"><span>재고현황 <small class="perm-desc">(재고 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-inventory"></label>
+          <label class="perm-row"><span>자재관리 <small class="perm-desc">(자재 쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-materials"></label>
           <label class="perm-row"><span>업무보고(본사) <small class="perm-desc">(읽기·쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-report"></label>
           </div>
         </div>
