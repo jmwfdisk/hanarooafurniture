@@ -9988,6 +9988,19 @@
         }
         .notice-segment .seg-btn.active { background:#3b82f6; border-color:#3b82f6; color:#fff; }
         .notice-segment .seg-btn:not(.active):hover { border-color:#3b82f6; color:#3b82f6; }
+        /* 모바일: 세그먼트 버튼(직원게시판 등)을 줄바꿈 대신 가로 스와이프(스크롤). 스크롤바 자동숨김 — 회원관리 표와 동일 UX */
+        @media (max-width: 768px) {
+            .notice-segment {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                justify-content: flex-start;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;              /* Firefox */
+                -ms-overflow-style: none;           /* 구 Edge */
+            }
+            .notice-segment::-webkit-scrollbar { display: none; }   /* Chrome/Safari 스크롤바 숨김 */
+            .notice-segment .seg-btn { flex: 0 0 auto; white-space: nowrap; }
+        }
 
         /* 달력 */
         #company-calendar-view, #leave-calendar-view { width:900px; max-width:100%; margin:0 auto; position:relative; min-height:120px; }
@@ -10011,6 +10024,25 @@
         .cal-chip b { font-weight:700; }
         .cal-more { font-size:11px; color:#888; padding:0 5px; }
         .cal-foot { margin-top:10px; font-size:12px; color:#888; text-align:center; }
+        /* ── 캘린더 반응형(연월차일정·주요회사운영) — 다양한 모바일 사이즈 대응 ── */
+        @media (max-width: 768px) {
+            #company-calendar-view, #leave-calendar-view { width:100%; }
+            .cal-header { gap:10px; margin-bottom:10px; }
+            .cal-header .cal-title { font-size:17px; min-width:0; }
+            .cal-nav { width:32px; height:32px; }
+            .cal-dow { font-size:11px; padding:6px 0; }
+            .cal-cell { min-height:62px; padding:3px; }
+            .cal-daynum { font-size:12px; margin-bottom:2px; }
+            .cal-chip { font-size:10px; padding:1px 4px; }
+            .cal-more { font-size:10px; padding:0 4px; }
+        }
+        @media (max-width: 400px) {
+            .cal-header .cal-title { font-size:15px; }
+            .cal-dow { font-size:10px; }
+            .cal-cell { min-height:52px; }
+            .cal-daynum { font-size:11px; }
+            .cal-chip { font-size:9px; padding:1px 3px; }
+        }
 
         /* 날짜 일정 모달 */
         .day-modal-card { background:#fff; border-radius:14px; width:460px; max-width:92vw; max-height:85vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
