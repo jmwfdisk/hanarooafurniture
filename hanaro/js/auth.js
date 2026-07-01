@@ -1064,6 +1064,37 @@ function hideLogin() {
     });
 }
 
+// 로그인 버튼 로딩 스피너 (전 페이지 공통 — onclick="login()" 제출 버튼 대상)
+function ensureAuthSpinnerStyle() {
+    if (document.getElementById('auth-spinner-style')) return;
+    var st = document.createElement('style');
+    st.id = 'auth-spinner-style';
+    st.textContent = '@keyframes authSpin{to{transform:rotate(360deg)}}'
+        + '.auth-spinner{display:inline-block;width:15px;height:15px;margin-right:8px;vertical-align:-2px;'
+        + 'border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;'
+        + 'animation:authSpin .7s linear infinite;}'
+        + '.login-container button.auth-btn-loading{opacity:.9;cursor:default;}';
+    document.head.appendChild(st);
+}
+function setLoginBtnLoading(loading) {
+    try {
+        ensureAuthSpinnerStyle();
+        var btns = document.querySelectorAll('button[onclick="login()"]');
+        btns.forEach(function (btn) {
+            if (loading) {
+                if (btn.dataset.origHtml == null) btn.dataset.origHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.classList.add('auth-btn-loading');
+                btn.innerHTML = '<span class="auth-spinner"></span>로그인 중…';
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('auth-btn-loading');
+                if (btn.dataset.origHtml != null) { btn.innerHTML = btn.dataset.origHtml; delete btn.dataset.origHtml; }
+            }
+        });
+    } catch (e) { /* 무시 */ }
+}
+
 async function login() {
     console.log('[로그인] login() 함수 호출됨');
     
@@ -1138,6 +1169,7 @@ async function login() {
         }
         
         console.log('[로그인] signInWithEmailAndPassword 호출 시작...');
+        setLoginBtnLoading(true);   // 로그인 처리 시작 → 버튼 스피너
         const userCredential = await auth.signInWithEmailAndPassword(emailOrUsername, password);
         const user = userCredential.user;
         
@@ -1152,6 +1184,7 @@ async function login() {
             console.warn('[로그인] 인증 토큰 새로고침 오류:', tokenError);
         }
         
+        setLoginBtnLoading(false);  // 스피너 해제 후 모달 닫기
         hideLogin();
         console.log('[로그인] 로그인 모달 숨김');
         
@@ -1161,6 +1194,7 @@ async function login() {
 
     } catch (error) {
         isLoggingIn = false;
+        setLoginBtnLoading(false);  // 오류 시 버튼 원복(재시도 가능)
         console.error('[로그인] 오류 발생:', error);
         console.error('[로그인] 오류 코드:', error.code);
         console.error('[로그인] 오류 메시지:', error.message);
