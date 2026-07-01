@@ -5222,6 +5222,9 @@
                 selectableRange: true,          // 엑셀식 셀 범위 드래그 선택
                 headerSortClickElement: 'icon', // 헤더는 아이콘으로만 정렬 (범위선택과 충돌 방지)
                 selectableRollingSelection: false,
+                // 편집은 더블클릭에서만 시작. (기본값 'click'이면 단일 클릭이 에디터를 열자마자
+                //  rowClick의 toggleSelect가 행을 다시 그려 에디터가 즉시 닫힘 → 입력 불가)
+                editTriggerEvent: 'dblclick',
                 placeholder: '자재 데이터가 없습니다.',
                 initialSort: [
                     { column: 'sku', dir: 'asc' }
@@ -8756,16 +8759,32 @@
             if (asrPerm('asApproveCeo') && aDone && !cDone) return 'ceo';
             return null;
         }
-        // 현재 로그인 사용자가 그 건의 '출동담당자'인지 (이름 일치; assignee는 "직책 이름" 형태일 수 있어 부분일치 허용)
-        function asrIsDispatcher(p){
-            if (!p) return false;
-            const a = (p.assignee || '').trim();
+        // 지정 문자열(assignee, "직책 이름" 형태 가능)이 사용자 u를 가리키는지 견고하게 판정.
+        //  ① 정확 일치  ② 공백 토큰에 이름이 정확히 포함("부장 김준연"의 "김준연")  ③ (직책+이름) 조합 일치
+        //  단순 substring(부분일치)은 "김준"↔"김준연" 같은 오탐이 있어 사용하지 않음.
+        function asrNameMatches(assignee, u){
+            const a = (assignee || '').trim();
             if (!a) return false;
-            let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
-            const name = (u.name || u.username || '').trim();
+            const name = ((u && (u.name || u.username)) || '').trim();
             if (!name) return false;
-            return a === name || a.includes(name) || name.includes(a);
+            if (a === name) return true;
+            if (a.split(/\s+/).indexOf(name) !== -1) return true;
+            const pos = ((u && u.position) || '').trim();
+            if (pos && (a === pos + ' ' + name || a === name + ' ' + pos)) return true;
+            return false;
         }
+        function asrCurrentUser(){ try { return JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){ return {}; } }
+        // 현재 로그인 사용자가 그 건의 '출동담당자'로 지정됐는지 → 지정 즉시 처리내용 입력칸이 자동으로 열림
+        function asrIsDispatcher(p){ return !!p && asrNameMatches(p.assignee, asrCurrentUser()); }
+        // 현재 로그인 사용자가 '출동 담당자 목록(asrAssignees)'에 등록된 사람인지
+        function asrIsRegisteredDispatcher(){
+            if (!Array.isArray(asrAssignees)) return false;
+            const u = asrCurrentUser();
+            return asrAssignees.some(function(a){ return asrNameMatches(a, u); });
+        }
+        // 출동 담당자 '지정(assignee)' 변경 권한: A/S처리결과(asResult) 권한자 또는 출동담당자 목록 등록자.
+        // → 목록에 등록된 출동담당자는 스스로를 지정할 수 있고, 지정 즉시 asrIsDispatcher가 되어 처리내용 입력이 열림.
+        function asrCanAssign(){ return asrCanEdit() || asrIsRegisteredDispatcher(); }
         // 구매이력 확인 메모 작성 권한: 결재 권한(담당자/관리자/대표) 중 하나라도 보유
         function asrCanPurchase(){ return asrPerm('asApprStaff') || asrPerm('asApprove') || asrPerm('asApproveCeo'); }
 
@@ -8882,7 +8901,7 @@
                     const p = r.p, idx = r.i;
                     const replyCnt = (p.replies && p.replies.length) ? `<span class="asr-reply-badge">💬${p.replies.length}</span>` : '';
                     let assigneeCell;
-                    if (!isDone && canEdit) {
+                    if (!isDone && asrCanAssign()) {
                         let opts = `<option value="">미지정</option>`;
                         asrAssignees.forEach(a => { opts += `<option value="${asrEsc(a)}" ${p.assignee===a?'selected':''}>${asrEsc(a)}</option>`; });
                         assigneeCell = `<select class="asr-assignee-sel" onchange="assignAsr(${idx}, this.value)" onclick="event.stopPropagation()">${opts}</select>`;
@@ -8905,7 +8924,7 @@
         }
 
         async function assignAsr(idx, value) {
-            if (!asrCanEdit()) { alert('권한이 없습니다.'); return; }
+            if (!asrCanAssign()) { alert('권한이 없습니다.'); return; }
             if (!asrData[idx]) return;
             asrData[idx].assignee = value || '';
             await saveAsrData();
@@ -8936,9 +8955,9 @@
                     }).join('') + '</div></div>';
             }
 
-            // 담당자 지정 셀
+            // 담당자 지정 셀 (asResult 권한자 또는 출동담당자 목록 등록자가 지정 가능)
             let assigneeCell;
-            if (canEdit && !done) {
+            if (asrCanAssign() && !done) {
                 let opts = `<option value="">미지정</option>`;
                 asrAssignees.forEach(a => { opts += `<option value="${asrEsc(a)}" ${p.assignee===a?'selected':''}>${asrEsc(a)}</option>`; });
                 assigneeCell = `<select class="asr-input" onchange="assignAsr(${idx}, this.value)">${opts}</select>`;
