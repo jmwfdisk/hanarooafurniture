@@ -10365,7 +10365,7 @@
                 document.getElementById('day-ev-memo').value = '';
                 companyEventsCache = {};   // 다일정은 여러 달에 걸칠 수 있으므로 캐시 전체 무효화
                 await loadAndRenderCalendar();
-                renderDayModal();
+                closeDayModal();            // 등록 후 모달 자동 닫기(달력에 바로 반영됨)
                 if (dates.length > 1) alert(`${dates.length}일(${startVal} ~ ${endVal})에 일정을 등록했습니다.`);
             } catch (e) {
                 console.error('일정 추가 실패:', e);
