@@ -10081,52 +10081,6 @@
         #member-section .draggable-row { cursor:move; }
         #member-section .table-row.dragging { opacity:.45; }
         #member-section .table-row.drag-over { box-shadow: inset 0 2px 0 0 #3b82f6; background:#f0f6ff; }
-
-        /* ===================================================================
-           임직원 페이지 반응형 보강 (다양한 모바일 사이즈) — 문서 후반부라 마지막에 적용
-           =================================================================== */
-        @media (max-width: 768px) {
-            html, body { overflow-x: hidden; }
-
-            /* 게시판 표(회원관리 제외): 좁은 화면에선 가로 스크롤 대신 제목·작성자·작성일만 한 화면에 맞춤 */
-            .board-section:not(#member-section) .board-table { overflow-x: hidden !important; }
-            .board-section:not(#member-section) .table-header,
-            #board-tbody .table-row {
-                grid-template-columns: minmax(0, 1fr) 66px 84px !important;
-                min-width: 0 !important; width: 100% !important;
-            }
-            /* 번호(1)·조회(5) 칸 숨김 */
-            .board-section:not(#member-section) .table-header > *:nth-child(1),
-            .board-section:not(#member-section) .table-header > *:nth-child(5),
-            #board-tbody .table-row > *:nth-child(1),
-            #board-tbody .table-row > *:nth-child(5) { display: none !important; }
-            /* 제목 셀 말줄임 */
-            #board-tbody .table-row > *:nth-child(2) { min-width: 0; }
-            #board-tbody .table-row > *:nth-child(2) a {
-                display: inline-block; max-width: 100%; vertical-align: bottom;
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            }
-
-            /* 캘린더(연월차일정·주요회사운영): 셀·글자 축소해 7열이 폰에 맞게 */
-            .cal-cell { min-height: 56px; padding: 4px 3px !important; }
-            .cal-daynum { font-size: 12px; }
-            .cal-chip { font-size: 10px; padding: 1px 4px; }
-            .cal-more { font-size: 10px; }
-            .cal-dow { font-size: 11px; }
-            .cal-header { gap: 10px; }
-            .cal-header .cal-title { font-size: 17px; min-width: 0; }
-
-            /* 세그먼트 버튼 줄바꿈 허용 */
-            .notice-segment { flex-wrap: wrap; }
-        }
-
-        /* 소형폰(≤360): 표 컬럼 살짝 축소 + 캘린더 더 축소 */
-        @media (max-width: 360px) {
-            .board-section:not(#member-section) .table-header,
-            #board-tbody .table-row { grid-template-columns: minmax(0, 1fr) 58px 76px !important; }
-            .cal-cell { min-height: 46px; }
-            .cal-chip { font-size: 9px; }
-        }
     </style>
 
     <script>
