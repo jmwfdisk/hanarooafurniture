@@ -1268,6 +1268,16 @@
             border-color: #44aa6b;
             box-shadow: 0 0 0 4px rgba(68, 170, 107, 0.1);
         }
+        /* 작성자: 자동 기입 읽기전용 칸 — 수정 불가임을 시각적으로 표시 */
+        .write-form input[readonly] {
+            background: #f1f3f5;
+            color: #495057;
+            cursor: default;
+        }
+        .write-form input[readonly]:focus {
+            border-color: #e9ecef;
+            box-shadow: none;
+        }
 
         .write-form textarea {
             min-height: 200px;
@@ -3711,6 +3721,15 @@
             makeBtn('마지막 >>', totalPages, { nav: true, disabled: cur === totalPages });
         }
 
+        // 작성자 자동 표기용 라벨: "직급/직책 이름"(예: 사원 이희진). 직급/직책이 없으면 이름만.
+        function currentAuthorLabel() {
+            let u = {};
+            try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+            const name = (u.name || u.username || '').trim();
+            const pos = (u.position || '').trim();
+            return pos ? (pos + ' ' + name) : name;
+        }
+
         function showWriteForm() {
             // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 작성 가능
             if (currentBoard === 'notice' && !(typeof userCan === 'function' && userCan('notice'))) {
@@ -3742,7 +3761,8 @@
             const filePreview = document.getElementById('write-file-preview');
             
             if (titleInput) titleInput.value = '';
-            if (authorInput) authorInput.value = '';
+            // 작성자: 로그인 사용자의 "직급/직책 이름"으로 자동 기입 + 수정 불가(읽기전용)
+            if (authorInput) { authorInput.value = currentAuthorLabel(); authorInput.readOnly = true; }
             if (contentInput) contentInput.innerHTML = ''; // 리치 에디터(contenteditable) 초기화
             
             // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 섹션 표시
@@ -3857,7 +3877,8 @@
             const authorInput = document.getElementById('write-author');
             const contentInput = document.getElementById('write-content');
             if (titleInput) titleInput.value = post.title || '';
-            if (authorInput) authorInput.value = post.author || '';
+            // 수정 시에도 작성자는 원 작성자 그대로 읽기전용(변경 불가)
+            if (authorInput) { authorInput.value = post.author || ''; authorInput.readOnly = true; }
             if (contentInput) {
                 const raw = post.content || '';
                 const looksHtml = /<[a-z!/][^>]*>/i.test(raw);
