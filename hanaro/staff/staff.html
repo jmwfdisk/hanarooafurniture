@@ -5171,7 +5171,17 @@
                 { title: 'SKU', field: 'sku', editor: canEdit ? 'input' : false, width: 120, widthShrink: 0 },
                 { title: '품명', field: 'name', editor: canEdit ? 'input' : false, width: 200, widthShrink: 0 },
                 { title: '규격', field: 'spec', editor: canEdit ? 'input' : false, width: 150, widthShrink: 0 },
-                { title: '단위', field: 'unit', editor: canEdit ? 'input' : false, width: 80, widthShrink: 0 },
+                { title: '단위', field: 'unit', width: 80, widthShrink: 0,
+                    editor: canEdit ? 'list' : false,
+                    editorParams: {
+                        // 여러 단위 옵션 중 선택 + 목록에 없으면 직접 입력(freetext)
+                        values: ['EA', 'SET', 'BOX', '개', '조', '대', '장', '세트', '박스', '팩', '롤', 'kg', 'g', 'm', 'cm', 'T', '파렛트'],
+                        autocomplete: true,   // 입력하면서 목록 필터
+                        freetext: true,       // 목록에 없는 값도 직접 입력 가능
+                        clearable: true,
+                        placeholderEmpty: '단위 선택/입력'
+                    }
+                },
                 { 
                     title: '재고', 
                     field: 'stock', 
@@ -10019,10 +10029,13 @@
         .day-event-del { background:#fdecec; color:#e53935; border:none; border-radius:6px; padding:3px 8px; font-size:12px; cursor:pointer; }
         .day-event-del:hover { background:#fbdada; }
         /* 인라인 편집 폼 */
+        .day-edit-daterow { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+        .day-edit-tilde { color:#888; }
+        .day-edit-hint { font-size:12px; color:#8a929c; margin-bottom:8px; line-height:1.4; }
         .day-edit-row { display:flex; gap:8px; margin-bottom:8px; }
         .day-edit-date { flex:1; min-width:0; padding:8px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
         .day-edit-time { padding:8px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
-        .day-edit-title { width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid #d5d9e0; border-radius:6px; font-size:14px; margin-bottom:8px; }
+        .day-edit-title { flex:1; min-width:0; box-sizing:border-box; padding:9px 12px; border:1px solid #d5d9e0; border-radius:6px; font-size:14px; }
         .day-edit-memo { width:100%; box-sizing:border-box; min-height:52px; padding:9px 12px; border:1px solid #d5d9e0; border-radius:6px; font-size:14px; font-family:inherit; resize:vertical; }
         .day-edit-actions { display:flex; gap:8px; margin-top:8px; }
         .day-edit-actions button { flex:1; padding:9px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; border:1px solid #d5d9e0; background:#fff; color:#555; }
@@ -10233,11 +10246,16 @@
                     if (canManage && ev.id === editingCompanyEventId) {
                         return `
                         <div class="day-event editing">
+                            <div class="day-edit-daterow">
+                                <input type="date" id="day-edit-start" class="day-edit-date">
+                                <span class="day-edit-tilde">~</span>
+                                <input type="date" id="day-edit-end" class="day-edit-date">
+                            </div>
+                            <div class="day-edit-hint">시작일~종료일을 바꾸면 그 기간의 모든 날짜로 다시 등록됩니다.</div>
                             <div class="day-edit-row">
-                                <input type="date" id="day-edit-date" class="day-edit-date">
+                                <input type="text" id="day-edit-title" class="day-edit-title" placeholder="일정 제목">
                                 <input type="time" id="day-edit-time" class="day-edit-time">
                             </div>
-                            <input type="text" id="day-edit-title" class="day-edit-title" placeholder="일정 제목">
                             <textarea id="day-edit-memo" class="day-edit-memo" placeholder="메모 (선택)"></textarea>
                             <div class="day-edit-actions">
                                 <button class="day-edit-cancel" onclick="cancelEditCompanyEvent()">취소</button>
@@ -10263,11 +10281,13 @@
                 if (canManage && editingCompanyEventId) {
                     const ev = evs.find(e => e.id === editingCompanyEventId);
                     if (ev) {
-                        const dEl = document.getElementById('day-edit-date');
+                        const sEl = document.getElementById('day-edit-start');
+                        const eEl = document.getElementById('day-edit-end');
                         const tEl = document.getElementById('day-edit-time');
                         const tiEl = document.getElementById('day-edit-title');
                         const mEl = document.getElementById('day-edit-memo');
-                        if (dEl) dEl.value = ev.date || dayModalDate;
+                        if (sEl) sEl.value = ev.periodStart || ev.date || dayModalDate;
+                        if (eEl) eEl.value = ev.periodEnd || ev.date || dayModalDate;
                         if (tEl) tEl.value = ev.time || '';
                         if (tiEl) tiEl.value = ev.title || '';
                         if (mEl) mEl.value = ev.memo || '';
@@ -10285,6 +10305,23 @@
             }
         }
 
+        // 기간 등록 일정의 그룹 식별자(한 번의 기간 등록으로 만들어진 여러 날 문서를 묶음)
+        function calMakeGroupId() { return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+        // 시작일~종료일(YYYY-MM-DD)의 모든 날짜 배열 생성 (최대 400일 가드)
+        function calBuildDates(startVal, endVal) {
+            const dates = [];
+            let cur = new Date(startVal + 'T00:00:00');
+            const end = new Date(endVal + 'T00:00:00');
+            let guard = 0;
+            while (cur <= end && guard < 400) {
+                const y = cur.getFullYear(), m = String(cur.getMonth() + 1).padStart(2, '0'), d = String(cur.getDate()).padStart(2, '0');
+                dates.push(`${y}-${m}-${d}`);
+                cur.setDate(cur.getDate() + 1);
+                guard++;
+            }
+            return dates;
+        }
+
         async function addCompanyEvent() {
             if (!calCfg().canAdd()) { alert('일정 작성 권한이 없습니다.'); return; }
             const title = document.getElementById('day-ev-title').value.trim();
@@ -10296,17 +10333,7 @@
             if (endVal < startVal) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
 
-            // 시작일~종료일의 모든 날짜 목록 생성
-            const dates = [];
-            let cur = new Date(startVal + 'T00:00:00');
-            const end = new Date(endVal + 'T00:00:00');
-            let guard = 0;
-            while (cur <= end && guard < 400) {
-                const y = cur.getFullYear(), m = String(cur.getMonth() + 1).padStart(2, '0'), d = String(cur.getDate()).padStart(2, '0');
-                dates.push(`${y}-${m}-${d}`);
-                cur.setDate(cur.getDate() + 1);
-                guard++;
-            }
+            const dates = calBuildDates(startVal, endVal);
             if (dates.length === 0) { alert('유효한 날짜가 없습니다.'); return; }
             if (dates.length > 366) { alert('한 번에 등록 가능한 기간은 최대 1년입니다.'); return; }
 
@@ -10315,11 +10342,12 @@
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
                 const createdAt = new Date().toISOString();
                 const createdBy = user.name || user.username || '';
-                const hasPeriod = dates.length > 1;   // 기간(여러 날) 등록일 때만 기간 정보 저장
+                const hasPeriod = dates.length > 1;   // 기간(여러 날) 등록일 때만 기간/그룹 정보 저장
+                const groupId = hasPeriod ? calMakeGroupId() : null;
                 await Promise.all(dates.map(dk => db.collection(calCfg().collection).add(Object.assign({
                     date: dk, time: time || '', title: title, memo: memo,
                     createdBy: createdBy, createdAt: createdAt
-                }, hasPeriod ? { periodStart: startVal, periodEnd: endVal } : {}))));
+                }, hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {}))));
                 document.getElementById('day-ev-title').value = '';
                 document.getElementById('day-ev-time').value = '';
                 document.getElementById('day-ev-memo').value = '';
@@ -10344,28 +10372,58 @@
         }
         async function saveCompanyEventEdit(id) {
             if (!calCfg().canManage()) { alert('일정 수정 권한이 없습니다.'); return; }
+            const startEl = document.getElementById('day-edit-start');
+            const endEl = document.getElementById('day-edit-end');
             const titleEl = document.getElementById('day-edit-title');
             const timeEl = document.getElementById('day-edit-time');
             const memoEl = document.getElementById('day-edit-memo');
-            const dateEl = document.getElementById('day-edit-date');
             const title = (titleEl ? titleEl.value : '').trim();
             const time = timeEl ? timeEl.value : '';
             const memo = (memoEl ? memoEl.value : '').trim();
-            const date = (dateEl && dateEl.value) ? dateEl.value : dayModalDate;
+            const startVal = (startEl && startEl.value) ? startEl.value : dayModalDate;
+            const endVal = (endEl && endEl.value) ? endEl.value : startVal;
             if (!title) { alert('일정 제목을 입력하세요.'); return; }
+            if (endVal < startVal) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
+            const dates = calBuildDates(startVal, endVal);
+            if (dates.length === 0) { alert('유효한 날짜가 없습니다.'); return; }
+            if (dates.length > 366) { alert('한 번에 등록 가능한 기간은 최대 1년입니다.'); return; }
+
             try {
-                await db.collection(calCfg().collection).doc(id).update({
-                    date: date, time: time || '', title: title, memo: memo
-                });
+                const coll = db.collection(calCfg().collection);
+                const orig = companyEvents.find(e => e.id === id) || {};
+                const createdBy = orig.createdBy || '';
+                const createdAt = orig.createdAt || new Date().toISOString();
+
+                // 1) 기존 문서 삭제: 기간 그룹이면 그룹 전체, 아니면 이 문서만
+                let delRefs = [];
+                if (orig.groupId) {
+                    const s = await coll.where('groupId', '==', orig.groupId).get();
+                    s.forEach(d => delRefs.push(d.ref));
+                } else if (orig.periodStart) {
+                    // 레거시(그룹id 없는 기간 일정): periodStart로 조회 후 periodEnd·제목까지 일치하는 것만
+                    const s = await coll.where('periodStart', '==', orig.periodStart).get();
+                    s.forEach(d => { const dd = d.data(); if (dd.periodEnd === orig.periodEnd && (dd.title || '') === (orig.title || '')) delRefs.push(d.ref); });
+                }
+                if (!delRefs.length) delRefs = [coll.doc(id)];
+                await Promise.all(delRefs.map(ref => ref.delete()));
+
+                // 2) 새 기간으로 재생성
+                const hasPeriod = dates.length > 1;
+                const groupId = hasPeriod ? calMakeGroupId() : null;
+                await Promise.all(dates.map(dk => coll.add(Object.assign({
+                    date: dk, time: time || '', title: title, memo: memo,
+                    createdBy: createdBy, createdAt: createdAt
+                }, hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {}))));
+
                 editingCompanyEventId = null;
-                companyEventsCache = {};        // 날짜 변경 가능 → 캐시 전체 무효화
-                if (date !== dayModalDate) dayModalDate = date;   // 날짜를 옮겼으면 해당 날짜로 이동
+                companyEventsCache = {};        // 여러 달에 걸칠 수 있어 캐시 전체 무효화
+                if (dayModalDate < startVal || dayModalDate > endVal) dayModalDate = startVal; // 원래 날짜가 범위 밖이면 시작일로 이동
                 await loadAndRenderCalendar();
                 renderDayModal();
             } catch (e) {
                 console.error('일정 수정 실패:', e);
-                alert('일정 수정 중 오류가 발생했습니다.\n(companyCalendar 쓰기 규칙/권한 확인)\n' + (e.message || ''));
+                alert('일정 수정 중 오류가 발생했습니다.\n(쓰기 규칙/권한 확인)\n' + (e.message || ''));
             }
         }
 
