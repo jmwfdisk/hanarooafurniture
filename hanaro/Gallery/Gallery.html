@@ -413,23 +413,27 @@
             right: 20px;
             background: rgba(255, 255, 255, 0.9);
             border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            font-size: 24px;
+            width: auto;
+            height: auto;
+            padding: 9px 20px;
+            border-radius: 999px;
+            font-size: 15px;
+            font-weight: 600;
+            white-space: nowrap;
+            line-height: 1;
             color: #333;
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             z-index: 2001;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-        
+
         .image-modal-close:hover {
             background: rgba(255, 255, 255, 1);
-            transform: rotate(90deg) scale(1.1);
+            transform: scale(1.05);
         }
         
         .image-modal-nav {
@@ -769,9 +773,10 @@
             .image-modal-close {
                 top: 10px;
                 right: 10px;
-                width: 36px;
-                height: 36px;
-                font-size: 20px;
+                width: auto;
+                height: auto;
+                padding: 8px 16px;
+                font-size: 13px;
             }
             
             .image-modal-nav {
@@ -1041,7 +1046,7 @@
     
     <!-- 이미지 모달 -->
     <div id="image-modal" class="image-modal">
-        <button class="image-modal-close" id="modal-close">&times;</button>
+        <button class="image-modal-close" id="modal-close">닫기</button>
         <button class="image-modal-nav image-modal-prev" id="modal-prev">‹</button>
         <div class="image-modal-content">
             <img id="modal-image" src="" alt="">

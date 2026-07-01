@@ -1451,20 +1451,22 @@
             position: absolute;
             top: 16px;
             right: 16px;
-            background: none;
+            background: #f1f3f5;
             border: none;
-            font-size: 24px;
-            color: #6c757d;
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
+            padding: 8px 18px;
+            border-radius: 999px;
+            line-height: 1;
+            white-space: nowrap;
+            transition: background 0.2s ease;
         }
 
         .post-modal .close-btn:hover {
-            background: #f1f3f5;
-            color: #495057;
-            transform: rotate(90deg);
+            background: #e2e6ea;
+            color: #212529;
         }
 
         .post-modal-actions {
@@ -6501,7 +6503,7 @@
 
     <!-- 게시글 보기 모달 -->
     <div id="post-modal" class="post-modal">
-        <button class="close-btn" onclick="closePostModal()">&times;</button>
+        <button class="close-btn" onclick="closePostModal()">닫기</button>
         <h3 id="post-title"></h3>
         <div id="post-meta" class="post-meta"></div>
         <div id="post-content" class="post-content"></div>
@@ -6713,7 +6715,7 @@
         <div class="tool-modal-content photo-upload-content">
             <div class="tool-modal-header">
                 <h3>📤 사진 업로드</h3>
-                <button class="tool-modal-close" onclick="closePhotoUpload()">&times;</button>
+                <button class="tool-modal-close" onclick="closePhotoUpload()">닫기</button>
             </div>
             <div class="photo-upload-body">
                 <div class="photo-upload-area" id="photo-upload-area" onclick="document.getElementById('photo-file-input').click()">
@@ -6746,7 +6748,7 @@
 
     <!-- 사진 뷰어 모달 -->
     <div id="photo-viewer-modal" class="photo-viewer-modal" style="display: none;">
-        <button class="photo-viewer-close" onclick="closePhotoViewer()">&times;</button>
+        <button class="photo-viewer-close" onclick="closePhotoViewer()">닫기</button>
         <button class="photo-viewer-nav photo-viewer-prev" onclick="prevPhoto()">‹</button>
         <div class="photo-viewer-content">
             <img id="photo-viewer-image" src="" alt="">
@@ -7137,20 +7139,26 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             border: none;
             color: white;
-            font-size: 32px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
+            font-size: 15px;
+            font-weight: 600;
+            width: auto;
+            height: auto;
+            padding: 9px 20px;
+            border-radius: 999px;
+            line-height: 1;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: background 0.2s ease;
         }
 
         .photo-viewer-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.28);
         }
 
         .photo-viewer-nav {
@@ -8586,7 +8594,7 @@
           <h3 id="asr-modal-title">A/S 신청 상세</h3>
           <div style="display:flex;align-items:center;gap:10px;">
             <button id="asr-export-btn" type="button" onclick="exportAsrDetailExcel()" title="신청상세 내용을 엑셀로 다운로드" style="display:none;align-items:center;gap:6px;background:#1f9d57;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">📥 엑셀 다운로드</button>
-            <button class="tool-modal-close" onclick="closeAsrModal()">&times;</button>
+            <button type="button" class="asr-close-pill" onclick="closeAsrModal()">닫기</button>
           </div>
         </div>
         <div class="asr-modal-body" id="asr-modal-body"></div>
@@ -8598,7 +8606,7 @@
       <div class="assignee-modal-card">
         <div class="asr-modal-header">
           <h3>출동 담당자 관리</h3>
-          <button class="tool-modal-close" onclick="closeAssigneeManager()">&times;</button>
+          <button class="tool-modal-close" onclick="closeAssigneeManager()">닫기</button>
         </div>
         <div class="assignee-modal-body">
           <div id="assignee-list"></div>
@@ -8638,6 +8646,9 @@
         .asr-modal-card { background:#f4f6f9; border-radius:16px; width:720px; max-width:96vw; max-height:90vh; overflow:auto; box-shadow:0 24px 70px rgba(0,0,0,.35); }
         .asr-modal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 22px; background:linear-gradient(135deg,#3b4453 0%,#2c333f 100%); color:#fff; position:sticky; top:0; z-index:2; }
         .asr-modal-header h3 { margin:0; font-size:18px; display:flex; align-items:center; gap:8px; }
+        /* 헤더 우측 알약형 '닫기' 버튼 (자재/재고/일정 모달과 동일 스타일) */
+        .asr-close-pill { background:rgba(255,255,255,.2); border:none; color:#fff; width:auto; height:auto; border-radius:999px; font-size:14px; font-weight:600; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; padding:8px 18px; white-space:nowrap; transition:background .15s ease; }
+        .asr-close-pill:hover { background:rgba(255,255,255,.32); }
         .asr-modal-body { padding:18px; }
 
         /* 상태 바 */
@@ -9843,7 +9854,7 @@
       <div class="perm-modal-card">
         <div class="perm-modal-header">
           <h3>작성·관리 권한 설정</h3>
-          <button class="tool-modal-close" onclick="closePermModal()">&times;</button>
+          <button class="tool-modal-close" onclick="closePermModal()">닫기</button>
         </div>
         <div class="perm-modal-body">
           <div class="perm-member" id="perm-member-name"></div>
@@ -9876,7 +9887,7 @@
       <div class="day-modal-card">
         <div class="day-modal-header">
           <h3 id="day-modal-title">일정</h3>
-          <button class="tool-modal-close" onclick="closeDayModal()">&times;</button>
+          <button class="tool-modal-close" onclick="closeDayModal()">닫기</button>
         </div>
         <div id="day-event-list" class="day-event-list"></div>
         <div id="day-add-form" class="day-add-form" style="display:none;">
@@ -11006,17 +11017,24 @@
             background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
-            font-size: 24px;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
+            font-size: 14px;
+            font-weight: 600;
+            width: auto;
+            height: auto;
+            border-radius: 999px;
+            padding: 8px 18px;
+            line-height: 1;
+            white-space: nowrap;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: background 0.2s ease;
         }
 
         .tool-modal-close:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.32);
         }
 
     </style>

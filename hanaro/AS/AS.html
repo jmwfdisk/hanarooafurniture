@@ -2368,12 +2368,24 @@ function downloadFile(filename) {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius:20px; padding:32px; box-shadow:0 20px 60px rgba(0,0,0,0.3); z-index:9999; max-width:600px; width:90%; max-height:85vh; overflow-y:auto; border: 1px solid rgba(255,255,255,0.2);">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e9ecef;">
     <h3 id="modal-title" style="margin: 0; font-size: 24px; font-weight: 700; background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></h3>
-    <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; color: #6c757d; cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: all 0.2s ease; line-height: 1;">&times;</button>
+    <button onclick="closeModal()" class="as-close-pill">닫기</button>
     <style>
-      button[onclick="closeModal()"]:hover {
+      .as-close-pill {
         background: #f1f3f5;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
         color: #495057;
-        transform: rotate(90deg);
+        cursor: pointer;
+        padding: 8px 18px;
+        border-radius: 999px;
+        line-height: 1;
+        white-space: nowrap;
+        transition: background 0.2s ease;
+      }
+      .as-close-pill:hover {
+        background: #e2e6ea;
+        color: #212529;
       }
     </style>
   </div>
