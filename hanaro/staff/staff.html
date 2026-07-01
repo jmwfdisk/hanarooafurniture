@@ -9964,9 +9964,9 @@
         <div id="day-add-form" class="day-add-form" style="display:none;">
           <div class="day-add-daterow">
             <label>기간</label>
-            <input type="date" id="day-ev-start">
+            <input type="date" id="day-ev-start" onchange="this.blur()">
             <span class="day-add-tilde">~</span>
-            <input type="date" id="day-ev-end">
+            <input type="date" id="day-ev-end" onchange="this.blur()">
           </div>
           <div class="day-add-hint">시작일~종료일을 지정하면 그 기간의 모든 날짜에 일정이 한 번에 등록됩니다.</div>
           <div class="day-add-row">
@@ -10259,9 +10259,9 @@
                         return `
                         <div class="day-event editing">
                             <div class="day-edit-daterow">
-                                <input type="date" id="day-edit-start" class="day-edit-date">
+                                <input type="date" id="day-edit-start" class="day-edit-date" onchange="this.blur()">
                                 <span class="day-edit-tilde">~</span>
-                                <input type="date" id="day-edit-end" class="day-edit-date">
+                                <input type="date" id="day-edit-end" class="day-edit-date" onchange="this.blur()">
                             </div>
                             <div class="day-edit-hint">시작일~종료일을 바꾸면 그 기간의 모든 날짜로 다시 등록됩니다.</div>
                             <div class="day-edit-row">
