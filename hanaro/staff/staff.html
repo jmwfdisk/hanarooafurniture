@@ -5174,8 +5174,8 @@
                 { title: '단위', field: 'unit', width: 80, widthShrink: 0,
                     editor: canEdit ? 'list' : false,
                     editorParams: {
-                        // 여러 단위 옵션 중 선택 + 목록에 없으면 직접 입력(freetext)
-                        values: ['EA', 'SET', 'BOX', '개', '조', '대', '장', '세트', '박스', '팩', '롤', 'kg', 'g', 'm', 'cm', 'T', '파렛트'],
+                        // 여러 단위 옵션 중 선택 + 목록에 없으면 직접 입력(freetext) — 영어 단위만
+                        values: ['EA', 'SET', 'BOX', 'PACK', 'ROLL', 'PALLET', 'kg', 'g', 'T', 'L', 'mL', 'm', 'cm', 'mm'],
                         autocomplete: true,   // 입력하면서 목록 필터
                         freetext: true,       // 목록에 없는 값도 직접 입력 가능
                         clearable: true,
