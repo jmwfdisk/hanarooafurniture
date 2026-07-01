@@ -9990,7 +9990,9 @@
         .notice-segment .seg-btn:not(.active):hover { border-color:#3b82f6; color:#3b82f6; }
 
         /* 달력 */
-        #company-calendar-view, #leave-calendar-view { width:900px; max-width:100%; margin:0 auto; }
+        #company-calendar-view, #leave-calendar-view { width:900px; max-width:100%; margin:0 auto; position:relative; min-height:120px; }
+        /* 캘린더 로딩 오버레이(그리드 위에 반투명으로 덮음) */
+        #company-calendar-view .grid-loading, #leave-calendar-view .grid-loading { background:rgba(255,255,255,.72); border-radius:8px; }
         .cal-header { display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
         .cal-header .cal-title { font-size:20px; font-weight:700; color:#333; min-width:140px; text-align:center; }
         .cal-nav { width:36px; height:36px; border:1px solid #e0e3e8; background:#fff; border-radius:8px; cursor:pointer; font-size:14px; color:#555; }
@@ -10088,6 +10090,7 @@
         let companyEvents = [];
         let companyEventsCache = {};   // ym('YYYY-MM') -> events[]  (월 이동 시 재요청 방지)
         let calLoadSeq = 0;            // 빠른 월 이동 시 늦게 도착한 응답을 무시하기 위한 시퀀스
+        let calLoading = false;        // 서버에서 일정 불러오는 중(로딩 스피너 표시용)
         let currentNoticeSegment = 'post';
         let dayModalDate = null;
         let editingCompanyEventId = null;   // 인라인 편집 중인 일정 id (없으면 null)
@@ -10158,24 +10161,32 @@
             const kindAtCall = currentCalKind;
             const seq = ++calLoadSeq;                       // 이전 진행 중 요청 무효화
             // 1) 격자는 즉시 렌더(캐시가 있으면 일정까지 함께 표시) — 네트워크를 기다리지 않음
+            calLoading = false;
             companyEvents = companyEventsCache[cacheKey] || [];
             renderCalendar();
             if (companyEventsCache[cacheKey]) return;        // 캐시 적중 → 네트워크 불필요
             if (!db) return;
-            // 2) 캐시에 없을 때만 해당 월 문서만 서버에서 조회(범위 쿼리로 전송량 최소화)
+            // 2) 캐시에 없을 때만 해당 월 문서만 서버에서 조회. 응답이 늦어지면(250ms↑) 로딩 스피너 표시
+            const spinnerTimer = setTimeout(function () {
+                if (seq === calLoadSeq && kindAtCall === currentCalKind) { calLoading = true; renderCalendar(); }
+            }, 250);
             try {
                 const snap = await db.collection(CAL_KINDS[kindAtCall].collection)
                     .where('date', '>=', `${ym}-01`)
                     .where('date', '<=', `${ym}-31`)
                     .get();
+                clearTimeout(spinnerTimer);
                 if (seq !== calLoadSeq || kindAtCall !== currentCalKind) return; // 그 사이 이동/전환 → 폐기
                 const arr = [];
                 snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
                 companyEventsCache[cacheKey] = arr;
                 companyEvents = arr;
+                calLoading = false;
                 renderCalendar();                           // 일정 채워 재렌더
             } catch (e) {
+                clearTimeout(spinnerTimer);
                 console.error('일정 로드 실패:', e);
+                if (seq === calLoadSeq && kindAtCall === currentCalKind) { calLoading = false; renderCalendar(); }
             }
         }
 
@@ -10216,6 +10227,7 @@
             }
             html += `</div>`;
             html += `<div class="cal-foot">${calCfg().canAdd() ? '날짜를 클릭해 일정을 추가/관리할 수 있습니다.' : '날짜를 클릭하면 일정을 볼 수 있습니다.'}</div>`;
+            if (calLoading) html += `<div class="grid-loading"><span class="table-spinner"></span>일정을 불러오는 중…</div>`;
             view.innerHTML = html;
         }
 
