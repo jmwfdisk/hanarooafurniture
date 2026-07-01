@@ -9572,6 +9572,18 @@
             .inv-toolbar::-webkit-scrollbar { display:none; }
             .inv-toolbar-left, .inv-edit-tools { flex:0 0 auto; flex-wrap:nowrap; }
         }
+
+        /* iOS Safari 전용 보정: 전체화면 모달 헤더가 상태바/노치에 가리는 문제.
+           iOS 브라우저 세로모드에서 env(safe-area-inset-top)이 0으로 보고되는 기기가 있어
+           최소 50px를 확보한다(둘 중 큰 값). @supports (-webkit-touch-callout)은 iOS에서만 참. */
+        @supports (-webkit-touch-callout: none) {
+            @media (max-width: 768px) {
+                .schedule-modal-header,
+                .inv-modal-header {
+                    padding-top: max(env(safe-area-inset-top), 50px) !important;
+                }
+            }
+        }
     </style>
 
     <script>
