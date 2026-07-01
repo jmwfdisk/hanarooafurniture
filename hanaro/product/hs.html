@@ -906,10 +906,19 @@
   .h-hero-text h1 { font-size:64px; font-weight:800; color:#1a1a1a; margin:0 0 22px; letter-spacing:-1.5px; line-height:1.15; }
   .h-hero-text .desc { font-size:26px; color:#555; line-height:1.7; margin:0; }
   @media (max-width:768px) {
-    .h-hero-text { position:static; transform:none; right:auto; max-width:100%; text-align:center; padding:18px 20px 0; }
-    .h-hero-text h1 { font-size:30px; }
-    .h-hero-text .eyebrow { font-size:16px; }
-    .h-hero-text .desc { font-size:16px; }
+    /* HS는 제품사진이 오른쪽 → 텍스트를 왼쪽(H의 반대쪽)에 오버레이(한 줄) 유지. 좁은 폭이라 영역 확대 + 폰트 축소 */
+    .h-hero-text { left:3%; right:48%; }
+    .h-hero-badge { width:30px; margin-bottom:6px; }
+    .h-hero-text .eyebrow { font-size:12px; margin-bottom:4px; }
+    .h-hero-text h1 { font-size:22px; margin-bottom:7px; }
+    .h-hero-text .desc { font-size:11px; line-height:1.45; }
+  }
+  @media (max-width:400px) {
+    .h-hero-text { right:46%; }
+    .h-hero-badge { width:26px; margin-bottom:4px; }
+    .h-hero-text .eyebrow { font-size:10px; margin-bottom:3px; }
+    .h-hero-text h1 { font-size:18px; margin-bottom:5px; }
+    .h-hero-text .desc { font-size:9.5px; line-height:1.4; }
   }
 </style>
 <div class="h-hero">

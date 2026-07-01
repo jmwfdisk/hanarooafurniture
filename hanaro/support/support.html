@@ -857,10 +857,11 @@
     .support-page { margin:30px auto 50px; }
     .sup-title { font-size:34px; }
     .sup-sub { font-size:16px; margin-bottom:40px; }
-    .sup-cats { gap:20px; }
-    .sup-cat { width:46%; max-width:200px; gap:10px; }
-    .sup-cat-img { height:120px; }
-    .sup-cat span { font-size:15px; }
+    /* 우수제품·일반제품·사물함: 줄바꿈 없이 한 줄(3등분) */
+    .sup-cats { gap:10px; flex-wrap:nowrap; }
+    .sup-cat { width:auto; flex:1 1 0; min-width:0; max-width:none; gap:8px; }
+    .sup-cat-img { height:96px; }
+    .sup-cat span { font-size:13px; white-space:nowrap; }
     .sup-cards { flex-direction:column; align-items:center; }
     .sup-card { width:100%; max-width:380px; }
   }
