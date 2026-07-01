@@ -4,7 +4,7 @@
     <link rel="icon" href="../../image/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="../../image/favicon.ico" type="image/x-icon">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="하나로오에이퍼니처 - 임직원 게시판">
     <meta name="keywords" content="하나로오에이퍼니처, 임직원, 게시판">
     <title>하나로오에이퍼니처 임직원</title>
@@ -53,6 +53,11 @@
             color: #000000;
             width: 100%;
             box-sizing: border-box;
+        }
+        /* viewport-fit=cover 사용 시 메인 페이지 상단 콘텐츠(네비)가 상태바/노치 밑으로
+           들어가지 않도록 안전영역만큼 여백. (전체화면 모달은 position:fixed라 영향 없음) */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            body { padding-top: env(safe-area-inset-top); }
         }
 
         .navbar {
