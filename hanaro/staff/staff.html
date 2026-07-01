@@ -3461,11 +3461,16 @@
                 'staff': '직원게시판',
                 'staff-data': '직원게시판',
                 'staff-report': '직원게시판',
+                'staff-leave': '직원게시판',
                 'suggestion': '제안활동',
                 'as-result': 'A/S 처리결과'
             };
 
             document.getElementById('board-title').textContent = titles[boardType];
+
+            // 연월차일정(캘린더) 뷰는 staff-leave일 때만 표시, 그 외에는 항상 숨김
+            const leaveCalView = document.getElementById('leave-calendar-view');
+            if (leaveCalView && boardType !== 'staff-leave') leaveCalView.style.display = 'none';
 
             // 회사운영 탭: 세그먼트(공지사항/주요회사운영) 토글 표시
             const noticeSegment = document.getElementById('notice-segment');
@@ -3476,14 +3481,14 @@
                 if (typeof setNoticeSegment === 'function') setNoticeSegment('post');
             } else {
                 if (noticeSegment) noticeSegment.style.display = 'none';
-                if (postView) postView.style.display = '';
+                if (postView && boardType !== 'staff-leave') postView.style.display = '';
                 if (calView) calView.style.display = 'none';
             }
 
             // 직원게시판 탭: 세그먼트(자유게시판/자료실) 토글 표시
             const staffSegment = document.getElementById('staff-segment');
             if (staffSegment) {
-                if (boardType === 'staff' || boardType === 'staff-data' || boardType === 'staff-report') {
+                if (boardType === 'staff' || boardType === 'staff-data' || boardType === 'staff-report' || boardType === 'staff-leave') {
                     staffSegment.style.display = 'flex';
                     // 업무보고(본사) 세그먼트 버튼: 권한 없는 인원은 메뉴 자체를 숨김
                     const reportBtn = document.getElementById('staff-report-seg-btn');
@@ -3513,6 +3518,18 @@
             } else {
                 if (asrSegment) asrSegment.style.display = 'none';
                 if (asrView) asrView.style.display = 'none';
+            }
+
+            // 연월차일정: 직원게시판 내 캘린더 뷰(게시글 목록 대신 캘린더 표시)
+            if (boardType === 'staff-leave') {
+                if (postView) postView.style.display = 'none';
+                if (calView) calView.style.display = 'none';
+                if (leaveCalView) leaveCalView.style.display = 'block';
+                currentCalKind = 'leave';
+                if (calYear === null) { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
+                if (typeof loadAndRenderCalendar === 'function') loadAndRenderCalendar();
+                if (typeof placeBoardSearch === 'function') placeBoardSearch();
+                return; // 게시글 렌더 안 함
             }
 
             // 공지사항일 때 작성 버튼 표시 여부 결정
@@ -4855,19 +4872,27 @@
                     
                     // 삭제 단축키 (Delete 또는 Backspace)
                     if (e.key === 'Delete' || e.key === 'Backspace' || e.keyCode === 46 || e.keyCode === 8) {
-                        // 셀 편집 중이 아닐 때만 삭제 실행
+                        // 셀 편집 중이 아닐 때만 처리
                         const activeElement = document.activeElement;
                         const isEditing = activeElement && (
-                            activeElement.tagName === 'INPUT' || 
+                            activeElement.tagName === 'INPUT' ||
                             activeElement.tagName === 'TEXTAREA' ||
                             activeElement.isContentEditable ||
                             activeElement.classList.contains('tabulator-editing')
                         );
-                        
+
                         if (!isEditing) {
                             e.preventDefault();
                             e.stopPropagation();
-                            deleteSelectedMaterial();
+                            // 행(번호)이 선택돼 있으면 행 삭제, 아니면 선택된 셀 내용만 지움(엑셀식).
+                            // 선택된 행/셀이 전혀 없으면 아무 것도 안 함(불필요한 경고 방지).
+                            let rowsSelected = 0;
+                            try { rowsSelected = materialsTable ? materialsTable.getSelectedRows().length : 0; } catch (err) {}
+                            if (rowsSelected > 0) {
+                                deleteSelectedMaterial();
+                            } else {
+                                clearSelectedMaterialCells();
+                            }
                             return false;
                         }
                     }
@@ -5640,6 +5665,38 @@
         }
 
         // 선택된 행 삭제
+        // 선택된 셀(범위) 내용 지우기 — 엑셀식 Delete/Backspace. 지운 게 있으면 true.
+        // (editTriggerEvent:'dblclick'이라 단일 클릭은 편집이 아닌 '셀 선택'이므로, 그 상태의 Delete/Backspace는 내용 삭제로 처리)
+        function clearSelectedMaterialCells() {
+            if (!materialsTable || typeof materialsTable.getRanges !== 'function') return false;
+            const { canEdit } = getMaterialsPermission();
+            if (!canEdit) return false;
+            let ranges = [];
+            try { ranges = materialsTable.getRanges() || []; } catch (e) { return false; }
+            if (!ranges.length) return false;
+            let cleared = false;
+            ranges.forEach(function (r) {
+                let cells = [];
+                try { cells = r.getCells() || []; } catch (e) { cells = []; }
+                const flat = [];
+                cells.forEach(function (c) { Array.isArray(c) ? c.forEach(function (x) { flat.push(x); }) : flat.push(c); });
+                flat.forEach(function (cell) {
+                    try {
+                        const col = cell.getColumn ? cell.getColumn() : null;
+                        if (!col) return;
+                        const def = col.getDefinition ? col.getDefinition() : {};
+                        if (!def.editor) return;                       // 편집 불가 컬럼(등록일 등) 제외
+                        const blank = (def.editor === 'number') ? 0 : '';
+                        if (cell.getValue() !== blank) {
+                            cell.setValue(blank);                      // cellEdited → upsertMaterial 저장
+                            cleared = true;
+                        }
+                    } catch (e) { /* 무시 */ }
+                });
+            });
+            return cleared;
+        }
+
         async function deleteSelectedMaterial() {
             const { canEdit } = getMaterialsPermission();
             if (!canEdit) {
@@ -6387,6 +6444,7 @@
         <button class="seg-btn active" data-board="staff" onclick="switchBoard('staff')">자유게시판</button>
         <button class="seg-btn" data-board="staff-data" onclick="switchBoard('staff-data')">자료실</button>
         <button class="seg-btn" id="staff-report-seg-btn" data-board="staff-report" onclick="switchBoard('staff-report')" style="display:none;">업무보고(본사)</button>
+        <button class="seg-btn" data-board="staff-leave" onclick="switchBoard('staff-leave')">연월차일정</button>
     </div>
     <div id="asresult-segment" class="notice-segment" style="display:none;">
         <button class="seg-btn active" data-seg="pending" onclick="setAsrSegment('pending')">A/S 신청목록</button>
@@ -6423,6 +6481,7 @@
     </div>
     </div><!-- /notice-post-view -->
     <div id="company-calendar-view" style="display:none;"></div>
+    <div id="leave-calendar-view" style="display:none;"></div>
     <div id="asresult-view" style="display:none;"></div>
 </div>
 
@@ -8253,7 +8312,7 @@
                 let actionButtons = '';
                 if (isApprovedTab && isAdminViewer && !memberIsAdmin) {
                     const p = member.permissions || {};
-                    const hasAny = p.all || p.notice || p.company || p.photos || p.schedule || p.asResult || p.asAssignee || p.asApprStaff || p.asApprove || p.asApproveCeo || p.inventory || p.report || member.scheduleEditor;
+                    const hasAny = p.all || p.notice || p.company || p.photos || p.schedule || p.asResult || p.asAssignee || p.asApprStaff || p.asApprove || p.asApproveCeo || p.inventory || p.materials || p.leaveSchedule || p.report || member.scheduleEditor;
                     actionButtons = `<button class="member-perm-btn ${hasAny ? 'on' : ''}" onclick="openPermModal('${member.id}')" title="작성·관리 권한 설정">권한설정</button>`;
                 } else if (currentMemberTab === 'rejected') {
                     const reason = (member.rejectReason || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -8365,6 +8424,7 @@
             { key: 'asApproveCeo', label: 'A/S 결재(대표)' },
             { key: 'inventory', label: '재고현황' },
             { key: 'materials', label: '자재관리' },
+            { key: 'leaveSchedule', label: '연월차일정' },
             { key: 'report',    label: '업무보고(본사)' }
         ];
         let permModalUserId = null;
@@ -9872,6 +9932,7 @@
           <label class="perm-row"><span>A/S 결재(대표) <small class="perm-desc">(A/S 완료건 대표 단계 결재·승인)</small></span><input type="checkbox" id="perm-asApproveCeo"></label>
           <label class="perm-row"><span>재고현황 <small class="perm-desc">(재고 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-inventory"></label>
           <label class="perm-row"><span>자재관리 <small class="perm-desc">(자재 쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-materials"></label>
+          <label class="perm-row"><span>연월차일정 <small class="perm-desc">(일정 수정·삭제 / 추가·읽기는 전 직원)</small></span><input type="checkbox" id="perm-leaveSchedule"></label>
           <label class="perm-row"><span>업무보고(본사) <small class="perm-desc">(읽기·쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-report"></label>
           </div>
         </div>
@@ -9919,7 +9980,7 @@
         .notice-segment .seg-btn:not(.active):hover { border-color:#3b82f6; color:#3b82f6; }
 
         /* 달력 */
-        #company-calendar-view { width:900px; max-width:100%; margin:0 auto; }
+        #company-calendar-view, #leave-calendar-view { width:900px; max-width:100%; margin:0 auto; }
         .cal-header { display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
         .cal-header .cal-title { font-size:20px; font-weight:700; color:#333; min-width:140px; text-align:center; }
         .cal-nav { width:36px; height:36px; border:1px solid #e0e3e8; background:#fff; border-radius:8px; cursor:pointer; font-size:14px; color:#555; }
@@ -9946,11 +10007,27 @@
         .day-event-list { padding:14px 20px; }
         .day-empty { text-align:center; color:#888; padding:24px 0; }
         .day-event { border:1px solid #eceef1; border-radius:8px; padding:10px 12px; margin-bottom:8px; position:relative; }
-        .day-event-main { display:flex; gap:8px; align-items:baseline; }
+        .day-event.editing { background:#f8fbff; border-color:#bcd6f7; }
+        .day-event-period { font-size:12px; color:#8a929c; margin-bottom:3px; padding-right:96px; }
+        .day-event-main { display:flex; gap:8px; align-items:baseline; padding-right:96px; }
         .day-event-time { font-weight:700; color:#1c7ed6; font-size:13px; min-width:42px; }
         .day-event-title { font-weight:600; color:#333; }
         .day-event-memo { margin-top:5px; font-size:13px; color:#666; white-space:pre-wrap; }
-        .day-event-del { position:absolute; top:8px; right:8px; background:#fdecec; color:#e53935; border:none; border-radius:6px; padding:3px 8px; font-size:12px; cursor:pointer; }
+        .day-event-btns { position:absolute; top:8px; right:8px; display:flex; gap:6px; }
+        .day-event-edit { background:#eef4ff; color:#1c7ed6; border:none; border-radius:6px; padding:3px 8px; font-size:12px; cursor:pointer; }
+        .day-event-edit:hover { background:#dbe8ff; }
+        .day-event-del { background:#fdecec; color:#e53935; border:none; border-radius:6px; padding:3px 8px; font-size:12px; cursor:pointer; }
+        .day-event-del:hover { background:#fbdada; }
+        /* 인라인 편집 폼 */
+        .day-edit-row { display:flex; gap:8px; margin-bottom:8px; }
+        .day-edit-date { flex:1; min-width:0; padding:8px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
+        .day-edit-time { padding:8px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
+        .day-edit-title { width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid #d5d9e0; border-radius:6px; font-size:14px; margin-bottom:8px; }
+        .day-edit-memo { width:100%; box-sizing:border-box; min-height:52px; padding:9px 12px; border:1px solid #d5d9e0; border-radius:6px; font-size:14px; font-family:inherit; resize:vertical; }
+        .day-edit-actions { display:flex; gap:8px; margin-top:8px; }
+        .day-edit-actions button { flex:1; padding:9px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; border:1px solid #d5d9e0; background:#fff; color:#555; }
+        .day-edit-actions .day-edit-save { background:#3b82f6; color:#fff; border-color:#3b82f6; }
+        .day-edit-actions .day-edit-save:hover { background:#2563eb; }
         .day-add-form { padding:14px 20px; border-top:1px solid #eceef1; background:#f8f9fa; border-radius:0 0 14px 14px; }
         .day-add-daterow { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
         .day-add-daterow label { font-size:13px; font-weight:600; color:#555; min-width:30px; }
@@ -10000,13 +10077,43 @@
         let calLoadSeq = 0;            // 빠른 월 이동 시 늦게 도착한 응답을 무시하기 위한 시퀀스
         let currentNoticeSegment = 'post';
         let dayModalDate = null;
+        let editingCompanyEventId = null;   // 인라인 편집 중인 일정 id (없으면 null)
 
         function escapeCal(s) {
             return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
 
+        // 현재 로그인 사용자가 임직원(또는 관리자)인지 — 연월차일정 '추가'는 전 직원 허용
+        function isLoggedInEmployee() {
+            try { const u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}');
+                return u.userType === 'employee' || u.isAdmin === true || u.username === 'admin'; }
+            catch (e) { return false; }
+        }
+
+        // ===== 달력 종류(kind) 설정 =====
+        // 'company'(주요회사운영, 회사운영 탭) / 'leave'(연월차일정, 직원게시판 탭)
+        //   canAdd     : 일정 추가 가능 여부
+        //   canManage  : 일정 수정·삭제 가능 여부
+        const CAL_KINDS = {
+            company: {
+                collection: 'companyCalendar',
+                viewId: 'company-calendar-view',
+                canAdd: function () { return (typeof userCan === 'function') && userCan('company'); },
+                canManage: function () { return (typeof userCan === 'function') && userCan('company'); }
+            },
+            leave: {
+                collection: 'leaveSchedule',
+                viewId: 'leave-calendar-view',
+                canAdd: function () { return isLoggedInEmployee(); },                                  // 쓰기=전 직원
+                canManage: function () { return (typeof userCan === 'function') && userCan('leaveSchedule'); } // 수정·삭제=담당자
+            }
+        };
+        let currentCalKind = 'company';
+        function calCfg() { return CAL_KINDS[currentCalKind] || CAL_KINDS.company; }
+
+        // (하위호환) 회사운영 수정 가능 여부 — 이제 현재 kind의 canManage를 따른다
         function canEditCompanySchedule() {
-            return (typeof userCan === 'function') ? userCan('company') : false;
+            return calCfg().canManage();
         }
 
         function setNoticeSegment(seg) {
@@ -10017,6 +10124,7 @@
                 b.classList.toggle('active', b.dataset.seg === seg);
             });
             if (seg === 'calendar') {
+                currentCalKind = 'company';
                 if (postView) postView.style.display = 'none';
                 if (calView) calView.style.display = 'block';
                 if (calYear === null) { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
@@ -10033,31 +10141,33 @@
 
         async function loadAndRenderCalendar() {
             const ym = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
+            const cacheKey = `${currentCalKind}|${ym}`;     // kind별로 캐시 분리
+            const kindAtCall = currentCalKind;
             const seq = ++calLoadSeq;                       // 이전 진행 중 요청 무효화
             // 1) 격자는 즉시 렌더(캐시가 있으면 일정까지 함께 표시) — 네트워크를 기다리지 않음
-            companyEvents = companyEventsCache[ym] || [];
+            companyEvents = companyEventsCache[cacheKey] || [];
             renderCalendar();
-            if (companyEventsCache[ym]) return;             // 캐시 적중 → 네트워크 불필요
+            if (companyEventsCache[cacheKey]) return;        // 캐시 적중 → 네트워크 불필요
             if (!db) return;
             // 2) 캐시에 없을 때만 해당 월 문서만 서버에서 조회(범위 쿼리로 전송량 최소화)
             try {
-                const snap = await db.collection('companyCalendar')
+                const snap = await db.collection(CAL_KINDS[kindAtCall].collection)
                     .where('date', '>=', `${ym}-01`)
                     .where('date', '<=', `${ym}-31`)
                     .get();
-                if (seq !== calLoadSeq) return;             // 그 사이 다른 달로 이동 → 결과 폐기
+                if (seq !== calLoadSeq || kindAtCall !== currentCalKind) return; // 그 사이 이동/전환 → 폐기
                 const arr = [];
                 snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
-                companyEventsCache[ym] = arr;
+                companyEventsCache[cacheKey] = arr;
                 companyEvents = arr;
                 renderCalendar();                           // 일정 채워 재렌더
             } catch (e) {
-                console.error('회사일정 로드 실패:', e);
+                console.error('일정 로드 실패:', e);
             }
         }
 
         function renderCalendar() {
-            const view = document.getElementById('company-calendar-view');
+            const view = document.getElementById(calCfg().viewId);
             if (!view) return;
             const first = new Date(calYear, calMonth, 1);
             const startDow = first.getDay();
@@ -10092,22 +10202,25 @@
                 </div>`;
             }
             html += `</div>`;
-            html += `<div class="cal-foot">${canEditCompanySchedule() ? '날짜를 클릭해 일정을 추가/관리할 수 있습니다.' : '날짜를 클릭하면 일정을 볼 수 있습니다.'}</div>`;
+            html += `<div class="cal-foot">${calCfg().canAdd() ? '날짜를 클릭해 일정을 추가/관리할 수 있습니다.' : '날짜를 클릭하면 일정을 볼 수 있습니다.'}</div>`;
             view.innerHTML = html;
         }
 
         function openDayModal(dateKey) {
             dayModalDate = dateKey;
+            editingCompanyEventId = null;
             renderDayModal();
             document.getElementById('day-modal').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
         function closeDayModal() {
+            editingCompanyEventId = null;
             document.getElementById('day-modal').style.display = 'none';
             document.body.style.overflow = '';
         }
         function renderDayModal() {
-            const canEdit = canEditCompanySchedule();
+            const canManage = calCfg().canManage();   // 수정·삭제
+            const canAdd = calCfg().canAdd();          // 추가
             const evs = companyEvents.filter(e => e.date === dayModalDate)
                 .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
             document.getElementById('day-modal-title').textContent = `${dayModalDate} 일정`;
@@ -10115,18 +10228,56 @@
             if (!evs.length) {
                 list.innerHTML = '<div class="day-empty">등록된 일정이 없습니다.</div>';
             } else {
-                list.innerHTML = evs.map(ev => `
+                list.innerHTML = evs.map(ev => {
+                    // 편집 중인 일정: 인라인 편집 폼 (값은 아래에서 JS로 채움 → 속성 이스케이프 회피)
+                    if (canManage && ev.id === editingCompanyEventId) {
+                        return `
+                        <div class="day-event editing">
+                            <div class="day-edit-row">
+                                <input type="date" id="day-edit-date" class="day-edit-date">
+                                <input type="time" id="day-edit-time" class="day-edit-time">
+                            </div>
+                            <input type="text" id="day-edit-title" class="day-edit-title" placeholder="일정 제목">
+                            <textarea id="day-edit-memo" class="day-edit-memo" placeholder="메모 (선택)"></textarea>
+                            <div class="day-edit-actions">
+                                <button class="day-edit-cancel" onclick="cancelEditCompanyEvent()">취소</button>
+                                <button class="day-edit-save" onclick="saveCompanyEventEdit('${ev.id}')">저장</button>
+                            </div>
+                        </div>`;
+                    }
+                    const periodHtml = (ev.periodStart && ev.periodEnd)
+                        ? `<div class="day-event-period">${escapeCal((ev.periodStart || '').replace(/-/g, '.'))} ~ ${escapeCal((ev.periodEnd || '').replace(/-/g, '.'))}</div>`
+                        : '';
+                    return `
                     <div class="day-event">
+                        ${periodHtml}
                         <div class="day-event-main">
                             <span class="day-event-time">${ev.time || '-'}</span>
                             <span class="day-event-title">${escapeCal(ev.title)}</span>
                         </div>
                         ${ev.memo ? `<div class="day-event-memo">${escapeCal(ev.memo)}</div>` : ''}
-                        ${canEdit ? `<button class="day-event-del" onclick="deleteCompanyEvent('${ev.id}')">삭제</button>` : ''}
-                    </div>`).join('');
+                        ${canManage ? `<div class="day-event-btns"><button class="day-event-edit" onclick="editCompanyEvent('${ev.id}')">수정</button><button class="day-event-del" onclick="deleteCompanyEvent('${ev.id}')">삭제</button></div>` : ''}
+                    </div>`;
+                }).join('');
+                // 편집 중이면 입력값 채우기
+                if (canManage && editingCompanyEventId) {
+                    const ev = evs.find(e => e.id === editingCompanyEventId);
+                    if (ev) {
+                        const dEl = document.getElementById('day-edit-date');
+                        const tEl = document.getElementById('day-edit-time');
+                        const tiEl = document.getElementById('day-edit-title');
+                        const mEl = document.getElementById('day-edit-memo');
+                        if (dEl) dEl.value = ev.date || dayModalDate;
+                        if (tEl) tEl.value = ev.time || '';
+                        if (tiEl) tiEl.value = ev.title || '';
+                        if (mEl) mEl.value = ev.memo || '';
+                    }
+                }
             }
-            document.getElementById('day-add-form').style.display = canEdit ? 'block' : 'none';
-            if (canEdit) {
+            // 추가 폼: 추가 권한이 있고 편집 중이 아닐 때만 표시
+            const showAdd = canAdd && !editingCompanyEventId;
+            document.getElementById('day-add-form').style.display = showAdd ? 'block' : 'none';
+            if (showAdd) {
                 const sEl = document.getElementById('day-ev-start');
                 const eEl = document.getElementById('day-ev-end');
                 if (sEl) sEl.value = dayModalDate;
@@ -10135,7 +10286,7 @@
         }
 
         async function addCompanyEvent() {
-            if (!canEditCompanySchedule()) { alert('회사일정 작성 권한이 없습니다.'); return; }
+            if (!calCfg().canAdd()) { alert('일정 작성 권한이 없습니다.'); return; }
             const title = document.getElementById('day-ev-title').value.trim();
             const time = document.getElementById('day-ev-time').value;
             const memo = document.getElementById('day-ev-memo').value.trim();
@@ -10164,10 +10315,11 @@
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
                 const createdAt = new Date().toISOString();
                 const createdBy = user.name || user.username || '';
-                await Promise.all(dates.map(dk => db.collection('companyCalendar').add({
+                const hasPeriod = dates.length > 1;   // 기간(여러 날) 등록일 때만 기간 정보 저장
+                await Promise.all(dates.map(dk => db.collection(calCfg().collection).add(Object.assign({
                     date: dk, time: time || '', title: title, memo: memo,
                     createdBy: createdBy, createdAt: createdAt
-                })));
+                }, hasPeriod ? { periodStart: startVal, periodEnd: endVal } : {}))));
                 document.getElementById('day-ev-title').value = '';
                 document.getElementById('day-ev-time').value = '';
                 document.getElementById('day-ev-memo').value = '';
@@ -10181,11 +10333,47 @@
             }
         }
 
+        function editCompanyEvent(id) {
+            if (!calCfg().canManage()) { alert('일정 수정 권한이 없습니다.'); return; }
+            editingCompanyEventId = id;
+            renderDayModal();
+        }
+        function cancelEditCompanyEvent() {
+            editingCompanyEventId = null;
+            renderDayModal();
+        }
+        async function saveCompanyEventEdit(id) {
+            if (!calCfg().canManage()) { alert('일정 수정 권한이 없습니다.'); return; }
+            const titleEl = document.getElementById('day-edit-title');
+            const timeEl = document.getElementById('day-edit-time');
+            const memoEl = document.getElementById('day-edit-memo');
+            const dateEl = document.getElementById('day-edit-date');
+            const title = (titleEl ? titleEl.value : '').trim();
+            const time = timeEl ? timeEl.value : '';
+            const memo = (memoEl ? memoEl.value : '').trim();
+            const date = (dateEl && dateEl.value) ? dateEl.value : dayModalDate;
+            if (!title) { alert('일정 제목을 입력하세요.'); return; }
+            if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
+            try {
+                await db.collection(calCfg().collection).doc(id).update({
+                    date: date, time: time || '', title: title, memo: memo
+                });
+                editingCompanyEventId = null;
+                companyEventsCache = {};        // 날짜 변경 가능 → 캐시 전체 무효화
+                if (date !== dayModalDate) dayModalDate = date;   // 날짜를 옮겼으면 해당 날짜로 이동
+                await loadAndRenderCalendar();
+                renderDayModal();
+            } catch (e) {
+                console.error('일정 수정 실패:', e);
+                alert('일정 수정 중 오류가 발생했습니다.\n(companyCalendar 쓰기 규칙/권한 확인)\n' + (e.message || ''));
+            }
+        }
+
         async function deleteCompanyEvent(id) {
-            if (!canEditCompanySchedule()) { alert('권한이 없습니다.'); return; }
+            if (!calCfg().canManage()) { alert('권한이 없습니다.'); return; }
             if (!(await showStaffConfirm('이 일정을 삭제하시겠습니까?'))) return;
             try {
-                await db.collection('companyCalendar').doc(id).delete();
+                await db.collection(calCfg().collection).doc(id).delete();
                 companyEventsCache = {};   // 다일정은 여러 달에 걸칠 수 있으므로 캐시 전체 무효화
                 await loadAndRenderCalendar();
                 renderDayModal();

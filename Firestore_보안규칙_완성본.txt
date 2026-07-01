@@ -283,12 +283,21 @@ service cloud.firestore {
     }
 
     // ========== 회사운영 달력 (companyCalendar) ==========
-    // 구조: 개별 문서 { date:'YYYY-MM-DD', time, title, memo, createdBy, createdAt }
+    // 구조: 개별 문서 { date:'YYYY-MM-DD', time, title, memo, createdBy, createdAt, periodStart?, periodEnd? }
     match /companyCalendar/{eventId} {
       // 읽기: 로그인 사용자
       allow read: if isAuthenticated();
       // 쓰기: 관리자 또는 '회사운영' 작성 권한 보유자
       allow write: if permFor('company');
+    }
+
+    // ========== 연월차일정 (leaveSchedule) ==========
+    // 직원게시판 '연월차일정' 캘린더. 구조는 companyCalendar와 동일.
+    // 추가·읽기 = 임직원 전체, 수정·삭제 = '연월차일정' 권한 보유자(또는 전체/관리자)
+    match /leaveSchedule/{eventId} {
+      allow read: if isEmployee();
+      allow create: if isEmployee();
+      allow update, delete: if permFor('leaveSchedule');
     }
 
     // ========== 재고현황 (inventory) ==========
