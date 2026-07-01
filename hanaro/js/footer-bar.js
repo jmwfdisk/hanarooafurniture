@@ -157,7 +157,9 @@
       'padding:10px 22px;font-size:14px;cursor:pointer;}' +
     '.fbz-modal-foot button:hover{background:#2c333f;}' +
     /* 정부로고 영역 우측 바로가기 드롭다운 */
-    '.fbz-sitelinks{position:absolute;right:5%;top:50%;transform:translateY(-50%);z-index:30;}' +
+    /* transform 금지: transform은 자식 position:fixed 메뉴의 기준(containing block)을 이 요소로 바꿔
+       positionMenu가 계산한 뷰포트 좌표가 어긋나 메뉴가 화면 밖으로 나감 → top/bottom + flex로 세로중앙 정렬 */
+    '.fbz-sitelinks{position:absolute;right:5%;top:0;bottom:0;display:flex;align-items:center;z-index:30;}' +
     '.fbz-sl-btn{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:170px;' +
       'background:#fff;color:#333;border:1px solid #b9b9b9;border-radius:4px;padding:8px 12px;font-size:14px;' +
       'font-weight:500;cursor:pointer;font-family:inherit;transition:border-color .15s ease;}' +
@@ -181,7 +183,7 @@
     '.fbz-sl-cat{padding:8px 16px 4px;font-size:11px;font-weight:700;color:#2e9e54;' +
       'letter-spacing:.02em;white-space:nowrap;}' +
     '@media (max-width:768px){' +
-      '.fbz-sitelinks{position:relative;transform:none;right:auto;top:auto;flex-basis:100%;' +
+      '.fbz-sitelinks{position:relative;transform:none;right:auto;top:auto;bottom:auto;flex-basis:100%;' +
         'display:flex;justify-content:center;margin-top:12px;}' +
     '}';
 
