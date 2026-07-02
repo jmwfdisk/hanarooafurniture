@@ -10012,9 +10012,9 @@
         <div id="day-add-form" class="day-add-form" style="display:none;">
           <div class="day-add-daterow">
             <label id="day-add-daterow-label">기간</label>
-            <input type="date" id="day-ev-start" onchange="this.blur()">
+            <input type="date" id="day-ev-start" onchange="this.blur(); updateLeaveDaysBadge()">
             <span class="day-add-tilde">~</span>
-            <input type="date" id="day-ev-end" onchange="this.blur()">
+            <input type="date" id="day-ev-end" onchange="this.blur(); updateLeaveDaysBadge()">
           </div>
           <div class="day-add-hint" id="day-add-hint">시작일~종료일을 지정하면 그 기간의 모든 날짜에 일정이 한 번에 등록됩니다.</div>
           <div class="day-add-row" id="day-add-company-fields">
@@ -10160,6 +10160,7 @@
         .day-leave-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
         .day-leave-row label { font-size:13px; font-weight:600; color:#555; min-width:56px; }
         .day-leave-row select { flex:1; min-width:0; padding:9px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:14px; background:#fff; color:#333; }
+        .day-leave-row select:disabled { background:#f2f4f7; color:#98a2b3; cursor:not-allowed; }   /* 기간 1일 초과 → 연차일수 지정 불가 */
         .day-leave-author { display:flex; align-items:center; font-size:14px; color:#333; background:#fff; border:1px dashed #cdd3db; border-radius:6px; padding:9px 12px; }
         .day-leave-author b { font-weight:700; }
         /* 작성자 입력란(관리자 전용 — 일반 직원은 자동기입 텍스트만) */
@@ -10210,9 +10211,18 @@
         }
 
         // ===== 연월차일정 간단 폼 헬퍼 =====
-        // 제목 형식: "직급 이름(연차N)" + 종류가 연차가 아니면 " / 종류"  (예: 부장 박종원(연차1) / 병가)
-        function buildLeaveTitle(author, days, type) {
-            let t = author + '(연차' + days + ')';
+        // 'YYYY-MM-DD' → 'M.D' (달력 제목의 기간 표시용 짧은 날짜)
+        function calFmtShort(d) {
+            const p = (d || '').split('-');
+            return p.length === 3 ? (parseInt(p[1], 10) + '.' + parseInt(p[2], 10)) : (d || '');
+        }
+        // 제목 형식: 1일 = "직급 이름(연차N)", 기간(1일 초과) = "직급 이름(M.D~M.D)"
+        // + 종류가 연차가 아니면 " / 종류"  (예: 부장 박종원(연차1) / 병가, 부장 박종원(7.8~7.10) / 휴가)
+        function buildLeaveTitle(author, days, type, periodStart, periodEnd) {
+            const multi = periodStart && periodEnd && periodStart !== periodEnd;
+            let t = multi
+                ? author + '(' + calFmtShort(periodStart) + '~' + calFmtShort(periodEnd) + ')'
+                : author + '(연차' + days + ')';
             if (type && type !== '연차') t += ' / ' + type;
             return t;
         }
@@ -10231,14 +10241,29 @@
                 return u.isAdmin === true || u.username === 'admin'; }
             catch (e) { return false; }
         }
-        // 추가 폼 미리보기 배지: "(연차1) / 병가"
+        // 추가 폼 미리보기 배지 + 연차일수 활성/비활성 동기화
+        // 휴가기간이 1일 초과(시작≠종료)면 연차일수 지정 불가 → 제목에는 기간을 표시
         function updateLeaveDaysBadge() {
             const dSel = document.getElementById('day-ev-leave-days');
             const tSel = document.getElementById('day-ev-leave-type');
             const badge = document.getElementById('day-ev-leave-badge');
+            const sEl = document.getElementById('day-ev-start');
+            const eEl = document.getElementById('day-ev-end');
+            const multi = !!(sEl && eEl && sEl.value && eEl.value && sEl.value !== eEl.value);
+            if (dSel) dSel.disabled = multi;
             if (!badge) return;
             const type = tSel ? tSel.value : '연차';
-            badge.textContent = '(연차' + (dSel ? dSel.value : '1') + ')' + (type !== '연차' ? ' / ' + type : '');
+            const core = multi
+                ? '(' + calFmtShort(sEl.value) + '~' + calFmtShort(eEl.value) + ')'
+                : '(연차' + (dSel ? dSel.value : '1') + ')';
+            badge.textContent = core + (type !== '연차' ? ' / ' + type : '');
+        }
+        // 수정 폼: 기간이 1일 초과면 연차일수 비활성
+        function leaveEditSyncDays() {
+            const sEl = document.getElementById('day-edit-start');
+            const eEl = document.getElementById('day-edit-end');
+            const dSel = document.getElementById('day-edit-leave-days');
+            if (dSel) dSel.disabled = !!(sEl && eEl && sEl.value && eEl.value && sEl.value !== eEl.value);
         }
         // select에 값이 없으면(구버전 데이터 등) 옵션을 추가해서라도 선택
         function calSetSelectValue(sel, val) {
@@ -10414,9 +10439,9 @@
                             return `
                         <div class="day-event editing">
                             <div class="day-edit-daterow">
-                                <input type="date" id="day-edit-start" class="day-edit-date" onchange="this.blur()">
+                                <input type="date" id="day-edit-start" class="day-edit-date" onchange="this.blur(); leaveEditSyncDays()">
                                 <span class="day-edit-tilde">~</span>
-                                <input type="date" id="day-edit-end" class="day-edit-date" onchange="this.blur()">
+                                <input type="date" id="day-edit-end" class="day-edit-date" onchange="this.blur(); leaveEditSyncDays()">
                             </div>
                             <div class="day-edit-hint">시작일~종료일을 바꾸면 그 기간의 모든 날짜로 다시 등록됩니다.</div>
                             <div class="day-leave-row">
@@ -10494,6 +10519,7 @@
                             const aIn = document.getElementById('day-edit-leave-author-input');
                             if (aEl) aEl.textContent = info.author;
                             if (aIn) aIn.value = info.author;   // 관리자: 작성자 변경 가능
+                            leaveEditSyncDays();                 // 기간 1일 초과면 연차일수 비활성
                         } else {
                             const tEl = document.getElementById('day-edit-time');
                             const tiEl = document.getElementById('day-edit-title');
@@ -10539,6 +10565,7 @@
                 const eEl = document.getElementById('day-ev-end');
                 if (sEl) sEl.value = dayModalDate;
                 if (eEl) eEl.value = dayModalDate;
+                if (isLeave) updateLeaveDaysBadge();   // 날짜 초기화 후 배지·연차일수 상태 재동기화
                 // 시간: 비어 있으면 현재 시각을 기본값으로 채움(빈 native time input이 회색 placeholder라 비활성처럼 보이는 문제 방지)
                 const tEl = document.getElementById('day-ev-time');
                 if (tEl && !tEl.value) {
@@ -10585,12 +10612,15 @@
         async function addCompanyEvent() {
             if (!calCfg().canAdd()) { alert('일정 작성 권한이 없습니다.'); return; }
             const isLeave = currentCalKind === 'leave';
+            const startVal = document.getElementById('day-ev-start').value || dayModalDate;
+            const endVal = document.getElementById('day-ev-end').value || startVal;
             let title, time, memo, leaveDays = null, leaveType = null, author = '';
             if (isLeave) {
                 // 연월차: 작성자(직급/직책 이름) 자동 기입 + 연차일수·종류만 선택
+                // 휴가기간 1일 초과면 연차일수 미적용 → 제목에 기간 표시
                 const dSel = document.getElementById('day-ev-leave-days');
                 const tSel = document.getElementById('day-ev-leave-type');
-                leaveDays = (dSel && dSel.value) || '1';
+                leaveDays = (startVal !== endVal) ? null : ((dSel && dSel.value) || '1');
                 leaveType = (tSel && tSel.value) || '연차';
                 author = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
                 if (calIsAdmin()) {
@@ -10600,7 +10630,7 @@
                     if (!author) { alert('작성자를 입력하세요.'); return; }
                 }
                 if (!author) { alert('로그인 정보(이름)를 확인할 수 없습니다.\n다시 로그인해 주세요.'); return; }
-                title = buildLeaveTitle(author, leaveDays, leaveType);
+                title = buildLeaveTitle(author, leaveDays, leaveType, startVal, endVal);
                 time = ''; memo = '';
             } else {
                 title = document.getElementById('day-ev-title').value.trim();
@@ -10608,8 +10638,6 @@
                 memo = document.getElementById('day-ev-memo').value.trim();
                 if (!title) { alert('일정 제목을 입력하세요.'); return; }
             }
-            const startVal = document.getElementById('day-ev-start').value || dayModalDate;
-            const endVal = document.getElementById('day-ev-end').value || startVal;
             if (endVal < startVal) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
 
@@ -10657,9 +10685,12 @@
             const orig = companyEvents.find(e => e.id === id) || {};
             const startEl = document.getElementById('day-edit-start');
             const endEl = document.getElementById('day-edit-end');
+            const startVal = (startEl && startEl.value) ? startEl.value : dayModalDate;
+            const endVal = (endEl && endEl.value) ? endEl.value : startVal;
             let title, time, memo, leaveDays = null, leaveType = null, author = '';
             if (isLeave) {
                 // 연월차: 작성자는 원본 유지(관리자만 입력란으로 변경 가능), 연차일수·종류 변경
+                // 휴가기간 1일 초과면 연차일수 미적용 → 제목에 기간 표시
                 const info = leaveInfoOf(orig);
                 const dSel = document.getElementById('day-edit-leave-days');
                 const tSel = document.getElementById('day-edit-leave-type');
@@ -10668,9 +10699,9 @@
                     const aIn = document.getElementById('day-edit-leave-author-input');
                     if (aIn) author = aIn.value.trim() || info.author;
                 }
-                leaveDays = (dSel && dSel.value) || info.days || '1';
+                leaveDays = (startVal !== endVal) ? null : ((dSel && dSel.value) || info.days || '1');
                 leaveType = (tSel && tSel.value) || info.type || '연차';
-                title = buildLeaveTitle(author, leaveDays, leaveType);
+                title = buildLeaveTitle(author, leaveDays, leaveType, startVal, endVal);
                 time = ''; memo = '';
             } else {
                 const titleEl = document.getElementById('day-edit-title');
@@ -10681,8 +10712,6 @@
                 memo = (memoEl ? memoEl.value : '').trim();
                 if (!title) { alert('일정 제목을 입력하세요.'); return; }
             }
-            const startVal = (startEl && startEl.value) ? startEl.value : dayModalDate;
-            const endVal = (endEl && endEl.value) ? endEl.value : startVal;
             if (endVal < startVal) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
             const dates = calBuildDates(startVal, endVal);
