@@ -997,7 +997,8 @@ function setupRegisterForm() {
     const sel = document.getElementById('reg-user-type');
     if (sel) sel.remove();
 
-    // 3) 단일 가입 버튼 → 임직원/일반회원 2개 버튼
+    // 3) 단일 가입 버튼 → 본사 임직원/임직원/일반회원 3개 버튼
+    //    (본사 임직원은 userType='employee' + empGroup='hq'로 저장 — 임직원 권한은 동일)
     if (!document.getElementById('reg-submit-employee')) {
         const oldBtn = Array.from(form.querySelectorAll('button')).find(b =>
             (b.getAttribute('onclick') || '').includes('register') || /회원가입\s*신청/.test(b.textContent || ''));
@@ -1005,6 +1006,7 @@ function setupRegisterForm() {
         wrap.id = 'reg-submit-wrap';
         wrap.style.cssText = 'display:flex;flex-direction:column;';
         wrap.innerHTML =
+            '<button type="button" id="reg-submit-employee-hq" onclick="register(\'employee-hq\')">본사 임직원 가입신청</button>' +
             '<button type="button" id="reg-submit-employee" onclick="register(\'employee\')">임직원 가입신청</button>' +
             '<button type="button" id="reg-submit-general" onclick="register(\'general\')">일반회원 가입신청</button>';
         if (oldBtn && oldBtn.parentNode) { oldBtn.parentNode.insertBefore(wrap, oldBtn); oldBtn.remove(); }
@@ -1259,9 +1261,12 @@ async function register(userTypeArg) {
     const org = orgEl ? orgEl.value.trim() : '';
     const positionEl = document.getElementById('reg-position');
     const position = positionEl ? positionEl.value.trim() : '';
-    // 회원유형: 가입 버튼이 넘긴 값('employee'/'general') 우선, 없으면 (구) 드롭다운 → 기본 general
-    const userType = userTypeArg
+    // 회원유형: 가입 버튼이 넘긴 값('employee-hq'/'employee'/'general') 우선, 없으면 (구) 드롭다운 → 기본 general
+    // 'employee-hq'(본사 임직원)는 userType='employee' + empGroup='hq'로 저장(임직원 권한 동일, 연월차 결재 구분용)
+    const rawType = userTypeArg
         || (document.getElementById('reg-user-type') ? document.getElementById('reg-user-type').value : 'general');
+    const empGroup = rawType === 'employee-hq' ? 'hq' : '';
+    const userType = rawType === 'employee-hq' ? 'employee' : rawType;
     // 아이디와 이메일 통합: 이메일을 아이디(username)로 사용
     const username = email;
 
@@ -1331,6 +1336,7 @@ async function register(userTypeArg) {
                 org: org || '',
                 position: position || '',
                 userType: userType,
+                empGroup: empGroup,
                 status: 'pending',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 isAdmin: false

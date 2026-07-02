@@ -2862,7 +2862,7 @@
     </nav>
 
     <!-- 공통 인증 스크립트 -->
-    <script src="../js/auth.js"></script>
+    <script src="../js/auth.js?v=20260702"></script>
     <script src="../js/footer-bar.js?v=20260701"></script>
     <!-- 글쓰기 리치 에디터 본문 살균(XSS 방지). 미로딩 시 평문 폴백 -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
@@ -8150,6 +8150,7 @@
                         email: data.email || '',
                         phone: data.phone || '',
                         userType: data.userType || 'general',
+                        empGroup: data.empGroup || '', // 'hq'=본사 임직원 (연월차 결재 구분)
                         status: data.status || 'pending', // status 필드 확인
                         createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : null,
                         isAdmin: data.isAdmin || false,
@@ -8298,6 +8299,9 @@
                 if (memberIsAdmin) {
                     userTypeText = '관리자';
                     userTypeStyle = 'color: #e8590c; font-weight: 700;';
+                } else if (member.userType === 'employee' && member.empGroup === 'hq') {
+                    userTypeText = '본사 임직원';
+                    userTypeStyle = 'color: #5f3dc4; font-weight: 600;';
                 } else if (member.userType === 'employee') {
                     userTypeText = '임직원';
                     userTypeStyle = 'color: #0071e3; font-weight: 600;';
@@ -8307,9 +8311,11 @@
                 }
                 let userTypeCell;
                 if (isAdminViewer && !memberIsAdmin) {
+                    const typeVal = member.userType === 'employee' ? (member.empGroup === 'hq' ? 'employee-hq' : 'employee') : 'general';
                     userTypeCell = `<select class="member-type-select" onchange="changeMemberType('${member.id}', this.value)">
-                        <option value="general" ${member.userType === 'general' ? 'selected' : ''}>일반회원</option>
-                        <option value="employee" ${member.userType === 'employee' ? 'selected' : ''}>임직원</option>
+                        <option value="general" ${typeVal === 'general' ? 'selected' : ''}>일반회원</option>
+                        <option value="employee" ${typeVal === 'employee' ? 'selected' : ''}>임직원</option>
+                        <option value="employee-hq" ${typeVal === 'employee-hq' ? 'selected' : ''}>본사 임직원</option>
                     </select>`;
                 } else {
                     userTypeCell = `<span style="${userTypeStyle}">${userTypeText}</span>`;
@@ -8461,7 +8467,8 @@
             { key: 'inventory', label: '재고현황' },
             { key: 'materials', label: '자재관리' },
             { key: 'leaveSchedule', label: '연월차일정' },
-            { key: 'leaveApprove', label: '연월차 결재(관리자)' },
+            { key: 'leaveApprove', label: '연월차 결재(본사관리자)' },
+            { key: 'leaveApproveFactory', label: '연월차 결재(공장관리자)' },
             { key: 'report',    label: '업무보고(본사)' }
         ];
         let permModalUserId = null;
@@ -8549,14 +8556,17 @@
                 renderMembers();
                 return;
             }
-            const label = newType === 'employee' ? '임직원' : '일반회원';
+            const label = newType === 'employee-hq' ? '본사 임직원' : (newType === 'employee' ? '임직원' : '일반회원');
             if (!(await showStaffConfirm(`이 회원의 유형을 '${label}'(으)로 변경하시겠습니까?`))) {
                 renderMembers(); // 드롭다운 선택 원복
                 return;
             }
+            // 'employee-hq'(본사 임직원)는 userType='employee' + empGroup='hq'로 저장
+            const newUserType = newType === 'employee-hq' ? 'employee' : newType;
+            const newEmpGroup = newType === 'employee-hq' ? 'hq' : '';
             try {
-                await db.collection('users').doc(userId).update({ userType: newType });
-                if (member) member.userType = newType;
+                await db.collection('users').doc(userId).update({ userType: newUserType, empGroup: newEmpGroup });
+                if (member) { member.userType = newUserType; member.empGroup = newEmpGroup; }
                 renderMembers();
                 alert(`회원유형이 '${label}'(으)로 변경되었습니다.`);
             } catch (error) {
@@ -8850,10 +8860,12 @@
         }
         // 출동 담당자 추가/삭제 권한: 관리자 또는 'asAssignee'(또는 전체) 권한 보유자 (userCan이 admin·all 처리)
         function asrCanManageAssignee(){ return (typeof userCan === 'function') ? userCan('asAssignee') : asrIsAdmin(); }
-        // 결재 권한은 '웹 관리자 자동권한'이 아니라 admin이 부여한 해당 권한 보유자만 가능
-        // (isAdmin 자동통과 안 함 — users.permissions의 해당 키가 true여야 함)
+        // 결재 권한: admin이 부여한 해당 권한 보유자 + 관리자(admin)도 전부 가능
+        // ('전체(all)' 권한은 결재 미포함 — users.permissions의 해당 키가 true여야 함)
         function asrPerm(area){
-            try { const u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); return (u.permissions||{})[area] === true; }
+            try { const u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}');
+                if (u.isAdmin === true || u.username === 'admin') return true;   // 관리자: 모든 결재 가능
+                return (u.permissions||{})[area] === true; }
             catch(e){ return false; }
         }
         // 현재 사용자가 지금 찍을 수 있는 결재 단계 반환 (순차: 담당자 → 관리자 → 대표). 없으면 null
@@ -9992,7 +10004,8 @@
           <label class="perm-row"><span>재고현황 <small class="perm-desc">(재고 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-inventory"></label>
           <label class="perm-row"><span>자재관리 <small class="perm-desc">(자재 쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-materials"></label>
           <label class="perm-row"><span>연월차일정 <small class="perm-desc">(일정 수정·삭제 / 추가·읽기는 전 직원)</small></span><input type="checkbox" id="perm-leaveSchedule"></label>
-          <label class="perm-row"><span>연월차 결재(관리자) <small class="perm-desc">(연월차 캘린더 월별 확인·승인 결재)</small></span><input type="checkbox" id="perm-leaveApprove"></label>
+          <label class="perm-row"><span>연월차 결재(본사관리자) <small class="perm-desc">(연월차 캘린더 월별 확인·승인 결재 — 본사 칸)</small></span><input type="checkbox" id="perm-leaveApprove"></label>
+          <label class="perm-row"><span>연월차 결재(공장관리자) <small class="perm-desc">(연월차 캘린더 월별 확인·승인 결재 — 공장 칸)</small></span><input type="checkbox" id="perm-leaveApproveFactory"></label>
           <label class="perm-row"><span>업무보고(본사) <small class="perm-desc">(읽기·쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-report"></label>
           </div>
         </div>
@@ -10079,10 +10092,18 @@
         #company-calendar-view .grid-loading, #leave-calendar-view .grid-loading { background:rgba(255,255,255,.72); border-radius:8px; }
         .cal-header { display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
         .cal-header .cal-title { font-size:20px; font-weight:700; color:#333; min-width:140px; text-align:center; }
-        /* 연월차 캘린더 상단 우측 월별 결재란 (A/S 결재선 스타일 재사용) */
-        .cal-appr-row { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin:0 0 10px; }
-        .cal-appr-row .cal-appr-label { font-size:12px; font-weight:700; color:#5b6677; }
-        .asr-approval.cal-appr { margin-left:0; width:auto; }
+        /* 연월차 캘린더 월별 결재란: 타이틀 줄(.cal-header) 우측, 네비 버튼 높이(36px)·버튼 2개 너비(72px+) */
+        .cal-header { position:relative; }
+        .asr-approval.cal-appr { position:absolute; right:0; top:50%; transform:translateY(-50%); margin-left:0; width:auto; height:36px; box-sizing:border-box; }
+        .cal-appr .asr-appr-cell { min-width:72px; height:100%; display:flex; flex-direction:column; }
+        .cal-appr .asr-appr-head { font-size:9px; padding:1px 6px; line-height:1.3; }
+        .cal-appr .asr-appr-body { min-height:0; flex:1; padding:1px 6px 2px; gap:0; }
+        .cal-appr .asr-appr-name { font-size:10px; line-height:1.15; white-space:nowrap; }
+        .cal-appr .asr-appr-date { font-size:8px; line-height:1.1; }
+        .cal-appr .asr-appr-btn { font-size:10px; font-weight:700; padding:2px 10px; border-radius:4px; }
+        .cal-appr .asr-appr-wait { font-size:10px; }
+        /* 결재 완료된 달 잠금 안내(일 모달) */
+        .day-lock-note { font-size:12px; color:#8a93a0; text-align:center; margin-top:10px; padding:8px; background:#f6f7f9; border-radius:8px; }
         .cal-nav { width:36px; height:36px; border:1px solid #e0e3e8; background:#fff; border-radius:8px; cursor:pointer; font-size:14px; color:#555; }
         .cal-nav:hover { border-color:#3b82f6; color:#3b82f6; }
         .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); border-top:2px solid #3b4453; border-left:1px solid #e8eaed; }
@@ -10105,6 +10126,8 @@
             .cal-header { gap:10px; margin-bottom:10px; }
             .cal-header .cal-title { font-size:17px; min-width:0; }
             .cal-nav { width:32px; height:32px; }
+            .asr-approval.cal-appr { height:32px; }
+            .cal-appr .asr-appr-cell { min-width:64px; }
             .cal-dow { font-size:11px; padding:6px 0; }
             .cal-cell { min-height:62px; padding:3px; }
             .cal-daynum { font-size:12px; margin-bottom:2px; }
@@ -10117,6 +10140,12 @@
             .cal-cell { min-height:52px; }
             .cal-daynum { font-size:11px; }
             .cal-chip { font-size:9px; padding:1px 3px; }
+        }
+        /* 좁은 화면: 결재란(2칸)이 ◀▶와 겹치지 않게 네비 아래 줄로 내려 전체 폭 배치 */
+        @media (max-width: 480px) {
+            .cal-header { flex-wrap:wrap; }
+            .asr-approval.cal-appr { position:static; transform:none; width:100%; margin:6px 0 0; }
+            .cal-appr .asr-appr-cell { flex:1; min-width:0; }
         }
 
         /* 날짜 일정 모달 */
@@ -10315,21 +10344,90 @@
             leave: {
                 collection: 'leaveSchedule',
                 viewId: 'leave-calendar-view',
-                canAdd: function () { return isLoggedInEmployee(); },                                  // 쓰기=전 직원
-                canManage: function () { return (typeof userCan === 'function') && userCan('leaveSchedule'); } // 수정·삭제=담당자
+                // 그룹별 월 잠금: 본사관리자 결재 → 본사 임직원(empGroup='hq') 잠금,
+                //                공장관리자 결재 → 그 외 임직원 잠금. 잠긴 그룹은 결재자만 추가·수정·삭제 가능
+                // ('연월차일정' 수정·삭제 권한자·'전체' 권한자도 자기 그룹이 잠기면 불가)
+                canAdd: function (date) {
+                    const d = date || dayModalDate || calYmKey();
+                    if (leaveMonthLockedForGroup(d, leaveUserGroup())) return leaveApprPerm();   // 내 그룹 결재 후: 결재자만
+                    return isLoggedInEmployee();                                                  // 결재 전: 전 직원
+                },
+                canManage: function (date) {
+                    const d = date || dayModalDate || calYmKey();
+                    if (leaveMonthLockedForGroup(d, leaveUserGroup())) return leaveApprPerm();   // 내 그룹 결재 후: 결재자만
+                    return (typeof userCan === 'function') && userCan('leaveSchedule');           // 결재 전: 수정·삭제 권한자
+                }
             }
         };
         let currentCalKind = 'company';
         function calCfg() { return CAL_KINDS[currentCalKind] || CAL_KINDS.company; }
 
-        // ===== 연월차 월별 결재(달력 상단 우측 결재란) =====
-        // A/S 결재와 동일 구조: 결재자는 웹 관리자 자동권한이 아니라 admin이 '연월차 결재(관리자)'
-        // 권한(leaveApprove)을 부여한 임직원만 가능(asrPerm — admin/전체 자동통과 없음).
-        // 도장은 appConfig/leaveApprovals = { months: { 'YYYY-MM': {title,name,date} } }에 월 단위로 저장.
-        let leaveApprovals = null;            // { 'YYYY-MM': {title,name,date} } (null=미로드)
+        // ===== 연월차 월별 결재(달력 상단 우측 결재란, 본사관리자/공장관리자 2칸) =====
+        // A/S 결재와 동일 구조: 결재자는 admin이 부여한 권한 보유자 + 관리자(admin) 전부 가능
+        // (asrPerm — '전체(all)' 권한은 미포함). 본사=leaveApprove, 공장=leaveApproveFactory.
+        // 도장은 appConfig/leaveApprovals = { months: { 'YYYY-MM': { hq:{title,name,date}, factory:{…} } } }.
+        // (구버전 단일 도장 { 'YYYY-MM': {title,name,date} }은 본사관리자(hq) 도장으로 해석)
+        let leaveApprovals = null;            // months 맵 (null=미로드)
         let leaveApprovalsLoading = false;
-        function leaveApprPerm() { return (typeof asrPerm === 'function') && asrPerm('leaveApprove'); }
+        const LEAVE_APPR_STAGES = [
+            { key: 'hq',      label: '본사관리자', perm: 'leaveApprove' },
+            { key: 'factory', label: '공장관리자', perm: 'leaveApproveFactory' }
+        ];
+        function leaveApprPermFor(stage) {
+            const st = LEAVE_APPR_STAGES.find(s => s.key === stage);
+            return !!st && (typeof asrPerm === 'function') && asrPerm(st.perm);
+        }
+        // 결재자 여부(본사·공장 중 하나라도) — 결재 완료된 달의 잠금 해제 대상
+        function leaveApprPerm() { return LEAVE_APPR_STAGES.some(s => leaveApprPermFor(s.key)); }
         function calYmKey() { return `${calYear}-${String(calMonth + 1).padStart(2, '0')}`; }
+        // 월 도장 정규화: { hq, factory } 형태로 반환(구버전 flat 도장은 hq로 해석)
+        function leaveStampsOf(ym) {
+            const s = (leaveApprovals || {})[ym];
+            if (!s) return {};
+            const st = { hq: s.hq, factory: s.factory };
+            if (!st.hq && s.date) st.hq = { title: s.title, name: s.name, date: s.date };
+            return st;
+        }
+        // 날짜(YYYY-MM-DD 또는 YYYY-MM)의 달에 관리자 결재 도장이 하나라도 찍혔는지 (일 모달 안내용)
+        function leaveMonthApproved(dateStr) {
+            const st = leaveStampsOf(String(dateStr || '').slice(0, 7));
+            return !!((st.hq && st.hq.date) || (st.factory && st.factory.date));
+        }
+        // 현재 사용자 그룹: 'hq'(본사 임직원) | 'factory'(그 외 임직원)
+        // 본사관리자(hq) 도장 → 본사 임직원 잠금, 공장관리자(factory) 도장 → 임직원 잠금
+        function leaveUserGroup() {
+            try { const u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}');
+                return u.empGroup === 'hq' ? 'hq' : 'factory'; }
+            catch (e) { return 'factory'; }
+        }
+        // 해당 그룹의 결재 도장이 그 달에 찍혔는지
+        function leaveMonthLockedForGroup(dateStr, group) {
+            const s = leaveStampsOf(String(dateStr || '').slice(0, 7))[group];
+            return !!(s && s.date);
+        }
+        // 내 그룹의 결재가 완료된 달인데 결재자가 아니면 true(잠금)
+        function leaveLockedFor(dateStr) {
+            return !leaveApprPerm() && leaveMonthLockedForGroup(dateStr, leaveUserGroup());
+        }
+        // 기간(시작~종료)이 '내 그룹' 결재 완료된 달에 걸리고 결재자가 아니면 걸린 첫 달('YYYY-MM') 반환
+        function leaveLockedInRange(startVal, endVal) {
+            if (leaveApprPerm() || !leaveApprovals) return null;
+            const g = leaveUserGroup();
+            let y = +String(startVal).slice(0, 4), m = +String(startVal).slice(5, 7);
+            const ey = +String(endVal).slice(0, 4), em = +String(endVal).slice(5, 7);
+            let guard = 0;
+            while ((y < ey || (y === ey && m <= em)) && guard++ < 60) {
+                const ym = y + '-' + String(m).padStart(2, '0');
+                if (leaveMonthLockedForGroup(ym, g)) return ym;
+                m++; if (m > 12) { m = 1; y++; }
+            }
+            return null;
+        }
+        function leaveLockMsg(ym) {
+            ym = String(ym || '').slice(0, 7);
+            const who = leaveUserGroup() === 'hq' ? '본사관리자' : '공장관리자';
+            return `${ym.slice(0, 4)}년 ${+ym.slice(5, 7)}월은 ${who} 결재가 완료된 달입니다.\n연월차 추가·수정·삭제는 연월차 결재자만 가능합니다.`;
+        }
         function loadLeaveApprovals() {
             if (leaveApprovals !== null || leaveApprovalsLoading || !db) return;
             leaveApprovalsLoading = true;
@@ -10342,37 +10440,37 @@
                 .finally(() => { leaveApprovalsLoading = false; });
         }
         function leaveApprovalHtml() {
-            const stamp = (leaveApprovals || {})[calYmKey()];
-            let body;
-            if (stamp && stamp.date) {
-                body = `<div class="asr-appr-name">${escapeCal(((stamp.title ? stamp.title + ' ' : '') + (stamp.name || '')).trim())}</div><div class="asr-appr-date">${escapeCal(stamp.date)}</div>`;
-            } else if (leaveApprPerm()) {
-                body = `<button type="button" class="asr-appr-btn" onclick="approveLeaveMonth()">미결재</button>`;
-            } else {
-                body = '<div class="asr-appr-wait">미결재</div>';
-            }
-            return `<div class="cal-appr-row">
-                <span class="cal-appr-label">${calMonth + 1}월 연월차 결재</span>
-                <div class="asr-approval cal-appr">
-                    <div class="asr-appr-cell"><div class="asr-appr-head">관리자</div><div class="asr-appr-body">${body}</div></div>
-                </div>
-            </div>`;
+            const stamps = leaveStampsOf(calYmKey());
+            const cells = LEAVE_APPR_STAGES.map(st => {
+                const stamp = stamps[st.key];
+                let body;
+                if (stamp && stamp.date) {
+                    body = `<div class="asr-appr-name">${escapeCal(((stamp.title ? stamp.title + ' ' : '') + (stamp.name || '')).trim())}</div><div class="asr-appr-date">${escapeCal(stamp.date)}</div>`;
+                } else if (leaveApprPermFor(st.key)) {
+                    body = `<button type="button" class="asr-appr-btn" onclick="approveLeaveMonth('${st.key}')">미결재</button>`;
+                } else {
+                    body = '<div class="asr-appr-wait">미결재</div>';
+                }
+                return `<div class="asr-appr-cell"><div class="asr-appr-head">${st.label}</div><div class="asr-appr-body">${body}</div></div>`;
+            }).join('');
+            return `<div class="asr-approval cal-appr" title="${calYear}년 ${calMonth + 1}월 연월차 결재">${cells}</div>`;
         }
         // 결재확인: A/S와 동일하게 별도 입력 없이 '확인'만 — 직책(직급/직책)+이름+날짜 자동 기록
-        async function approveLeaveMonth() {
-            if (!leaveApprPerm()) { alert('연월차 결재 권한이 없습니다.'); return; }
+        async function approveLeaveMonth(stage) {
+            const st = LEAVE_APPR_STAGES.find(s => s.key === stage);
+            if (!st || !leaveApprPermFor(stage)) { alert('연월차 결재 권한이 없습니다.'); return; }
             const ym = calYmKey();
-            if (leaveApprovals && leaveApprovals[ym] && leaveApprovals[ym].date) { renderCalendar(); return; }
+            if (leaveStampsOf(ym)[stage] && leaveStampsOf(ym)[stage].date) { renderCalendar(); return; }
             let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
-            const title = (u.position || '').trim() || '관리자';
+            const title = (u.position || '').trim() || st.label;
             const name = u.name || u.username || '임직원';
             const stamp = { title, name, date: new Date().toLocaleDateString('ko-KR') };
             const label = ((title ? title + ' ' : '') + name).trim();
-            if (!(await showStaffConfirm(`${calYear}년 ${calMonth + 1}월 연월차 일정을 확인·승인 결재하시겠습니까?\n\n${label} · ${stamp.date}`))) return;
+            if (!(await showStaffConfirm(`${calYear}년 ${calMonth + 1}월 연월차 일정을 ${st.label} 결재로 확인·승인하시겠습니까?\n\n${label} · ${stamp.date}`))) return;
             if (db) {
                 try {
                     await db.collection('appConfig').doc('leaveApprovals')
-                        .set({ months: { [ym]: stamp } }, { merge: true });
+                        .set({ months: { [ym]: { [stage]: stamp } } }, { merge: true });
                 } catch (e) {
                     console.error('연월차 결재 저장 실패:', e);
                     alert('결재 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
@@ -10380,9 +10478,9 @@
                 }
             }
             leaveApprovals = leaveApprovals || {};
-            leaveApprovals[ym] = stamp;
+            leaveApprovals[ym] = Object.assign({}, leaveApprovals[ym], { [stage]: stamp });
             renderCalendar();
-            if (typeof showStaffDonePopup === 'function') showStaffDonePopup(`${calYear}년 ${calMonth + 1}월 연월차 결재가 완료되었습니다.`);
+            if (typeof showStaffDonePopup === 'function') showStaffDonePopup(`${calYear}년 ${calMonth + 1}월 연월차 ${st.label} 결재가 완료되었습니다.`);
         }
 
         // (하위호환) 회사운영 수정 가능 여부 — 이제 현재 kind의 canManage를 따른다
@@ -10463,12 +10561,12 @@
             Object.values(byDate).forEach(arr => arr.sort((a, b) => (a.time || '').localeCompare(b.time || '')));
 
             const dows = ['일', '월', '화', '수', '목', '금', '토'];
-            let html = currentCalKind === 'leave' ? leaveApprovalHtml() : '';
-            html += `
+            let html = `
               <div class="cal-header">
                 <button class="cal-nav" onclick="calPrev()" title="이전 달">◀</button>
                 <div class="cal-title">${calYear}년 ${calMonth + 1}월</div>
                 <button class="cal-nav" onclick="calNext()" title="다음 달">▶</button>
+                ${currentCalKind === 'leave' ? leaveApprovalHtml() : ''}
               </div>
               <div class="cal-grid">`;
             dows.forEach((d, i) => html += `<div class="cal-dow ${i === 0 ? 'sun' : ''} ${i === 6 ? 'sat' : ''}">${d}</div>`);
@@ -10486,7 +10584,7 @@
                 </div>`;
             }
             html += `</div>`;
-            html += `<div class="cal-foot">${calCfg().canAdd() ? '날짜를 클릭해 일정을 추가/관리할 수 있습니다.' : '날짜를 클릭하면 일정을 볼 수 있습니다.'}</div>`;
+            html += `<div class="cal-foot">${calCfg().canAdd(calYmKey()) ? '날짜를 클릭해 일정을 추가/관리할 수 있습니다.' : '날짜를 클릭하면 일정을 볼 수 있습니다.'}</div>`;
             if (calLoading) html += `<div class="grid-loading"><span class="table-spinner"></span>일정을 불러오는 중…</div>`;
             view.innerHTML = html;
         }
@@ -10504,8 +10602,8 @@
             document.body.style.overflow = '';
         }
         function renderDayModal() {
-            const canManage = calCfg().canManage();   // 수정·삭제
-            const canAdd = calCfg().canAdd();          // 추가
+            const canManage = calCfg().canManage(dayModalDate);   // 수정·삭제
+            const canAdd = calCfg().canAdd(dayModalDate);          // 추가
             const evs = companyEvents.filter(e => e.date === dayModalDate)
                 .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
             document.getElementById('day-modal-title').textContent = `${dayModalDate} 일정`;
@@ -10613,6 +10711,13 @@
                     }
                 }
             }
+            // 연월차: 결재 완료된 달이면 잠금 안내 표시(찍힌 단계별 — 본사=본사 임직원 잠금, 공장=임직원 잠금)
+            if (currentCalKind === 'leave' && leaveMonthApproved(dayModalDate)) {
+                const st = leaveStampsOf(String(dayModalDate || '').slice(0, 7));
+                const who = [st.hq && st.hq.date && '본사관리자', st.factory && st.factory.date && '공장관리자'].filter(Boolean).join('·');
+                list.insertAdjacentHTML('beforeend',
+                    `<div class="day-lock-note">🔒 ${who} 결재가 완료된 달입니다.${leaveLockedFor(dayModalDate) ? ' 연월차 추가·수정·삭제는 연월차 결재자만 가능합니다.' : ''}</div>`);
+            }
             // 추가 폼: 추가 권한이 있고 편집 중이 아닐 때만 표시
             const showAdd = canAdd && !editingCompanyEventId;
             document.getElementById('day-add-form').style.display = showAdd ? 'block' : 'none';
@@ -10692,7 +10797,10 @@
         }
 
         async function addCompanyEvent() {
-            if (!calCfg().canAdd()) { alert('일정 작성 권한이 없습니다.'); return; }
+            if (!calCfg().canAdd(dayModalDate)) {
+                alert(currentCalKind === 'leave' && leaveLockedFor(dayModalDate) ? leaveLockMsg(dayModalDate) : '일정 작성 권한이 없습니다.');
+                return;
+            }
             const isLeave = currentCalKind === 'leave';
             const startVal = document.getElementById('day-ev-start').value || dayModalDate;
             const endVal = document.getElementById('day-ev-end').value || startVal;
@@ -10721,6 +10829,11 @@
                 if (!title) { alert('일정 제목을 입력하세요.'); return; }
             }
             if (endVal < startVal) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
+            if (isLeave) {
+                // 휴가기간이 결재 완료된 달에 걸치면(다른 달로 지정 포함) 결재자만 등록 가능
+                const lockedYm = leaveLockedInRange(startVal, endVal);
+                if (lockedYm) { alert(leaveLockMsg(lockedYm)); return; }
+            }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
 
             const dates = calBuildDates(startVal, endVal);
@@ -10753,7 +10866,12 @@
         }
 
         function editCompanyEvent(id) {
-            if (!calCfg().canManage()) { alert('일정 수정 권한이 없습니다.'); return; }
+            const ev = companyEvents.find(e => e.id === id) || {};
+            const d = ev.date || dayModalDate;
+            if (!calCfg().canManage(d)) {
+                alert(currentCalKind === 'leave' && leaveLockedFor(d) ? leaveLockMsg(d) : '일정 수정 권한이 없습니다.');
+                return;
+            }
             editingCompanyEventId = id;
             renderDayModal();
         }
@@ -10762,9 +10880,12 @@
             renderDayModal();
         }
         async function saveCompanyEventEdit(id) {
-            if (!calCfg().canManage()) { alert('일정 수정 권한이 없습니다.'); return; }
             const isLeave = currentCalKind === 'leave';
             const orig = companyEvents.find(e => e.id === id) || {};
+            if (!calCfg().canManage(orig.date || dayModalDate)) {
+                alert(isLeave && leaveLockedFor(orig.date || dayModalDate) ? leaveLockMsg(orig.date || dayModalDate) : '일정 수정 권한이 없습니다.');
+                return;
+            }
             const startEl = document.getElementById('day-edit-start');
             const endEl = document.getElementById('day-edit-end');
             const startVal = (startEl && startEl.value) ? startEl.value : dayModalDate;
@@ -10795,6 +10916,12 @@
                 if (!title) { alert('일정 제목을 입력하세요.'); return; }
             }
             if (endVal < startVal) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
+            if (isLeave) {
+                // 원본 기간 또는 새 기간이 결재 완료된 달에 걸치면 결재자만 수정 가능
+                const lockedYm = leaveLockedInRange(orig.periodStart || orig.date || startVal, orig.periodEnd || orig.date || endVal)
+                              || leaveLockedInRange(startVal, endVal);
+                if (lockedYm) { alert(leaveLockMsg(lockedYm)); return; }
+            }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
             const dates = calBuildDates(startVal, endVal);
             if (dates.length === 0) { alert('유효한 날짜가 없습니다.'); return; }
@@ -10830,9 +10957,17 @@
         }
 
         async function deleteCompanyEvent(id) {
-            if (!calCfg().canManage()) { alert('권한이 없습니다.'); return; }
-            const coll = db.collection(calCfg().collection);
             const orig = companyEvents.find(e => e.id === id) || {};
+            if (!calCfg().canManage(orig.date || dayModalDate)) {
+                alert(currentCalKind === 'leave' && leaveLockedFor(orig.date || dayModalDate) ? leaveLockMsg(orig.date || dayModalDate) : '권한이 없습니다.');
+                return;
+            }
+            if (currentCalKind === 'leave') {
+                // 기간(그룹) 삭제가 결재 완료된 달에 걸치면 결재자만 가능
+                const lockedYm = leaveLockedInRange(orig.periodStart || orig.date || dayModalDate, orig.periodEnd || orig.date || dayModalDate);
+                if (lockedYm) { alert(leaveLockMsg(lockedYm)); return; }
+            }
+            const coll = db.collection(calCfg().collection);
             const isGroup = !!(orig.groupId || orig.periodStart);   // 기간(여러 날) 일정 여부
             const msg = isGroup
                 ? '기간(여러 날) 일정입니다.\n해당 기간의 동일한 일정을 모두 삭제하시겠습니까?'

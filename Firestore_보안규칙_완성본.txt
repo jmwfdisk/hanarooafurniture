@@ -275,15 +275,18 @@ service cloud.firestore {
     // ========== 앱 설정/메타 (appConfig) ==========
     // 예: doc('memberOrder')     = { order: [uid...] } 승인완료 회원 표시 순서
     //     doc('asAssignees')     = { list: [이름...] } A/S 출동담당자 목록
-    //     doc('leaveApprovals')  = { months: { 'YYYY-MM': {title,name,date} } } 연월차 월별 결재 도장
+    //     doc('leaveApprovals')  = { months: { 'YYYY-MM': { hq:{title,name,date}, factory:{…} } } }
+    //                              연월차 월별 결재 도장(본사=hq, 공장=factory; 구버전 flat 도장=본사로 해석)
     match /appConfig/{docId} {
       // 읽기: 임직원
       allow read: if isEmployee();
       // 쓰기: 기본은 관리자만. 단,
       //   - asAssignees(A/S 출동담당자 목록)  : 'asAssignee' 권한 보유자(또는 전체/관리자)도 수정 가능
-      //   - leaveApprovals(연월차 월별 결재)  : 'leaveApprove' 권한 보유자(또는 전체/관리자)도 수정 가능
+      //   - leaveApprovals(연월차 월별 결재)  : '연월차 결재(본사/공장)' 권한 보유자(또는 전체/관리자)도 수정 가능
       allow write: if docId == 'asAssignees' ? permFor('asAssignee')
-                   : (docId == 'leaveApprovals' ? permFor('leaveApprove') : isAdmin());
+                   : (docId == 'leaveApprovals'
+                       ? (permFor('leaveApprove') || permFor('leaveApproveFactory'))
+                       : isAdmin());
     }
 
     // ========== 회사운영 달력 (companyCalendar) ==========
@@ -298,10 +301,13 @@ service cloud.firestore {
     // ========== 연월차일정 (leaveSchedule) ==========
     // 직원게시판 '연월차일정' 캘린더. 구조는 companyCalendar와 동일.
     // 추가·읽기 = 임직원 전체, 수정·삭제 = '연월차일정' 권한 보유자(또는 전체/관리자)
+    //             + '연월차 결재(본사 leaveApprove/공장 leaveApproveFactory)' 권한 보유자(결재 완료된 달의 정정용)
+    // ※ '결재 완료된 달은 결재자만 추가·수정·삭제' 월 잠금은 클라이언트에서 검사
+    //   (appConfig/leaveApprovals 도장 기준 — 서버 규칙으로는 월 단위 잠금 미적용)
     match /leaveSchedule/{eventId} {
       allow read: if isEmployee();
       allow create: if isEmployee();
-      allow update, delete: if permFor('leaveSchedule');
+      allow update, delete: if permFor('leaveSchedule') || permFor('leaveApprove') || permFor('leaveApproveFactory');
     }
 
     // ========== 재고현황 (inventory) ==========
