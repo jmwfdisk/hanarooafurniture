@@ -10032,7 +10032,7 @@
               </select>
             </div>
             <div class="day-leave-row">
-              <label>종류</label>
+              <label>연차종류</label>
               <select id="day-ev-leave-type" onchange="updateLeaveDaysBadge()">
                 <option value="연차">연차</option>
                 <option value="휴가">휴가</option>
@@ -10243,6 +10243,7 @@
         }
         // 추가 폼 미리보기 배지 + 연차일수 활성/비활성 동기화
         // 휴가기간이 1일 초과(시작≠종료)면 연차일수 지정 불가 → 제목에는 기간을 표시
+        // 이때 연차종류는 '휴가'로 자동 지정('연차' 선택 불가, 그 외 종류는 선택 가능)
         function updateLeaveDaysBadge() {
             const dSel = document.getElementById('day-ev-leave-days');
             const tSel = document.getElementById('day-ev-leave-type');
@@ -10251,6 +10252,7 @@
             const eEl = document.getElementById('day-ev-end');
             const multi = !!(sEl && eEl && sEl.value && eEl.value && sEl.value !== eEl.value);
             if (dSel) dSel.disabled = multi;
+            leaveSyncTypeSelect(tSel, multi);
             if (!badge) return;
             const type = tSel ? tSel.value : '연차';
             const core = multi
@@ -10258,12 +10260,21 @@
                 : '(연차' + (dSel ? dSel.value : '1') + ')';
             badge.textContent = core + (type !== '연차' ? ' / ' + type : '');
         }
-        // 수정 폼: 기간이 1일 초과면 연차일수 비활성
+        // 수정 폼: 기간이 1일 초과면 연차일수 비활성 + 연차종류 '휴가' 자동 지정('연차' 선택 불가)
         function leaveEditSyncDays() {
             const sEl = document.getElementById('day-edit-start');
             const eEl = document.getElementById('day-edit-end');
             const dSel = document.getElementById('day-edit-leave-days');
-            if (dSel) dSel.disabled = !!(sEl && eEl && sEl.value && eEl.value && sEl.value !== eEl.value);
+            const multi = !!(sEl && eEl && sEl.value && eEl.value && sEl.value !== eEl.value);
+            if (dSel) dSel.disabled = multi;
+            leaveSyncTypeSelect(document.getElementById('day-edit-leave-type'), multi);
+        }
+        // 기간 1일 초과 여부에 따라 연차종류 select 동기화: 초과면 '연차' 비활성 + 연차→휴가 자동 전환
+        function leaveSyncTypeSelect(tSel, multi) {
+            if (!tSel) return;
+            const annOpt = tSel.querySelector('option[value="연차"]');
+            if (annOpt) annOpt.disabled = multi;
+            if (multi && tSel.value === '연차') tSel.value = '휴가';
         }
         // select에 값이 없으면(구버전 데이터 등) 옵션을 추가해서라도 선택
         function calSetSelectValue(sel, val) {
@@ -10429,7 +10440,7 @@
             document.getElementById('day-modal-title').textContent = `${dayModalDate} 일정`;
             const list = document.getElementById('day-event-list');
             if (!evs.length) {
-                list.innerHTML = '<div class="day-empty">등록된 일정이 없습니다.</div>';
+                list.innerHTML = `<div class="day-empty">등록된 ${currentCalKind === 'leave' ? '연월차가' : '일정이'} 없습니다.</div>`;
             } else {
                 list.innerHTML = evs.map(ev => {
                     // 편집 중인 일정: 인라인 편집 폼 (값은 아래에서 JS로 채움 → 속성 이스케이프 회피)
@@ -10452,7 +10463,7 @@
                                 </select>
                             </div>
                             <div class="day-leave-row">
-                                <label>종류</label>
+                                <label>연차종류</label>
                                 <select id="day-edit-leave-type">
                                     <option value="연차">연차</option>
                                     <option value="휴가">휴가</option>
