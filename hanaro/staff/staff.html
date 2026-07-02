@@ -8461,6 +8461,7 @@
             { key: 'inventory', label: '재고현황' },
             { key: 'materials', label: '자재관리' },
             { key: 'leaveSchedule', label: '연월차일정' },
+            { key: 'leaveApprove', label: '연월차 결재(관리자)' },
             { key: 'report',    label: '업무보고(본사)' }
         ];
         let permModalUserId = null;
@@ -9978,7 +9979,7 @@
           <div class="perm-member" id="perm-member-name"></div>
           <p class="perm-help">권한을 부여하면 괄호 안의 작업(쓰기·읽기·수정·삭제 등)을 할 수 있습니다. 읽기만 따로 적힌 항목 외에는 <b>읽기는 전 직원이 가능</b>합니다. ‘전체’는 모든 영역을 포함합니다(단, A/S 결재·회원관리 제외).</p>
           <div class="perm-list">
-          <label class="perm-row"><span>전체 <small class="perm-desc">(아래 모든 권한 포함 — A/S 결재·회원관리 제외)</small></span><input type="checkbox" id="perm-all"></label>
+          <label class="perm-row"><span>전체 <small class="perm-desc">(아래 모든 권한 포함 — A/S·연월차 결재·회원관리 제외)</small></span><input type="checkbox" id="perm-all"></label>
           <label class="perm-row"><span>공지사항 <small class="perm-desc">(쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-notice"></label>
           <label class="perm-row"><span>회사운영 <small class="perm-desc">(회사운영 캘린더 일정 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-company"></label>
           <label class="perm-row"><span>활동사진첩 <small class="perm-desc">(사진 업로드·수정·삭제)</small></span><input type="checkbox" id="perm-photos"></label>
@@ -9991,6 +9992,7 @@
           <label class="perm-row"><span>재고현황 <small class="perm-desc">(재고 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-inventory"></label>
           <label class="perm-row"><span>자재관리 <small class="perm-desc">(자재 쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-materials"></label>
           <label class="perm-row"><span>연월차일정 <small class="perm-desc">(일정 수정·삭제 / 추가·읽기는 전 직원)</small></span><input type="checkbox" id="perm-leaveSchedule"></label>
+          <label class="perm-row"><span>연월차 결재(관리자) <small class="perm-desc">(연월차 캘린더 월별 확인·승인 결재)</small></span><input type="checkbox" id="perm-leaveApprove"></label>
           <label class="perm-row"><span>업무보고(본사) <small class="perm-desc">(읽기·쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-report"></label>
           </div>
         </div>
@@ -10077,6 +10079,10 @@
         #company-calendar-view .grid-loading, #leave-calendar-view .grid-loading { background:rgba(255,255,255,.72); border-radius:8px; }
         .cal-header { display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
         .cal-header .cal-title { font-size:20px; font-weight:700; color:#333; min-width:140px; text-align:center; }
+        /* 연월차 캘린더 상단 우측 월별 결재란 (A/S 결재선 스타일 재사용) */
+        .cal-appr-row { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin:0 0 10px; }
+        .cal-appr-row .cal-appr-label { font-size:12px; font-weight:700; color:#5b6677; }
+        .asr-approval.cal-appr { margin-left:0; width:auto; }
         .cal-nav { width:36px; height:36px; border:1px solid #e0e3e8; background:#fff; border-radius:8px; cursor:pointer; font-size:14px; color:#555; }
         .cal-nav:hover { border-color:#3b82f6; color:#3b82f6; }
         .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); border-top:2px solid #3b4453; border-left:1px solid #e8eaed; }
@@ -10316,6 +10322,69 @@
         let currentCalKind = 'company';
         function calCfg() { return CAL_KINDS[currentCalKind] || CAL_KINDS.company; }
 
+        // ===== 연월차 월별 결재(달력 상단 우측 결재란) =====
+        // A/S 결재와 동일 구조: 결재자는 웹 관리자 자동권한이 아니라 admin이 '연월차 결재(관리자)'
+        // 권한(leaveApprove)을 부여한 임직원만 가능(asrPerm — admin/전체 자동통과 없음).
+        // 도장은 appConfig/leaveApprovals = { months: { 'YYYY-MM': {title,name,date} } }에 월 단위로 저장.
+        let leaveApprovals = null;            // { 'YYYY-MM': {title,name,date} } (null=미로드)
+        let leaveApprovalsLoading = false;
+        function leaveApprPerm() { return (typeof asrPerm === 'function') && asrPerm('leaveApprove'); }
+        function calYmKey() { return `${calYear}-${String(calMonth + 1).padStart(2, '0')}`; }
+        function loadLeaveApprovals() {
+            if (leaveApprovals !== null || leaveApprovalsLoading || !db) return;
+            leaveApprovalsLoading = true;
+            db.collection('appConfig').doc('leaveApprovals').get()
+                .then(d => {
+                    leaveApprovals = (d.exists && d.data() && d.data().months) || {};
+                    if (currentCalKind === 'leave') renderCalendar();
+                })
+                .catch(e => console.error('연월차 결재 현황 로드 실패:', e))
+                .finally(() => { leaveApprovalsLoading = false; });
+        }
+        function leaveApprovalHtml() {
+            const stamp = (leaveApprovals || {})[calYmKey()];
+            let body;
+            if (stamp && stamp.date) {
+                body = `<div class="asr-appr-name">${escapeCal(((stamp.title ? stamp.title + ' ' : '') + (stamp.name || '')).trim())}</div><div class="asr-appr-date">${escapeCal(stamp.date)}</div>`;
+            } else if (leaveApprPerm()) {
+                body = `<button type="button" class="asr-appr-btn" onclick="approveLeaveMonth()">미결재</button>`;
+            } else {
+                body = '<div class="asr-appr-wait">미결재</div>';
+            }
+            return `<div class="cal-appr-row">
+                <span class="cal-appr-label">${calMonth + 1}월 연월차 결재</span>
+                <div class="asr-approval cal-appr">
+                    <div class="asr-appr-cell"><div class="asr-appr-head">관리자</div><div class="asr-appr-body">${body}</div></div>
+                </div>
+            </div>`;
+        }
+        // 결재확인: A/S와 동일하게 별도 입력 없이 '확인'만 — 직책(직급/직책)+이름+날짜 자동 기록
+        async function approveLeaveMonth() {
+            if (!leaveApprPerm()) { alert('연월차 결재 권한이 없습니다.'); return; }
+            const ym = calYmKey();
+            if (leaveApprovals && leaveApprovals[ym] && leaveApprovals[ym].date) { renderCalendar(); return; }
+            let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+            const title = (u.position || '').trim() || '관리자';
+            const name = u.name || u.username || '임직원';
+            const stamp = { title, name, date: new Date().toLocaleDateString('ko-KR') };
+            const label = ((title ? title + ' ' : '') + name).trim();
+            if (!(await showStaffConfirm(`${calYear}년 ${calMonth + 1}월 연월차 일정을 확인·승인 결재하시겠습니까?\n\n${label} · ${stamp.date}`))) return;
+            if (db) {
+                try {
+                    await db.collection('appConfig').doc('leaveApprovals')
+                        .set({ months: { [ym]: stamp } }, { merge: true });
+                } catch (e) {
+                    console.error('연월차 결재 저장 실패:', e);
+                    alert('결재 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+                    return;
+                }
+            }
+            leaveApprovals = leaveApprovals || {};
+            leaveApprovals[ym] = stamp;
+            renderCalendar();
+            if (typeof showStaffDonePopup === 'function') showStaffDonePopup(`${calYear}년 ${calMonth + 1}월 연월차 결재가 완료되었습니다.`);
+        }
+
         // (하위호환) 회사운영 수정 가능 여부 — 이제 현재 kind의 canManage를 따른다
         function canEditCompanySchedule() {
             return calCfg().canManage();
@@ -10348,6 +10417,7 @@
             const ym = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
             const cacheKey = `${currentCalKind}|${ym}`;     // kind별로 캐시 분리
             const kindAtCall = currentCalKind;
+            if (kindAtCall === 'leave') loadLeaveApprovals();   // 월별 결재 현황(최초 1회 로드 후 재렌더)
             const seq = ++calLoadSeq;                       // 이전 진행 중 요청 무효화
             // 1) 격자는 즉시 렌더(캐시가 있으면 일정까지 함께 표시) — 네트워크를 기다리지 않음
             calLoading = false;
@@ -10393,7 +10463,8 @@
             Object.values(byDate).forEach(arr => arr.sort((a, b) => (a.time || '').localeCompare(b.time || '')));
 
             const dows = ['일', '월', '화', '수', '목', '금', '토'];
-            let html = `
+            let html = currentCalKind === 'leave' ? leaveApprovalHtml() : '';
+            html += `
               <div class="cal-header">
                 <button class="cal-nav" onclick="calPrev()" title="이전 달">◀</button>
                 <div class="cal-title">${calYear}년 ${calMonth + 1}월</div>
