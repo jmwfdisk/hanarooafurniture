@@ -62,7 +62,7 @@ The working tree contains scratch, stale, and binary files that are **not** the 
 - `hanaro/js/auth.js` is the live auth singleton. `auth_js_1단계_버전.js` (root) is an older "1단계" snapshot — do not edit it.
 - `sample.html`, `sample2.html`, `search.html` (root) and `hanaro/AS/이전as.html`, `hanaro/AS/테스트.html` are experiments/older versions, not linked from the live site.
 - `_backup/` is a gitignored duplicate of `index.html` + `hanaro/`. Edits there have no effect on production.
-- `.gitignore` excludes `_backup/`, `.cursor/`, `*.psd`, `*.clip`, `.DS_Store`, so design sources (`.psd`, `.clip`) live in the tree but stay untracked.
+- `.gitignore` excludes `_backup/`, `.cursor/`, `docs/`, `*.psd`, `*.clip`, `.DS_Store`, so design sources (`.psd`, `.clip`) and the internal docs live in the tree but stay untracked (`docs/` is 내부 참고 문서, 배포 불필요 — edits there never reach the repo/production).
 
 ### Firebase Auth (`hanaro/js/auth.js`)
 
