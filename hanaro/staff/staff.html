@@ -762,7 +762,7 @@
         
         /* 테이블 열 너비 고정: 아이디(120) 이름(100) 이메일(200) 회원유형(100) 신청일(120) 승인여부(150) 관리(80) */
         #member-section .table-header {
-            grid-template-columns: 130px 96px 85px 1fr 80px 95px 84px 116px;
+            grid-template-columns: 130px 96px 85px 1fr 98px 95px 84px 116px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -776,7 +776,7 @@
         #member-section .table-row {
             position: static;
             left: auto;
-            grid-template-columns: 130px 96px 85px 1fr 80px 95px 84px 116px;
+            grid-template-columns: 130px 96px 85px 1fr 98px 95px 84px 116px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -856,18 +856,21 @@
             margin: 0;
         }
 
-        /* 회원유형 변경 드롭다운 (관리자) */
+        /* 회원유형 변경 드롭다운 (관리자) — '본사 임직원'까지 잘리지 않게 셀 폭에 맞춤 */
         #member-section .member-type-select {
             height: 22px;
-            padding: 1px 6px;
+            padding: 1px 2px;
             border: 1px solid #d5d9e0;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: #333;
             background: #fff;
             cursor: pointer;
             box-sizing: border-box;
+            width: 100%;
+            max-width: 98px;
+            min-width: 0;
         }
         #member-section .member-type-select:hover {
             border-color: #3b82f6;
@@ -1996,9 +1999,9 @@
             }
 
             #member-section .table-header {
-                grid-template-columns: 110px 110px 80px 200px 90px 95px 100px 130px !important;
-                min-width: 915px !important;
-                width: 915px !important;
+                grid-template-columns: 110px 110px 80px 200px 98px 95px 100px 130px !important;
+                min-width: 923px !important;
+                width: 923px !important;
                 font-size: 12px;
                 padding: 8px 5px;
                 gap: 4px;
@@ -2019,9 +2022,9 @@
 
 
             #member-section .table-row {
-                grid-template-columns: 110px 110px 80px 200px 90px 95px 100px 130px !important;
-                min-width: 915px !important;
-                width: 915px !important;
+                grid-template-columns: 110px 110px 80px 200px 98px 95px 100px 130px !important;
+                min-width: 923px !important;
+                width: 923px !important;
                 font-size: 13px !important;
                 padding: 8px 5px !important;
                 gap: 4px;
