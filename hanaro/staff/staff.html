@@ -2759,6 +2759,10 @@
             }
         }
     </style>
+<script>/* 로그인 UI 첫 페인트 확정: 네비 이동 시 로그인→로그아웃→로그인 깜빡임 방지.
+   auth.js는 <body> 끝에서 로드돼 헤더가 이미 그려진 뒤라, 여기 <head>에서 CSS로 먼저 상태를 고정한다.
+   auth.js applyInitialState()가 인라인 스타일로 넘겨받은 뒤 이 style(#auth-preinit)을 제거한다. */
+(function(){try{var on=sessionStorage.getItem("loggedIn")==="true"&&sessionStorage.getItem("loggedInUser");var s=document.createElement("style");s.id="auth-preinit";s.textContent=on?"#login-link{display:none!important}#logout-link{display:flex!important}":"#logout-link{display:none!important}#login-link{display:flex!important}";(document.head||document.documentElement).appendChild(s);}catch(e){}})();</script>
 </head>
 
     <body>
@@ -2865,8 +2869,8 @@
     </nav>
 
     <!-- 공통 인증 스크립트 -->
-    <script src="../js/auth.js?v=20260702"></script>
-    <script src="../js/footer-bar.js?v=20260701"></script>
+    <script src="../js/auth.js?v=20260704"></script>
+    <script src="../js/footer-bar.js?v=20260703"></script>
     <!-- 글쓰기 리치 에디터 본문 살균(XSS 방지). 미로딩 시 평문 폴백 -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
@@ -6820,10 +6824,10 @@
         <div class="board-table">
             <div class="table-header">
                 <span>소&nbsp;속</span>
-                <span>직급 / 직책</span>
+                <span id="member-pos-sort" onclick="setMemberSort('position')" title="클릭하면 직급 높은 순으로 정렬됩니다" style="cursor:pointer;user-select:none;">직급 / 직책&nbsp;<span id="member-pos-sort-ind" style="font-size:11px;color:#adb5bd;">↕</span></span>
                 <span>이&nbsp;름</span>
                 <span>이&nbsp;메&nbsp;일</span>
-                <span>회&nbsp;원&nbsp;유&nbsp;형</span>
+                <span id="member-type-sort" onclick="setMemberSort('type')" title="클릭하면 회원유형별로 정렬됩니다" style="cursor:pointer;user-select:none;">회&nbsp;원&nbsp;유&nbsp;형&nbsp;<span id="member-type-sort-ind" style="font-size:11px;color:#adb5bd;">↕</span></span>
                 <span>신&nbsp;청&nbsp;일</span>
                 <span>승&nbsp;인&nbsp;여&nbsp;부</span>
                 <span id="member-last-col-header">추가관리 권한부여</span>
@@ -8251,6 +8255,42 @@
             }
         }
 
+        // 회원 정렬: 회원유형 / 직급 헤더를 각각 독립적으로 켬/끔.
+        //  - 회원유형(type): 관리자→본사 임직원→임직원→일반회원 순
+        //  - 직급(position): 직급/직책 높은 순(대표이사 → … → 사원, 미입력은 맨 뒤)
+        //  둘 다 켜지면 '회원유형 1차 → 직급 2차'로 묶어 정렬(유형 그룹 안에서 직급순).
+        //  같은 순위끼리는 기존 표시 순서 유지(sort가 stable).
+        let memberSortType = false;
+        let memberSortPosition = false;
+        function setMemberSort(key) {
+            if (key === 'type') memberSortType = !memberSortType;
+            else if (key === 'position') memberSortPosition = !memberSortPosition;
+            memberCurrentPage = 1;
+            updateMemberSortIndicators();
+            renderMembers();
+        }
+        function updateMemberSortIndicators() {
+            [['member-type-sort-ind', memberSortType], ['member-pos-sort-ind', memberSortPosition]].forEach(([id, on]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.textContent = on ? '▼' : '↕';
+                el.style.color = on ? '#0071e3' : '#adb5bd';
+            });
+        }
+        // 직급/직책 서열(높을수록 앞). position은 자유 텍스트라 키워드 포함 여부로 판정하며,
+        // 높은 직급부터 검사해 처음 매칭된 순위를 사용(예: '대표이사'는 '이사'보다 먼저 매칭).
+        const POSITION_RANK = ['대표이사', '대표', '회장', '부회장', '사장', '부사장', '전무', '상무',
+            '이사', '본부장', '공장장', '소장', '실장', '부장', '차장', '팀장', '과장', '대리',
+            '반장', '주임', '사원'];
+        function memberPositionRank(pos) {
+            const s = String(pos == null ? '' : pos).replace(/\s/g, '');
+            if (!s) return 999;                              // 미입력 → 맨 뒤
+            for (let i = 0; i < POSITION_RANK.length; i++) {
+                if (s.indexOf(POSITION_RANK[i]) !== -1) return i;
+            }
+            return 998;                                      // 알 수 없는 직급 → 미입력 앞, 알려진 직급 뒤
+        }
+
         // 회원 탭 전환
         function showMemberTab(tab) {
             currentMemberTab = tab;
@@ -8299,6 +8339,24 @@
                     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
                 };
                 filteredMembers.sort((a, b) => orderIndex(a.id) - orderIndex(b.id));
+            }
+
+            // 정렬: 회원유형(1차) → 직급(2차) 조합. 켜진 기준만 순서대로 비교(둘 다 꺼지면 기존 순서 유지).
+            // sort는 stable이라 남은 동순위는 직전 표시 순서를 보존.
+            if (memberSortType || memberSortPosition) {
+                const typeRank = m => (m.isAdmin === true || m.username === 'admin') ? 0
+                    : (m.userType === 'employee' ? (m.empGroup === 'hq' ? 1 : 2) : 3);
+                filteredMembers.sort((a, b) => {
+                    if (memberSortType) {
+                        const d = typeRank(a) - typeRank(b);
+                        if (d !== 0) return d;
+                    }
+                    if (memberSortPosition) {
+                        const d = memberPositionRank(a.position) - memberPositionRank(b.position);
+                        if (d !== 0) return d;
+                    }
+                    return 0;
+                });
             }
 
             if (filteredMembers.length === 0) {
@@ -8432,7 +8490,8 @@
             });
 
             // 승인완료 계열 탭: 행 드래그앤드롭으로 순서 변경 (관리자, 같은 탭 내에서)
-            if (isApprovedTab && isAdminViewer) {
+            // 정렬 모드 중에는 비활성 — 표시 순서가 저장 순서(memberOrder)와 달라 드롭 위치가 어긋남
+            if (isApprovedTab && isAdminViewer && !memberSortType && !memberSortPosition) {
                 let dragSrcId = null;
                 tbody.querySelectorAll('.table-row').forEach(row => {
                     row.draggable = true;
