@@ -473,75 +473,71 @@ function setupAuthStateListener() {
 // 페이지 로드 시간 기록 (Firebase Auth 복원 대기 시간 계산용)
 window.pageLoadTime = Date.now();
 
-// 즉시 실행: DOMContentLoaded 전에 초기 상태 설정 (깜빡임 방지, 비동기 처리)
+// 즉시 실행: sessionStorage 기준으로 로그인 UI를 '동기적으로' 확정 (네비 이동 시 로그인 깜빡임 제거)
+// auth.js는 각 페이지 <body> 끝에서 로드 → 헤더의 login-link/logout-link는 이미 파싱된 상태이므로,
+// requestAnimationFrame/DOMContentLoaded로 미루지 않고 스크립트 실행 그 자리에서 바로 인라인 스타일을
+// 적용해야 '첫 페인트부터' 올바른 상태가 된다(이전 버전은 rAF로 미뤄 로그아웃→로그인 플래시가 생겼음).
 (function() {
-    const loggedInUser = sessionStorage.getItem("loggedInUser");
-    const loggedIn = sessionStorage.getItem("loggedIn");
-    
-    function setInitialState() {
-        // requestAnimationFrame으로 비동기 처리하여 렌더링 블로킹 방지
-        requestAnimationFrame(function() {
-            const loginLink = document.getElementById('login-link');
-            const logoutLink = document.getElementById('logout-link');
-            
-            if (loggedInUser && loggedIn === "true") {
-                try {
-                    const userData = JSON.parse(loggedInUser);
-                    // 즉시 UI 업데이트
-                    if (loginLink) {
-                        loginLink.setAttribute('data-initialized', 'true');
-                        loginLink.style.display = 'none';
-                        loginLink.style.width = '0';
-                        loginLink.style.margin = '0';
-                        loginLink.style.padding = '0';
-                    }
-                    if (logoutLink) {
-                        logoutLink.setAttribute('data-initialized', 'true');
-                        logoutLink.style.display = 'flex';
-                        logoutLink.style.width = 'auto';
-                        logoutLink.style.margin = '';
-                        logoutLink.style.padding = '';
-                    }
-                    // 임직원 버튼 상태 설정 (비동기)
-                    requestAnimationFrame(function() {
-                        const isEmployee = userData.userType === 'employee' || userData.isAdmin === true;
-                        document.querySelectorAll('.employee-button, #employee-button, #employee-button-mobile').forEach(btn => {
-                            btn.disabled = !isEmployee;
-                        });
-                    });
-                } catch (e) {
-                    logWarn('[즉시 실행] sessionStorage 파싱 오류');
-                }
-            } else {
-                // 로그아웃 상태
-                if (loginLink) {
-                    loginLink.setAttribute('data-initialized', 'true');
-                    loginLink.style.display = 'flex';
-                    loginLink.style.width = 'auto';
-                }
-                if (logoutLink) {
-                    logoutLink.setAttribute('data-initialized', 'true');
-                    logoutLink.style.display = 'none';
-                    logoutLink.style.width = '0';
-                    logoutLink.style.margin = '0';
-                    logoutLink.style.padding = '0';
-                }
+    function applyInitialState() {
+        const loginLink = document.getElementById('login-link');
+        const logoutLink = document.getElementById('logout-link');
+        // 헤더가 아직 파싱되지 않았으면(예외적으로 <head>에서 로드된 페이지) false 반환 → DOM 준비 후 재시도
+        if (!loginLink && !logoutLink) return false;
+
+        let userData = null;
+        try {
+            const raw = sessionStorage.getItem('loggedInUser');
+            if (raw && sessionStorage.getItem('loggedIn') === 'true') userData = JSON.parse(raw);
+        } catch (e) {
+            logWarn('[초기 상태] sessionStorage 파싱 오류');
+            userData = null;
+        }
+
+        if (userData) {
+            if (loginLink) {
+                loginLink.setAttribute('data-initialized', 'true');
+                loginLink.style.display = 'none';
+                loginLink.style.width = '0';
+                loginLink.style.margin = '0';
+                loginLink.style.padding = '0';
             }
-        });
+            if (logoutLink) {
+                logoutLink.setAttribute('data-initialized', 'true');
+                logoutLink.style.display = 'flex';
+                logoutLink.style.width = 'auto';
+                logoutLink.style.margin = '';
+                logoutLink.style.padding = '';
+            }
+            const isEmployee = userData.userType === 'employee' || userData.isAdmin === true;
+            document.querySelectorAll('.employee-button, #employee-button, #employee-button-mobile').forEach(btn => {
+                btn.disabled = !isEmployee;
+            });
+        } else {
+            // 로그아웃 상태
+            if (loginLink) {
+                loginLink.setAttribute('data-initialized', 'true');
+                loginLink.style.display = 'flex';
+                loginLink.style.width = 'auto';
+            }
+            if (logoutLink) {
+                logoutLink.setAttribute('data-initialized', 'true');
+                logoutLink.style.display = 'none';
+                logoutLink.style.width = '0';
+                logoutLink.style.margin = '0';
+                logoutLink.style.padding = '0';
+            }
+        }
+        // <head>의 사전주입 스타일(#auth-preinit) 제거 — 이제 인라인 스타일이 상태를 보유하므로
+        // 이후 logout() 등이 인라인으로 로그아웃 UI를 다시 켤 수 있어야 함(!important 스타일이 남으면 안 됨).
+        const preinit = document.getElementById('auth-preinit');
+        if (preinit) preinit.remove();
+        return true;
     }
-    
-    // DOM이 준비되면 즉시 실행 (더 빠른 실행)
-    if (document.readyState === 'loading') {
-        // DOMContentLoaded 대신 interactive 상태에서 실행 (더 빠름)
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setInitialState, { once: true });
-        }
-        // 또는 즉시 시도
-        if (document.body) {
-            setInitialState();
-        }
-    } else {
-        setInitialState();
+
+    // 1) 스크립트 실행 즉시 동기 적용(헤더는 이미 위에서 파싱됨)
+    if (!applyInitialState()) {
+        // 2) 헤더가 아직 없으면 DOM 준비 후 재시도
+        document.addEventListener('DOMContentLoaded', applyInitialState, { once: true });
     }
 })();
 
