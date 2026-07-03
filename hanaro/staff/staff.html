@@ -2759,10 +2759,10 @@
             }
         }
     </style>
-<script>/* 로그인 UI 첫 페인트 확정: 네비 이동 시 로그인→로그아웃→로그인 깜빡임 방지.
-   auth.js는 <body> 끝에서 로드돼 헤더가 이미 그려진 뒤라, 여기 <head>에서 CSS로 먼저 상태를 고정한다.
-   auth.js applyInitialState()가 인라인 스타일로 넘겨받은 뒤 이 style(#auth-preinit)을 제거한다. */
-(function(){try{var on=sessionStorage.getItem("loggedIn")==="true"&&sessionStorage.getItem("loggedInUser");var s=document.createElement("style");s.id="auth-preinit";s.textContent=on?"#login-link{display:none!important}#logout-link{display:flex!important}":"#logout-link{display:none!important}#login-link{display:flex!important}";(document.head||document.documentElement).appendChild(s);}catch(e){}})();</script>
+<script>/* 로그인 UI 상태를 <html data-auth>로 확정: 첫 페인트부터 고정, 이후 auth.js가 이 속성만 갱신.
+   #auth-css(!important)가 data-auth에 따라 표시를 강제 → 비동기 인증 복원 중 인라인 display가
+   잠깐 바뀌어도 헤더(로그인/로그아웃) 표시가 흔들리지 않는다(네비 이동 깜빡임 방지). */
+(function(){try{var on=sessionStorage.getItem("loggedIn")==="true"&&!!sessionStorage.getItem("loggedInUser");document.documentElement.setAttribute("data-auth",on?"in":"out");var s=document.createElement("style");s.id="auth-css";s.textContent="html[data-auth=\u0027in\u0027] #login-link{display:none!important}html[data-auth=\u0027in\u0027] #logout-link{display:flex!important}html[data-auth=\u0027out\u0027] #logout-link{display:none!important}html[data-auth=\u0027out\u0027] #login-link{display:flex!important}";(document.head||document.documentElement).appendChild(s);}catch(e){}})();</script>
 </head>
 
     <body>
@@ -2869,7 +2869,7 @@
     </nav>
 
     <!-- 공통 인증 스크립트 -->
-    <script src="../js/auth.js?v=20260704"></script>
+    <script src="../js/auth.js?v=20260705"></script>
     <script src="../js/footer-bar.js?v=20260703"></script>
     <!-- 글쓰기 리치 에디터 본문 살균(XSS 방지). 미로딩 시 평문 폴백 -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>

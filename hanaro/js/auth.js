@@ -527,10 +527,10 @@ window.pageLoadTime = Date.now();
                 logoutLink.style.padding = '0';
             }
         }
-        // <head>의 사전주입 스타일(#auth-preinit) 제거 — 이제 인라인 스타일이 상태를 보유하므로
-        // 이후 logout() 등이 인라인으로 로그아웃 UI를 다시 켤 수 있어야 함(!important 스타일이 남으면 안 됨).
-        const preinit = document.getElementById('auth-preinit');
-        if (preinit) preinit.remove();
+        // 헤더 로그인/로그아웃 표시의 '단일 진실원천'은 <html data-auth>('in'|'out').
+        // <head> 스니펫이 심은 #auth-css(!important)가 이 속성에 따라 표시를 강제하므로,
+        // 비동기 인증 복원 중 인라인 display가 잠깐 바뀌어도 헤더는 절대 흔들리지 않는다.
+        document.documentElement.setAttribute('data-auth', userData ? 'in' : 'out');
         return true;
     }
 
@@ -884,7 +884,11 @@ function setLoggedInState(isLoggedIn, userData = null) {
     
     const loginLink = document.getElementById('login-link');
     const logoutLink = document.getElementById('logout-link');
-    
+
+    // 헤더 표시의 단일 진실원천: <html data-auth>. #auth-css(!important)가 이 속성으로 표시를 강제하므로
+    // 아래 인라인 토글이 어떤 순서로 들어와도(비동기 복원 레이스 포함) 헤더는 이 값만 따른다.
+    document.documentElement.setAttribute('data-auth', isLoggedIn ? 'in' : 'out');
+
     if (loginLink) {
         loginLink.setAttribute('data-initialized', 'true');
         if (isLoggedIn) {
