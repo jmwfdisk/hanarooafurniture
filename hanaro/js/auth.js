@@ -548,7 +548,10 @@ document.addEventListener('DOMContentLoaded', function() {
         setupActivityListeners();
         window.activityListenersSetup = true;
     }
-    
+
+    // 마이페이지(내 정보 수정) 준비 — 스타일/헤더 링크/모달을 전 페이지 공통 주입
+    try { ensureMyPageStyle(); ensureMyPageLink(); ensureMyPageModal(); } catch (e) { /* 무시 */ }
+
     // Firebase 초기화 및 리스너 설정 (비동기, 블로킹 없음)
     requestAnimationFrame(function() {
         if (!auth || !authDb) {
@@ -997,8 +1000,8 @@ function setupRegisterForm() {
     const sel = document.getElementById('reg-user-type');
     if (sel) sel.remove();
 
-    // 3) 단일 가입 버튼 → 본사 임직원/임직원/일반회원 3개 버튼
-    //    (본사 임직원은 userType='employee' + empGroup='hq'로 저장 — 임직원 권한은 동일)
+    // 3) 단일 가입 버튼 → 임직원/일반회원 2개 버튼
+    //    (본사 임직원 구분은 가입 시 받지 않고, 관리자가 회원관리 유형에서 '본사 임직원'으로 지정)
     if (!document.getElementById('reg-submit-employee')) {
         const oldBtn = Array.from(form.querySelectorAll('button')).find(b =>
             (b.getAttribute('onclick') || '').includes('register') || /회원가입\s*신청/.test(b.textContent || ''));
@@ -1006,7 +1009,6 @@ function setupRegisterForm() {
         wrap.id = 'reg-submit-wrap';
         wrap.style.cssText = 'display:flex;flex-direction:column;';
         wrap.innerHTML =
-            '<button type="button" id="reg-submit-employee-hq" onclick="register(\'employee-hq\')">본사 임직원 가입신청</button>' +
             '<button type="button" id="reg-submit-employee" onclick="register(\'employee\')">임직원 가입신청</button>' +
             '<button type="button" id="reg-submit-general" onclick="register(\'general\')">일반회원 가입신청</button>';
         if (oldBtn && oldBtn.parentNode) { oldBtn.parentNode.insertBefore(wrap, oldBtn); oldBtn.remove(); }
@@ -1503,6 +1505,153 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// ================= 마이페이지 (내 정보 수정) — 전 페이지 공통, auth.js가 동적 주입 =================
+// 로그인한 사용자가 이름·연락처·소속·직급/직책을 직접 수정하고 비밀번호를 변경한다.
+// 이메일(로그인 아이디)·회원유형·권한·승인상태는 수정 불가(관리자 영역).
+// Firestore 규칙도 본인 수정은 name/phone/org/position 4개 필드만 허용하도록 축소되어 있음.
+function ensureMyPageStyle() {
+    if (document.getElementById('mypage-style')) return;
+    var st = document.createElement('style');
+    st.id = 'mypage-style';
+    st.textContent =
+        '#mypage-link{cursor:pointer;}' +
+        'html[data-auth="in"] #mypage-link{display:flex!important}' +
+        'html[data-auth="out"] #mypage-link{display:none!important}' +
+        '#mypage-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;}' +
+        '#mypage-modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100001;width:400px;max-width:92vw;max-height:88vh;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:26px 24px;box-sizing:border-box;text-align:left;}' +
+        '#mypage-modal h3{margin:0 0 4px;font-size:20px;color:#1d1d1f;}' +
+        '#mypage-modal .mp-sub{margin:0 0 10px;font-size:13px;color:#8a8f98;}' +
+        '#mypage-modal label{display:block;font-size:12px;color:#6b7280;margin:12px 0 5px;font-weight:600;}' +
+        '#mypage-modal input{width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #d5d9e0;border-radius:10px;font-size:14px;background:#fff;color:#1d1d1f;}' +
+        '#mypage-modal input:disabled{background:#f1f3f5;color:#868e96;}' +
+        '#mypage-modal .mp-hr{border:none;border-top:1px solid #eee;margin:22px 0 2px;}' +
+        '#mypage-modal .mp-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}' +
+        '#mypage-modal button{padding:11px 22px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;}' +
+        '#mypage-modal .mp-cancel{background:#eef0f3;color:#444;}' +
+        '#mypage-modal .mp-save{background:linear-gradient(135deg,#0071e3,#005bb5);color:#fff;}' +
+        '#mypage-modal .mp-pw{background:#eef1f4;color:#0071e3;}';
+    document.head.appendChild(st);
+}
+// 헤더 '로그아웃' 앞에 '내 정보' 링크 삽입(로그인 상태에서만 표시 — data-auth CSS)
+function ensureMyPageLink() {
+    if (document.getElementById('mypage-link')) return;
+    var logoutLink = document.getElementById('logout-link');
+    if (!logoutLink || !logoutLink.parentNode) return;
+    var a = document.createElement('a');
+    a.href = '#';
+    a.id = 'mypage-link';
+    a.className = logoutLink.className;   // .login-item 등 헤더 링크 스타일 공유
+    a.setAttribute('onclick', 'showMyPage(); return false;');
+    a.textContent = '내 정보';
+    logoutLink.parentNode.insertBefore(a, logoutLink);
+}
+function ensureMyPageModal() {
+    if (document.getElementById('mypage-modal')) return;
+    var ov = document.createElement('div');
+    ov.id = 'mypage-overlay';
+    ov.setAttribute('onclick', 'hideMyPage()');
+    var m = document.createElement('div');
+    m.id = 'mypage-modal';
+    m.innerHTML =
+        '<h3>내 정보 수정</h3>' +
+        '<p class="mp-sub">이메일·이름·연락처·회원유형은 관리자만 변경할 수 있습니다. 소속·직급/직책만 수정할 수 있습니다.</p>' +
+        '<label>이메일 (로그인 아이디)</label><input id="mp-email" type="email" disabled>' +
+        '<label>이름</label><input id="mp-name" type="text" placeholder="이름" disabled>' +
+        '<label>연락처</label><input id="mp-phone" type="tel" placeholder="연락처" disabled>' +
+        '<label>소속</label><input id="mp-org" type="text" placeholder="소속">' +
+        '<label>직급 / 직책</label><input id="mp-position" type="text" placeholder="직급 / 직책">' +
+        '<div class="mp-row"><button type="button" class="mp-cancel" onclick="hideMyPage()">취소</button>' +
+        '<button type="button" class="mp-save" onclick="saveMyPage()">저장</button></div>' +
+        '<hr class="mp-hr">' +
+        '<label>비밀번호 변경 (선택)</label>' +
+        '<input id="mp-pw-current" type="password" placeholder="현재 비밀번호" autocomplete="current-password">' +
+        '<input id="mp-pw-new" type="password" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password" style="margin-top:8px;">' +
+        '<input id="mp-pw-confirm" type="password" placeholder="새 비밀번호 확인" autocomplete="new-password" style="margin-top:8px;">' +
+        '<div class="mp-row"><button type="button" class="mp-pw" onclick="changeMyPassword()">비밀번호 변경</button></div>';
+    document.body.appendChild(ov);
+    document.body.appendChild(m);
+}
+function myPageUser() {
+    try { return JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) { return {}; }
+}
+function showMyPage() {
+    if (sessionStorage.getItem('loggedIn') !== 'true') { showLogin(); return; }
+    ensureMyPageStyle(); ensureMyPageModal();
+    var u = myPageUser();
+    var set = function (id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; };
+    set('mp-email', u.email || u.username);
+    set('mp-name', u.name);
+    set('mp-phone', u.phone);
+    set('mp-org', u.org);
+    set('mp-position', u.position);
+    ['mp-pw-current', 'mp-pw-new', 'mp-pw-confirm'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('mypage-overlay').style.display = 'block';
+    document.getElementById('mypage-modal').style.display = 'block';
+    // 최신 정보로 폼 갱신(Firestore) — 실패해도 세션값으로 표시됨
+    if (auth && auth.currentUser && typeof fetchUserData === 'function') {
+        fetchUserData(auth.currentUser.uid, true).then(function (fresh) {
+            if (!fresh || document.getElementById('mypage-modal').style.display !== 'block') return;
+            set('mp-email', fresh.email || fresh.username);
+            set('mp-name', fresh.name);
+            set('mp-phone', fresh.phone);
+            set('mp-org', fresh.org);
+            set('mp-position', fresh.position);
+        }).catch(function () {});
+    }
+}
+function hideMyPage() {
+    var ov = document.getElementById('mypage-overlay');
+    var m = document.getElementById('mypage-modal');
+    if (ov) ov.style.display = 'none';
+    if (m) m.style.display = 'none';
+}
+async function saveMyPage() {
+    if (!auth || !auth.currentUser || !authDb) { alert('로그인 상태를 확인할 수 없습니다.\n다시 로그인해 주세요.'); return; }
+    // 이름·연락처는 관리자만 수정 가능 → 여기선 소속·직급/직책만 저장(Firestore 규칙도 이 둘만 허용)
+    var org = (document.getElementById('mp-org').value || '').trim();
+    var position = (document.getElementById('mp-position').value || '').trim();
+    var uid = auth.currentUser.uid;
+    try {
+        await authDb.collection('users').doc(uid).update({ org: org, position: position });
+        // 세션·캐시 갱신
+        var u = myPageUser();
+        u.org = org; u.position = position;
+        sessionStorage.setItem('loggedInUser', JSON.stringify(u));
+        if (typeof userDataCache !== 'undefined' && userDataCache && userDataCache.uid === uid) {
+            userDataCache.org = org; userDataCache.position = position;
+        }
+        alert('내 정보가 저장되었습니다.');
+        hideMyPage();
+    } catch (e) {
+        logError('[마이페이지] 저장 실패:', e);
+        if (e && e.code === 'permission-denied') alert('저장 권한이 없습니다.\n보안 규칙을 확인해 주세요.');
+        else alert('저장 중 오류가 발생했습니다.\n' + (e && e.message ? e.message : ''));
+    }
+}
+async function changeMyPassword() {
+    if (!auth || !auth.currentUser) { alert('로그인 상태를 확인할 수 없습니다.'); return; }
+    var cur = document.getElementById('mp-pw-current').value;
+    var nw = document.getElementById('mp-pw-new').value;
+    var cf = document.getElementById('mp-pw-confirm').value;
+    if (!cur || !nw || !cf) { alert('현재 비밀번호와 새 비밀번호를 모두 입력해주세요.'); return; }
+    if (nw.length < 6) { alert('새 비밀번호는 6자 이상이어야 합니다.'); return; }
+    if (nw !== cf) { alert('새 비밀번호가 일치하지 않습니다.'); return; }
+    var user = auth.currentUser;
+    try {
+        var cred = firebase.auth.EmailAuthProvider.credential(user.email, cur);
+        await user.reauthenticateWithCredential(cred);
+        await user.updatePassword(nw);
+        ['mp-pw-current', 'mp-pw-new', 'mp-pw-confirm'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+        alert('비밀번호가 변경되었습니다.');
+    } catch (e) {
+        logError('[마이페이지] 비밀번호 변경 실패:', e);
+        if (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential')) alert('현재 비밀번호가 올바르지 않습니다.');
+        else if (e && e.code === 'auth/weak-password') alert('새 비밀번호가 너무 약합니다.');
+        else if (e && e.code === 'auth/requires-recent-login') alert('보안을 위해 다시 로그인한 뒤 시도해주세요.');
+        else alert('비밀번호 변경 중 오류가 발생했습니다.\n' + (e && e.message ? e.message : ''));
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.showLogin = showLogin;
     window.hideLogin = hideLogin;
@@ -1510,6 +1659,10 @@ if (typeof window !== 'undefined') {
     window.login = login;
     window.register = register;
     window.showAuthTab = showAuthTab;
+    window.showMyPage = showMyPage;
+    window.hideMyPage = hideMyPage;
+    window.saveMyPage = saveMyPage;
+    window.changeMyPassword = changeMyPassword;
     console.log('[auth.js] UI 핸들러 함수가 window 전역에 노출되었습니다.');
     console.log('[auth.js] login 함수 확인:', typeof window.login === 'function' ? '정의됨' : '정의되지 않음');
 }
