@@ -1523,6 +1523,11 @@ function ensureMyPageStyle() {
         '.employee-btn button{border-radius:999px!important;}' +
         // 로그인/로그아웃은 아이콘만 표시(텍스트 제거됨) → 아이콘 우측 여백 제거
         '#login-link .login-icon, #logout-link .login-icon{margin-right:0!important;}' +
+        // 모바일: 로그인/로그아웃 아이콘과 '내 정보' 글씨를 크게(페이지 모바일 규칙 14px를 id 선택자로 오버라이드)
+        '@media (max-width:768px){' +
+          '#login-link .login-icon, #logout-link .login-icon{height:22px!important;width:auto!important;margin-right:0!important;}' +
+          '#mypage-link{font-size:15px!important;padding:8px 16px!important;}' +
+        '}' +
         '#mypage-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;}' +
         '#mypage-modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100001;width:400px;max-width:92vw;max-height:88vh;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:26px 24px;box-sizing:border-box;text-align:left;}' +
         '#mypage-modal h3{margin:0 0 4px;font-size:20px;color:#1d1d1f;}' +
