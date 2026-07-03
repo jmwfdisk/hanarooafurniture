@@ -1205,22 +1205,19 @@ async function login() {
         
         console.log('[LOGIN OK] UID:', user.uid);
         console.log('[로그인] Firebase Auth 로그인 성공');
-        
-        // 인증 토큰 갱신
-        try {
-            await user.getIdToken(true);
-            console.log('[로그인] 인증 토큰 갱신 완료');
-        } catch (tokenError) {
-            console.warn('[로그인] 인증 토큰 새로고침 오류:', tokenError);
-        }
-        
-        setLoginBtnLoading(false);  // 스피너 해제 후 모달 닫기
+
+        // 사인인 성공 즉시 스피너 해제 + 모달 닫기 (체감 지연 최소화).
+        // 최종 로그인 UI는 onAuthStateChanged가 처리한다.
+        setLoginBtnLoading(false);
         hideLogin();
-        console.log('[로그인] 로그인 모달 숨김');
-        
-        // onAuthStateChanged에서 처리되므로 여기서는 플래그만 리셋
         isLoggingIn = false;
-        console.log('[로그인] 로그인 프로세스 완료 - onAuthStateChanged에서 최종 처리 대기');
+        console.log('[로그인] 로그인 모달 숨김 - onAuthStateChanged에서 최종 처리 대기');
+
+        // 토큰 강제 갱신은 로그인 직후엔 불필요(토큰이 이미 최신, 커스텀 클레임 미사용)하므로
+        // 블로킹하지 않고 백그라운드로만 워밍(있어도 로그인 완료를 지연시키지 않음).
+        user.getIdToken().catch(function (tokenError) {
+            console.warn('[로그인] 토큰 워밍 오류(무시 가능):', tokenError);
+        });
 
     } catch (error) {
         isLoggingIn = false;
