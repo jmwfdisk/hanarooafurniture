@@ -2958,9 +2958,10 @@
             overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100000;';
             const box = document.createElement('div');
             box.style.cssText = 'background:#fff;border-radius:16px;padding:28px 32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
+            const iconCh = opts.icon === '' ? '' : (opts.icon || '🗑️'); // icon:'' → 아이콘 없는 확인창(결재 등)
             const icon = document.createElement('div');
             icon.style.cssText = 'font-size:40px;line-height:1;margin-bottom:12px;';
-            icon.textContent = opts.icon || '🗑️';
+            icon.textContent = iconCh;
             const msg = document.createElement('div');
             msg.style.cssText = 'font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:22px;white-space:pre-line;';
             msg.textContent = message;
@@ -2987,7 +2988,8 @@
             overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(false); });
             document.addEventListener('keydown', onKey);
             btnRow.appendChild(cancelBtn); btnRow.appendChild(okBtn);
-            box.appendChild(icon); box.appendChild(msg); box.appendChild(btnRow);
+            if (iconCh) box.appendChild(icon);
+            box.appendChild(msg); box.appendChild(btnRow);
             overlay.appendChild(box);
             document.body.appendChild(overlay);
             okBtn.focus();
@@ -4007,6 +4009,34 @@
                 editor.focus();
                 if (rteSavedRange) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rteSavedRange); }
                 if (!document.execCommand('hiliteColor', false, bc.value)) document.execCommand('backColor', false, bc.value);
+            });
+            // 줄간격: 커서/선택이 걸친 문단(에디터 최상위 블록) 단위로 line-height 적용, 목록은 걸친 항목(li)별 적용
+            const lhSel = document.getElementById('rte-lineheight');
+            if (lhSel) lhSel.addEventListener('change', () => {
+                const v = lhSel.value;
+                lhSel.selectedIndex = 0;                    // 같은 값 재선택 가능하도록 초기화
+                if (!v) return;
+                editor.focus();
+                const sel = window.getSelection();
+                if (rteSavedRange) { sel.removeAllRanges(); sel.addRange(rteSavedRange); }
+                if (!sel.rangeCount) return;
+                const range = sel.getRangeAt(0);
+                const hits = (node) => { try { return range.intersectsNode(node); } catch (e) { return false; } };
+                Array.from(editor.childNodes).forEach(node => {
+                    if (!hits(node)) return;
+                    if (node.nodeType === 3) {
+                        // 블록 없이 에디터 직속 텍스트(첫 줄 등)는 div로 감싸서 적용
+                        if (!node.textContent.trim()) return;
+                        const div = document.createElement('div');
+                        editor.insertBefore(div, node);
+                        div.appendChild(node);
+                        div.style.lineHeight = v;
+                    } else if (node.nodeType === 1 && /^(UL|OL)$/.test(node.tagName)) {
+                        Array.from(node.children).forEach(li => { if (hits(li)) li.style.lineHeight = v; });
+                    } else if (node.nodeType === 1 && node.tagName !== 'BR') {
+                        node.style.lineHeight = v;
+                    }
+                });
             });
         }
         document.addEventListener('DOMContentLoaded', initRteToolbar);
@@ -6536,12 +6566,12 @@
         .rte-toolbar .rte-select { -webkit-appearance:none; appearance:none; font-size:13px; padding:0 26px 0 8px; background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 7px center; }
         .rte-toolbar .rte-color { display:inline-flex; align-items:center; justify-content:center; width:34px; position:relative; overflow:hidden; font-size:14px; font-weight:700; padding:0; }
         .rte-toolbar .rte-color input[type=color] { position:absolute; left:0; top:0; width:100%; height:100%; padding:0; margin:0; border:none; opacity:0; cursor:pointer; }
-        .rte-editor { min-height:220px; max-height:50vh; overflow-y:auto; border:1px solid #d5d9e0; border-radius:0 0 12px 12px; padding:14px 16px; margin-bottom:16px; font-size:15px; line-height:1.7; text-align:left; background:#fff; outline:none; box-sizing:border-box; }
+        .rte-editor { min-height:220px; max-height:50vh; overflow-y:auto; border:1px solid #d5d9e0; border-radius:0 0 12px 12px; padding:14px 16px; margin-bottom:16px; font-size:15px; line-height:1.8; text-align:left; background:#fff; outline:none; box-sizing:border-box; }
         .rte-editor:empty:before { content: attr(data-placeholder); color:#aeb4bd; }
         .rte-editor:focus { border-color:#44aa6b; }
-        .rte-editor ul, .rte-editor ol { padding-left:1.5em; margin:0.4em 0; }
+        /* 목록(ul/ol) 브라우저 기본 상하 마진 제거 — 일반 줄과 줄간격 동일하게(작성/보기 공통) */
+        .rte-editor ul, .rte-editor ol, .post-content ul, .post-content ol { padding-left:1.5em; margin:0; }
         .post-content { text-align:left; }
-        .post-content ul, .post-content ol { padding-left:1.5em; }
         @media (max-width:600px){ .rte-toolbar .rte-btn, .rte-toolbar .rte-select, .rte-toolbar .rte-color{ height:30px; } .rte-toolbar .rte-btn{ min-width:30px; padding:0 6px; font-size:13px; } }
     </style>
     <!-- 글쓰기 폼 -->
@@ -6580,6 +6610,16 @@
             <button type="button" class="rte-btn" data-cmd="justifyLeft" title="왼쪽 정렬"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
             <button type="button" class="rte-btn" data-cmd="justifyCenter" title="가운데 정렬"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></button>
             <button type="button" class="rte-btn" data-cmd="justifyRight" title="오른쪽 정렬"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
+            <span class="rte-sep"></span>
+            <select class="rte-select" id="rte-lineheight" title="줄간격">
+                <option value="">줄간격</option>
+                <option value="1">1.0</option>
+                <option value="1.15">1.15</option>
+                <option value="1.5">1.5</option>
+                <option value="1.8">1.8 (기본)</option>
+                <option value="2">2.0</option>
+                <option value="2.5">2.5</option>
+            </select>
             <span class="rte-sep"></span>
             <button type="button" class="rte-btn" data-cmd="removeFormat" title="서식 지우기">서식↺</button>
         </div>
@@ -9203,7 +9243,7 @@
             const name = u.name || u.username || '임직원';
             const stamp = { title, name, date: new Date().toLocaleDateString('ko-KR') };
             const label = ((title ? title + ' ' : '') + name).trim();
-            if (!(await showStaffConfirm(`${cfg.label} 결재로 확인하시겠습니까?\n\n${label} · ${stamp.date}`))) return;
+            if (!(await showStaffConfirm(`${cfg.label} 결재로 확인하시겠습니까?\n\n${label} · ${stamp.date}`, { icon: '' }))) return;
             if (target === 'staff') p.apprStaff = stamp;
             else if (target === 'auth') p.apprAuth = stamp;
             else p.apprCeo = stamp;
@@ -10030,9 +10070,9 @@
         <div id="day-add-form" class="day-add-form" style="display:none;">
           <div class="day-add-daterow">
             <label id="day-add-daterow-label">기간</label>
-            <input type="date" id="day-ev-start" onchange="this.blur(); updateLeaveDaysBadge()">
+            <input type="date" id="day-ev-start" onchange="this.blur(); calClampDateRange('day-ev-start','day-ev-end','start'); updateLeaveDaysBadge()">
             <span class="day-add-tilde">~</span>
-            <input type="date" id="day-ev-end" onchange="this.blur(); updateLeaveDaysBadge()">
+            <input type="date" id="day-ev-end" onchange="this.blur(); calClampDateRange('day-ev-start','day-ev-end','end'); updateLeaveDaysBadge()">
           </div>
           <div class="day-add-hint" id="day-add-hint">시작일~종료일을 지정하면 그 기간의 모든 날짜에 일정이 한 번에 등록됩니다.</div>
           <div class="day-add-row" id="day-add-company-fields">
@@ -10282,6 +10322,18 @@
         // 추가 폼 미리보기 배지 + 연차일수 활성/비활성 동기화
         // 휴가기간이 1일 초과(시작≠종료)면 연차일수 지정 불가 → 제목에는 기간을 표시
         // 이때 연차종류는 '휴가'로 자동 지정('연차' 선택 불가, 그 외 종류는 선택 가능)
+        // 기간 입력 상호 제한: 시작일은 종료일보다 미래로, 종료일은 시작일보다 과거로 설정 불가
+        // (변경된 쪽을 즉시 보정 + 달력 자체에서 min/max로 선택 차단)
+        function calClampDateRange(startId, endId, changed) {
+            const s = document.getElementById(startId);
+            const e = document.getElementById(endId);
+            if (!s || !e) return;
+            if (s.value && e.value && s.value > e.value) {
+                if (changed === 'end') e.value = s.value; else s.value = e.value;
+            }
+            if (s.value) e.min = s.value; else e.removeAttribute('min');
+            if (e.value) s.max = e.value; else s.removeAttribute('max');
+        }
         function updateLeaveDaysBadge() {
             const dSel = document.getElementById('day-ev-leave-days');
             const tSel = document.getElementById('day-ev-leave-type');
@@ -10469,7 +10521,7 @@
             const name = u.name || u.username || '임직원';
             const stamp = { title, name, date: new Date().toLocaleDateString('ko-KR') };
             const label = ((title ? title + ' ' : '') + name).trim();
-            if (!(await showStaffConfirm(`${calYear}년 ${calMonth + 1}월 연월차 일정을 ${st.label} 결재로 확인·승인하시겠습니까?\n\n${label} · ${stamp.date}`))) return;
+            if (!(await showStaffConfirm(`${calYear}년 ${calMonth + 1}월 연월차 일정을 ${st.label} 결재로 확인·승인하시겠습니까?\n\n${label} · ${stamp.date}`, { icon: '' }))) return;
             if (db) {
                 try {
                     await db.collection('appConfig').doc('leaveApprovals')
@@ -10622,9 +10674,9 @@
                             return `
                         <div class="day-event editing">
                             <div class="day-edit-daterow">
-                                <input type="date" id="day-edit-start" class="day-edit-date" onchange="this.blur(); leaveEditSyncDays()">
+                                <input type="date" id="day-edit-start" class="day-edit-date" onchange="this.blur(); calClampDateRange('day-edit-start','day-edit-end','start'); leaveEditSyncDays()">
                                 <span class="day-edit-tilde">~</span>
-                                <input type="date" id="day-edit-end" class="day-edit-date" onchange="this.blur(); leaveEditSyncDays()">
+                                <input type="date" id="day-edit-end" class="day-edit-date" onchange="this.blur(); calClampDateRange('day-edit-start','day-edit-end','end'); leaveEditSyncDays()">
                             </div>
                             <div class="day-edit-hint">시작일~종료일을 바꾸면 그 기간의 모든 날짜로 다시 등록됩니다.</div>
                             <div class="day-leave-row">
@@ -10656,9 +10708,9 @@
                         return `
                         <div class="day-event editing">
                             <div class="day-edit-daterow">
-                                <input type="date" id="day-edit-start" class="day-edit-date" onchange="this.blur()">
+                                <input type="date" id="day-edit-start" class="day-edit-date" onchange="this.blur(); calClampDateRange('day-edit-start','day-edit-end','start')">
                                 <span class="day-edit-tilde">~</span>
-                                <input type="date" id="day-edit-end" class="day-edit-date" onchange="this.blur()">
+                                <input type="date" id="day-edit-end" class="day-edit-date" onchange="this.blur(); calClampDateRange('day-edit-start','day-edit-end','end')">
                             </div>
                             <div class="day-edit-hint">시작일~종료일을 바꾸면 그 기간의 모든 날짜로 다시 등록됩니다.</div>
                             <div class="day-edit-row">
@@ -10694,6 +10746,7 @@
                         const eEl = document.getElementById('day-edit-end');
                         if (sEl) sEl.value = ev.periodStart || ev.date || dayModalDate;
                         if (eEl) eEl.value = ev.periodEnd || ev.date || dayModalDate;
+                        calClampDateRange('day-edit-start', 'day-edit-end');
                         if (currentCalKind === 'leave') {
                             const info = leaveInfoOf(ev);
                             calSetSelectValue(document.getElementById('day-edit-leave-days'), info.days);
@@ -10755,6 +10808,7 @@
                 const eEl = document.getElementById('day-ev-end');
                 if (sEl) sEl.value = dayModalDate;
                 if (eEl) eEl.value = dayModalDate;
+                calClampDateRange('day-ev-start', 'day-ev-end');
                 if (isLeave) updateLeaveDaysBadge();   // 날짜 초기화 후 배지·연차일수 상태 재동기화
                 // 시간: 비어 있으면 현재 시각을 기본값으로 채움(빈 native time input이 회색 placeholder라 비활성처럼 보이는 문제 방지)
                 const tEl = document.getElementById('day-ev-time');
