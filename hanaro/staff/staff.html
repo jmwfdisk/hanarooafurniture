@@ -8260,11 +8260,21 @@
         //  - 직급(position): 직급/직책 높은 순(대표이사 → … → 사원, 미입력은 맨 뒤)
         //  둘 다 켜지면 '회원유형 1차 → 직급 2차'로 묶어 정렬(유형 그룹 안에서 직급순).
         //  같은 순위끼리는 기존 표시 순서 유지(sort가 stable).
-        let memberSortType = false;
-        let memberSortPosition = false;
+        //  정렬 상태는 localStorage에 저장 → 다음 방문 시 복원.
+        const MEMBER_SORT_KEY = 'memberSortState';
+        function loadMemberSortState() {
+            try {
+                const s = JSON.parse(localStorage.getItem(MEMBER_SORT_KEY) || '{}');
+                return { type: s.type === true, position: s.position === true };
+            } catch (e) { return { type: false, position: false }; }
+        }
+        let _mss = loadMemberSortState();
+        let memberSortType = _mss.type;
+        let memberSortPosition = _mss.position;
         function setMemberSort(key) {
             if (key === 'type') memberSortType = !memberSortType;
             else if (key === 'position') memberSortPosition = !memberSortPosition;
+            try { localStorage.setItem(MEMBER_SORT_KEY, JSON.stringify({ type: memberSortType, position: memberSortPosition })); } catch (e) {}
             memberCurrentPage = 1;
             updateMemberSortIndicators();
             renderMembers();
@@ -8305,6 +8315,9 @@
         function renderMembers() {
             const tbody = document.getElementById('member-tbody');
             if (!tbody) return;
+
+            // 복원된 정렬 상태를 헤더 인디케이터(↕/▼)에 반영(첫 렌더 포함)
+            updateMemberSortIndicators();
 
             // 관리자 여부 (회원유형 변경 권한)
             let isAdminViewer = false;
