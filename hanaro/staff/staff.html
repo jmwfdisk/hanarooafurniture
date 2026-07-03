@@ -888,6 +888,9 @@
             color: #2563eb;
         }
         #member-section .member-org .org-empty { color: #adb5bd; font-style: italic; }
+        /* 이름 셀: 이름(위) + 연락처(아래 보조줄, 관리자 전용 편집) */
+        #member-section .member-name-cell { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+        #member-section .member-phone-line { font-size:12px; color:#868e96; }
         #member-section .member-org-input {
             width: 100%;
             max-width: 140px;
@@ -2869,7 +2872,7 @@
     </nav>
 
     <!-- 공통 인증 스크립트 -->
-    <script src="../js/auth.js?v=20260706"></script>
+    <script src="../js/auth.js?v=20260707"></script>
     <script src="../js/footer-bar.js?v=20260703"></script>
     <!-- 글쓰기 리치 에디터 본문 살균(XSS 방지). 미로딩 시 평문 폴백 -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
@@ -8489,10 +8492,17 @@
                 const positionCell = isAdminViewer
                     ? `<span class="member-org editable" title="클릭하여 직급 / 직책 수정" onclick="editMemberPosition('${member.id}', this)">${posText} ✎</span>`
                     : `<span>${posText}</span>`;
+                // 이름·연락처: 관리자만 수정 가능(회원 본인은 마이페이지에서 수정 불가). 연락처는 이름 아래 보조줄로 표시/편집.
+                const nameText = member.name ? esc(member.name) : '<span class="org-empty">- 미입력 -</span>';
+                const phoneText = member.phone ? esc(member.phone) : '<span class="org-empty">- 미입력 -</span>';
+                const nameCell = isAdminViewer
+                    ? `<span class="member-name-cell"><span class="member-org editable" title="클릭하여 이름 수정" onclick="editMemberName('${member.id}', this)">${nameText} ✎</span>`
+                      + `<span class="member-org editable member-phone-line" title="클릭하여 연락처 수정" onclick="editMemberPhone('${member.id}', this)">📞 ${phoneText} ✎</span></span>`
+                    : `<span>${member.name ? esc(member.name) : '-'}</span>`;
                 row.innerHTML = `
                     <span>${orgCell}</span>
                     <span>${positionCell}</span>
-                    <span>${member.name ? esc(member.name) : '-'}</span>
+                    <span>${nameCell}</span>
                     <span title="${member.email ? esc(member.email).replace(/"/g,'&quot;') : ''}">${member.email ? esc(member.email) : '-'}</span>
                     <span>${userTypeCell}</span>
                     <span>${date}</span>
@@ -8743,6 +8753,62 @@
             } catch (error) {
                 console.error('직급/직책 수정 오류:', error);
                 alert('직급/직책 수정 중 오류가 발생했습니다.\n관리자 권한 또는 보안 규칙을 확인해주세요.\n' + (error.message || ''));
+                renderMembers();
+            }
+        }
+
+        // 이름 수정 (관리자 전용) — 소속/직급 인라인 편집과 동일 패턴
+        function editMemberName(userId, el) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) return;
+            const cur = member.name || '';
+            const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            el.outerHTML = `<input class="member-org-input" type="text" maxlength="30" value="${escAttr(cur)}" placeholder="이름 입력"
+                              onblur="saveMemberName('${userId}', this.value)"
+                              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
+            const inp = document.querySelector('.member-org-input');
+            if (inp) { inp.focus(); inp.select(); }
+        }
+        async function saveMemberName(userId, value) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) { renderMembers(); return; }
+            const newName = (value || '').trim();
+            if (newName === (member.name || '')) { renderMembers(); return; }  // 변경 없음
+            if (!newName) { alert('이름은 비울 수 없습니다.'); renderMembers(); return; }
+            try {
+                await db.collection('users').doc(userId).update({ name: newName });
+                member.name = newName;
+                renderMembers();
+            } catch (error) {
+                console.error('이름 수정 오류:', error);
+                alert('이름 수정 중 오류가 발생했습니다.\n관리자 권한 또는 보안 규칙을 확인해주세요.\n' + (error.message || ''));
+                renderMembers();
+            }
+        }
+        // 연락처 수정 (관리자 전용)
+        function editMemberPhone(userId, el) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) return;
+            const cur = member.phone || '';
+            const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            el.outerHTML = `<input class="member-org-input" type="text" maxlength="20" value="${escAttr(cur)}" placeholder="연락처 입력"
+                              onblur="saveMemberPhone('${userId}', this.value)"
+                              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
+            const inp = document.querySelector('.member-org-input');
+            if (inp) { inp.focus(); inp.select(); }
+        }
+        async function saveMemberPhone(userId, value) {
+            const member = allMembers.find(m => m.id === userId);
+            if (!member) { renderMembers(); return; }
+            const newPhone = (value || '').trim();
+            if (newPhone === (member.phone || '')) { renderMembers(); return; }  // 변경 없음
+            try {
+                await db.collection('users').doc(userId).update({ phone: newPhone });
+                member.phone = newPhone;
+                renderMembers();
+            } catch (error) {
+                console.error('연락처 수정 오류:', error);
+                alert('연락처 수정 중 오류가 발생했습니다.\n관리자 권한 또는 보안 규칙을 확인해주세요.\n' + (error.message || ''));
                 renderMembers();
             }
         }
