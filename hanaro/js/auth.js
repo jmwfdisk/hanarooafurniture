@@ -1514,9 +1514,15 @@ function ensureMyPageStyle() {
     var st = document.createElement('style');
     st.id = 'mypage-style';
     st.textContent =
-        '#mypage-link{cursor:pointer;}' +
-        'html[data-auth="in"] #mypage-link{display:flex!important}' +
+        // '내 정보' — 작은 알약(pill) 버튼. 로그아웃 뒤에 배치.
+        '#mypage-link{cursor:pointer;text-decoration:none;align-items:center;gap:4px;padding:6px 14px;border-radius:999px;background:#eef1f4;color:#0071e3;font-size:13px;font-weight:600;line-height:1;white-space:nowrap;}' +
+        '#mypage-link:hover{background:#e2e8f2;}' +
+        'html[data-auth="in"] #mypage-link{display:inline-flex!important}' +
         'html[data-auth="out"] #mypage-link{display:none!important}' +
+        // 임직원 버튼도 동일한 알약(pill) 모양으로 통일(전 페이지 공통 오버라이드)
+        '.employee-btn button{border-radius:999px!important;}' +
+        // 로그인/로그아웃은 아이콘만 표시(텍스트 제거됨) → 아이콘 우측 여백 제거
+        '#login-link .login-icon, #logout-link .login-icon{margin-right:0!important;}' +
         '#mypage-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;}' +
         '#mypage-modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100001;width:400px;max-width:92vw;max-height:88vh;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:26px 24px;box-sizing:border-box;text-align:left;}' +
         '#mypage-modal h3{margin:0 0 4px;font-size:20px;color:#1d1d1f;}' +
@@ -1532,7 +1538,8 @@ function ensureMyPageStyle() {
         '#mypage-modal .mp-pw{background:#eef1f4;color:#0071e3;}';
     document.head.appendChild(st);
 }
-// 헤더 '로그아웃' 앞에 '내 정보' 링크 삽입(로그인 상태에서만 표시 — data-auth CSS)
+// 헤더에 '내 정보' 알약 버튼 삽입 — '로그아웃' 바로 뒤(로그아웃 → 내 정보 → 임직원 순).
+// 로그인 상태에서만 표시(data-auth CSS).
 function ensureMyPageLink() {
     if (document.getElementById('mypage-link')) return;
     var logoutLink = document.getElementById('logout-link');
@@ -1540,10 +1547,9 @@ function ensureMyPageLink() {
     var a = document.createElement('a');
     a.href = '#';
     a.id = 'mypage-link';
-    a.className = logoutLink.className;   // .login-item 등 헤더 링크 스타일 공유
     a.setAttribute('onclick', 'showMyPage(); return false;');
     a.textContent = '내 정보';
-    logoutLink.parentNode.insertBefore(a, logoutLink);
+    logoutLink.insertAdjacentElement('afterend', a);   // 로그아웃 뒤에 배치
 }
 function ensureMyPageModal() {
     if (document.getElementById('mypage-modal')) return;
