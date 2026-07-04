@@ -1521,6 +1521,14 @@ function ensureMyPageStyle() {
         'html[data-auth="out"] #mypage-link{display:none!important}' +
         // 임직원 버튼도 동일한 알약(pill) 모양으로 통일(전 페이지 공통 오버라이드)
         '.employee-btn button{border-radius:999px!important;}' +
+        // 데스크탑: '내 정보'와 '임직원' 알약 크기 통일(폰트 14px·패딩 6px 14px·높이 26px).
+        // index.html의 `.navbar > .login > a{padding:0!important}` 리셋이 #mypage-link 패딩을 지우던 것을
+        // ID+!important로 이겨 알약을 복원하고, 임직원 버튼은 line-height:1로 높이를 내정보와 맞춘다.
+        // (min-width 스코프: 모바일 페이지별 임직원 버튼 규칙을 건드리지 않기 위함)
+        '@media (min-width:769px){' +
+          '#mypage-link{font-size:14px!important;padding:6px 14px!important;}' +
+          '.employee-btn button{font-size:14px!important;padding:6px 14px!important;line-height:1!important;}' +
+        '}' +
         // 로그인/로그아웃은 아이콘만 표시(텍스트 제거됨) → 아이콘 우측 여백 제거
         '#login-link .login-icon, #logout-link .login-icon{margin-right:0!important;}' +
         // 모바일: 로그인/로그아웃 아이콘과 '내 정보' 글씨를 크게(페이지 모바일 규칙 14px를 id 선택자로 오버라이드)
