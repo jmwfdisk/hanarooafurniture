@@ -1626,10 +1626,16 @@ document.addEventListener('DOMContentLoaded', function () {
                             try {
                             const posts = JSON.parse(stored);
                                 if (Array.isArray(posts) && posts.length > 0) {
-                            // Firebase로 마이그레이션
-                            await db.collection('asPosts').doc('posts').set({ posts: posts });
+                            // Firebase로 마이그레이션 — 문서가 없을 때만 생성 (두 클라이언트 동시 마이그레이션 경쟁 방지)
+                            const migRef = db.collection('asPosts').doc('posts');
+                            let migrated = posts;
+                            await db.runTransaction(async (tx) => {
+                                const s = await tx.get(migRef);
+                                if (!s.exists) { tx.set(migRef, { posts: posts }); }
+                                else { migrated = Array.isArray(s.data().posts) ? s.data().posts : []; }
+                            });
                                     console.log('localStorage 데이터를 Firebase로 마이그레이션 완료');
-                            return posts;
+                            return migrated;
                         }
                             } catch (parseError) {
                                 console.error('localStorage 데이터 파싱 실패:', parseError);
@@ -1669,28 +1675,48 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // Firebase Firestore에 A/S 게시글 저장
-        async function saveAsPosts(posts) {
-            if (db) {
-                // Firebase Firestore 사용
-                try {
-                    await db.collection('asPosts').doc('posts').set({ posts: posts });
-                    console.log('Firebase에 A/S 게시글 저장 완료');
-                    // 저장 성공 후 localStorage에도 백업 (오프라인 대비)
-                    localStorage.setItem('asPosts', JSON.stringify(posts));
-                    return true;
-                } catch (error) {
-                    console.error('Firebase 저장 실패:', error);
-                    // 실패 시 localStorage에 백업
-                    localStorage.setItem('asPosts', JSON.stringify(posts));
-                    alert('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-                    return false;
-                }
-            } else {
-                // localStorage 사용 (Firebase가 초기화되지 않은 경우)
-                console.warn('Firebase가 초기화되지 않아 localStorage에만 저장됩니다.');
-                localStorage.setItem('asPosts', JSON.stringify(posts));
-                return false;
+        // A/S 게시글 고유 ID — 인덱스 대신 이 id로 글을 식별한다 (staff.html asPostMatches와 동일 규칙 공유)
+        function makeAsPostId() {
+            return 'as_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+        }
+        function asPostMatches(a, b) {
+            if (!a || !b) return false;
+            if (a.id && b.id) return a.id === b.id;
+            return a.title === b.title && a.date === b.date &&
+                   (a.uid || '') === (b.uid || '') && (a.username || '') === (b.username || '');
+        }
+        // asPosts/posts 문서를 트랜잭션으로 변경 — 저장 직전 서버 최신 배열을 다시 읽어 mutator를 적용한다.
+        // (기존 saveAsPosts는 내 로컬 배열로 문서 전체를 set → 그사이 다른 신청·처리결과·결재를 통째로 덮어쓰던 원인.
+        //  낡은 localStorage 캐시로 렌더 중이어도 쓰기는 항상 서버 최신본 기준이라 안전. 전체 배열 set으로 되돌리지 말 것)
+        // mutator(serverPosts): 변경된 새 배열 반환, null 반환 = 대상 없음(안내 후 중단).
+        async function commitAsChange(mutator) {
+            if (!db) {
+                // 순수 로컬 개발 모드(Firebase 미초기화)에서만 localStorage 저장
+                const base = Array.isArray(asPosts) ? asPosts.map(p => ({ ...p })) : [];
+                const next = mutator(base);
+                if (!next) return null;
+                try { localStorage.setItem('asPosts', JSON.stringify(next)); } catch (e) {}
+                return next;
+            }
+            const ref = db.collection('asPosts').doc('posts');
+            let result = null;
+            try {
+                await db.runTransaction(async (tx) => {
+                    const snap = await tx.get(ref);
+                    const serverPosts = (snap.exists && Array.isArray(snap.data().posts)) ? snap.data().posts : [];
+                    const next = mutator(serverPosts.map(p => ({ ...p })));
+                    if (!next) { const e = new Error('대상 게시물을 찾을 수 없습니다.\n(이미 삭제되었을 수 있습니다.)'); e.asAbort = true; throw e; }
+                    tx.set(ref, { posts: next });
+                    result = next;
+                });
+                // 저장 성공본만 캐시로 백업 (실패한 낡은 배열을 백업해 다음 방문을 오염시키지 않음)
+                try { localStorage.setItem('asPosts', JSON.stringify(result)); } catch (e) {}
+                return result;
+            } catch (error) {
+                if (error && error.asAbort) { alert(error.message); return null; }
+                console.error('A/S 저장(트랜잭션) 실패:', error);
+                alert('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.\n' + (error.message || ''));
+                return null;
             }
         }
 
@@ -1833,7 +1859,8 @@ function deleteAsPost(index) {
   const isAdmin = userData.isAdmin || userData.username === 'admin';
   const isGeneralUser = userData.userType === 'general' && userData.status === 'approved';
   const post = asPosts[index];
-  
+  if (!post) return;
+
   if (isAdmin) {
     // 관리자는 모든 글 삭제 가능
   } else if (isGeneralUser) {
@@ -1857,11 +1884,18 @@ function deleteAsPost(index) {
   }
   
   if (confirm("정말 삭제하시겠습니까?")) {
-    asPosts.splice(index, 1);
-                saveAsPosts(asPosts).then(() => {
-                    currentPage = 1;
-                    renderAsPosts();
-                });
+    // 인덱스 대신 식별자로 서버 최신본에서 대상을 찾아 삭제 (그사이 목록이 바뀌었어도 안전)
+    commitAsChange(posts => {
+        const i = posts.findIndex(sp => asPostMatches(sp, post));
+        if (i < 0) return null;
+        posts.splice(i, 1);
+        return posts;
+    }).then(result => {
+        if (!result) return;
+        asPosts = result;
+        currentPage = 1;
+        renderAsPosts();
+    });
   }
 }
 
@@ -2477,7 +2511,7 @@ document.getElementById("as-form").addEventListener("submit", async function(eve
                 }
             } catch (err) {
                 console.error('A/S 등록 오류:', err);
-                alert('등록 중 오류가 발생했습니다. 다시 시도해주세요.');
+                if (!err || !err.asAlerted) alert('등록 중 오류가 발생했습니다. 다시 시도해주세요.');
             } finally {
                 asSubmitting = false;
                 setSubmitLoading(false);
@@ -2488,47 +2522,38 @@ document.getElementById("as-form").addEventListener("submit", async function(eve
         async function uploadFilesToFirebase(files, type, title, content, fileNames) {
             const fileUrls = [];
             const fileData = []; // Firebase 사용 시에도 메타데이터 저장용
-            
-            try {
-                // 모든 파일 업로드
-                const uploadPromises = files.map(async (file) => {
-                    const timestamp = Date.now();
-                    const fileName = `${timestamp}_${file.name}`;
-                    const storageRef = storage.ref(`as-files/${fileName}`);
-                    
-                    // 파일 업로드
-                    const snapshot = await storageRef.put(file);
-                    
-                    // 다운로드 URL 가져오기
-                    const downloadURL = await snapshot.ref.getDownloadURL();
-                    
-                    return {
-                        name: file.name,
-                        url: downloadURL,
-                        type: file.type,
-                        size: file.size
-                    };
+
+            // 모든 파일 업로드 — 일부만 성공하고 실패하면 성공분을 정리(고아 파일 방지)하고 오류 전파
+            const uploadPromises = files.map(async (file) => {
+                const timestamp = Date.now();
+                const fileName = `${timestamp}_${file.name}`;
+                const storageRef = storage.ref(`as-files/${fileName}`);
+                const snapshot = await storageRef.put(file);
+                const downloadURL = await snapshot.ref.getDownloadURL();
+                return { name: file.name, url: downloadURL, type: file.type, size: file.size, _ref: snapshot.ref };
+            });
+
+            const settled = await Promise.allSettled(uploadPromises);
+            const rejected = settled.find(s => s.status === 'rejected');
+            if (rejected) {
+                settled.forEach(s => {
+                    if (s.status === 'fulfilled' && s.value && s.value._ref) s.value._ref.delete().catch(() => {});
                 });
-                
-                const uploadedFiles = await Promise.all(uploadPromises);
-                
-                uploadedFiles.forEach(file => {
-                    fileUrls.push(file.url);
-                    fileData.push({
-                        name: file.name,
-                        url: file.url,
-                        type: file.type,
-                        size: file.size
-                    });
-                });
-                
-                // 게시글 저장
-                await savePost(type, title, content, fileNames, fileData, fileUrls);
-                
-            } catch (error) {
-                console.error('파일 업로드 오류:', error);
-                alert('파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.\n' + error.message);
+                const err = rejected.reason || new Error('파일 업로드 실패');
+                console.error('파일 업로드 오류:', err);
+                alert('파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.\n' + (err.message || ''));
+                err.asAlerted = true; // 호출부 중복 알림 방지 표식
+                throw err;            // 삼키지 않고 전파 → 호출부가 실패로 인지 (성공 오인 방지)
             }
+
+            settled.forEach(s => {
+                const f = s.value;
+                fileUrls.push(f.url);
+                fileData.push({ name: f.name, url: f.url, type: f.type, size: f.size });
+            });
+
+            // 게시글 저장 (저장 실패 시 savePost가 입력 보존 + 안내, 성공 팝업 없음)
+            await savePost(type, title, content, fileNames, fileData, fileUrls);
         }
 
         // localStorage에 파일 저장 (Firebase 미사용 시)
@@ -2594,6 +2619,7 @@ document.getElementById("as-form").addEventListener("submit", async function(eve
             }
             
             const newPost = {
+                id: makeAsPostId(), // 안정적 식별자 — 이후 삭제/담당자지정/결재가 인덱스 대신 이 id로 대상을 찾음
                 type: type,
                 title: title,
                 content: content,
@@ -2606,25 +2632,17 @@ document.getElementById("as-form").addEventListener("submit", async function(eve
                 name: name  // 작성자 name 저장
             };
 
-            asPosts.unshift(newPost);
-            
-            // Firestore에 저장
-            const saved = await saveAsPosts(asPosts);
-            
-            if (saved) {
-                // 저장 성공 후 최신 데이터 다시 로드 (다른 컴퓨터에서도 보이도록)
-                try {
-                    const latestPosts = await loadAsPosts();
-                    if (latestPosts && Array.isArray(latestPosts)) {
-                        asPosts = latestPosts;
-                    }
-                } catch (error) {
-                    console.error('최신 데이터 로드 실패:', error);
-                }
+            // 트랜잭션으로 서버 최신 배열 맨 앞에 추가 (그사이 다른 신청·처리와 충돌 없음)
+            const result = await commitAsChange(posts => { posts.unshift(newPost); return posts; });
+
+            if (!result) {
+                // 저장 실패: 입력을 보존한 채 중단 (성공 팝업·폼 초기화 금지 → 사용자가 재시도 가능)
+                return;
             }
-            
-                currentPage = 1;
-            
+
+            asPosts = result; // 트랜잭션 결과 = 서버 최신본 (별도 재로드 불필요)
+            currentPage = 1;
+
             // 폼 초기화 및 숨기기
             document.getElementById('as-form').reset();
             document.getElementById('image-preview').innerHTML = '';
@@ -2636,10 +2654,10 @@ document.getElementById("as-form").addEventListener("submit", async function(eve
                 imageUpload.value = '';
             }
             toggleAsForm();
-            
+
             // 목록 새로고침
             renderAsPosts();
-            
+
             showAsDonePopup("A/S 신청이 등록되었습니다.");
 }
 </script>

@@ -9150,16 +9150,59 @@
             });
         }
 
-        async function saveAsrData() {
-            if (!db) { alert('데이터베이스 연결이 없습니다.'); return false; }
+        // A/S 게시글 동일성 판정: id 우선(AS.html이 신규 신청에 부여), 레거시(id 없음)는 제목+신청일+작성자 보조 매칭
+        function asPostMatches(a, b) {
+            if (!a || !b) return false;
+            if (a.id && b.id) return a.id === b.id;
+            return a.title === b.title && a.date === b.date &&
+                   (a.uid || '') === (b.uid || '') && (a.username || '') === (b.username || '');
+        }
+        // mutator가 사용자 안내와 함께 중단하고 싶을 때 throw할 에러
+        function asrAbort(msg) { const e = new Error(msg); e.asrAbort = true; return e; }
+        // asPosts/posts 문서를 트랜잭션으로 변경 — 저장 직전 서버 최신 배열을 다시 읽어 mutator를 적용한다.
+        // (기존 saveAsrData의 whole-array set은 모달 열림 중 보류된 타인 변경·새 신청을 통째로 덮어쓰던 원인.
+        //  commitBoardChange(staffPosts)와 동일 원리 — 전체 배열 set으로 되돌리지 말 것)
+        // mutator(serverPosts): 변경된 새 배열 반환 / null 반환 = 대상 없음(안내 후 중단) / asrAbort(msg) throw = 커스텀 안내.
+        async function commitAsrChange(mutator) {
+            if (!db) { alert('데이터베이스 연결이 없습니다.'); return null; }
+            const ref = db.collection('asPosts').doc('posts');
+            let result = null;
             try {
-                await db.collection('asPosts').doc('posts').set({ posts: asrData });
-                return true;
+                await db.runTransaction(async (tx) => {
+                    const snap = await tx.get(ref);
+                    const serverPosts = (snap.exists && Array.isArray(snap.data().posts)) ? snap.data().posts : [];
+                    const next = mutator(serverPosts.map(p => ({ ...p })));
+                    if (!next) throw asrAbort('대상 게시물을 찾을 수 없습니다.\n(다른 곳에서 삭제되었을 수 있습니다.)');
+                    tx.set(ref, { posts: next });
+                    result = next;
+                });
+                return result;
             } catch (e) {
-                console.error('A/S 저장 실패:', e);
+                if (e && e.asrAbort) { alert(e.message); refreshAsrFromServer(); return null; }
+                console.error('A/S 저장(트랜잭션) 실패:', e);
                 alert('저장 중 오류가 발생했습니다.\n' + (e.message || ''));
-                return false;
+                return null;
             }
+        }
+        // 충돌/삭제 감지 후 서버 최신본 재로드 (모달 열림 중엔 기존 보류 규칙 유지)
+        async function refreshAsrFromServer() {
+            if (!db) return;
+            try {
+                const s = await db.collection('asPosts').doc('posts').get();
+                const posts = (s.exists && Array.isArray(s.data().posts)) ? s.data().posts : [];
+                if (asrModalIsOpen()) asrPendingPosts = posts; else applyAsrPosts(posts);
+            } catch (err) { /* 다음 onSnapshot이 복구 */ }
+        }
+        // 커밋 결과(서버 최신본)를 로컬에 반영 + 모달이 가리키는 항목의 인덱스를 식별자로 재계산
+        function syncAsrAfterWrite(result, target) {
+            asrData = result;
+            asrLoaded = true;
+            asrPendingPosts = null; // 방금 서버 최신본을 반영했으므로 보류분 폐기
+            if (target && asrModalIsOpen()) {
+                const ni = asrData.findIndex(p => asPostMatches(p, target));
+                if (ni >= 0) asrCurrentIdx = ni;
+            }
+            renderAsResult();
         }
 
         function setAsrSegment(seg) {
@@ -9238,9 +9281,14 @@
 
         async function assignAsr(idx, value) {
             if (!asrCanAssign()) { alert('권한이 없습니다.'); return; }
-            if (!asrData[idx]) return;
-            asrData[idx].assignee = value || '';
-            await saveAsrData();
+            const target = asrData[idx]; if (!target) return;
+            const result = await commitAsrChange(posts => {
+                const p = posts.find(sp => asPostMatches(sp, target));
+                if (!p) return null;
+                p.assignee = value || '';
+                return posts;
+            });
+            if (result) syncAsrAfterWrite(result, target);
         }
 
         function openAsrDetail(idx) {
@@ -9248,6 +9296,7 @@
             if (!p) return;
             asrCurrentIdx = idx;
             asrReportSelected = []; // 새 상세 열 때 첨부 대기 이미지 초기화
+            if (typeof asrReportUploaded !== 'undefined') asrReportUploaded = []; // 이전 건의 미저장 업로드분 유입 방지
             const canEdit = asrCanEdit();
             const done = p.status === 'done';
 
@@ -9380,9 +9429,9 @@
         // 결재확인: 현재 사용자가 찍을 수 있는 단계(담당자→관리자→대표이사)에 직책+이름+날짜 기록
         // 직책·이름은 로그인 프로필(직급/직책·이름)에서 '자동'으로 채우고, 별도 입력 없이 '확인'만 한다.
         async function approveAsr(stage) {
-            const p = asrData[asrCurrentIdx];
-            if (!p) return;
-            const role = asrApprovalRole(p);
+            const local = asrData[asrCurrentIdx];
+            if (!local) return;
+            const role = asrApprovalRole(local);
             const target = stage || role;
             if (!role || target !== role) { alert('결재할 권한이 없거나 결재 순서가 아닙니다.'); return; }
             const STAGE = { staff: { label: '담당자' }, auth: { label: '관리자' }, ceo: { label: '대표이사' } };
@@ -9394,10 +9443,17 @@
             const stamp = { title, name, date: new Date().toLocaleDateString('ko-KR') };
             const label = ((title ? title + ' ' : '') + name).trim();
             if (!(await showStaffConfirm(`${cfg.label} 결재로 확인하시겠습니까?\n\n${label} · ${stamp.date}`, { icon: '' }))) return;
-            if (target === 'staff') p.apprStaff = stamp;
-            else if (target === 'auth') p.apprAuth = stamp;
-            else p.apprCeo = stamp;
-            if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
+            const result = await commitAsrChange(posts => {
+                const p = posts.find(sp => asPostMatches(sp, local));
+                if (!p) return null;
+                // 서버 최신본 기준 재확인: 다른 결재자가 방금 결재했거나 순서가 바뀌었으면 중단 (도장 덮어쓰기 방지)
+                if (asrApprovalRole(p) !== target) throw asrAbort('이미 결재되었거나 결재 순서가 아닙니다.\n(다른 결재자가 방금 처리했을 수 있습니다.)');
+                if (target === 'staff') p.apprStaff = stamp;
+                else if (target === 'auth') p.apprAuth = stamp;
+                else p.apprCeo = stamp;
+                return posts;
+            });
+            if (result) { syncAsrAfterWrite(result, local); openAsrDetail(asrCurrentIdx); }
         }
 
         function closeAsrModal() {
@@ -9405,6 +9461,7 @@
             document.body.style.overflow = '';
             asrCurrentIdx = -1;
             asrReportSelected = []; // 첨부 대기 이미지 초기화
+            if (typeof asrReportUploaded !== 'undefined') asrReportUploaded = []; // 저장 실패로 남은 업로드분도 폐기(다른 건에 유입 방지)
             // 모달이 열려 있는 동안 실시간으로 들어온 변경을 이제 반영
             if (asrPendingPosts) { const p = asrPendingPosts; asrPendingPosts = null; applyAsrPosts(p); }
         }
@@ -9478,28 +9535,49 @@
             const ta = document.getElementById('asr-reply-input');
             const text = (ta.value || '').trim();
             if (!text) { alert('답글 내용을 입력하세요.'); return; }
-            const p = asrData[asrCurrentIdx]; if (!p) return;
-            if (!Array.isArray(p.replies)) p.replies = [];
+            const target = asrData[asrCurrentIdx]; if (!target) return;
             let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
-            p.replies.push({ text, author: u.name || u.username || '임직원', date: new Date().toLocaleDateString('ko-KR') });
-            if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
+            const reply = { text, author: u.name || u.username || '임직원', date: new Date().toLocaleDateString('ko-KR') };
+            const result = await commitAsrChange(posts => {
+                const p = posts.find(sp => asPostMatches(sp, target));
+                if (!p) return null;
+                if (!Array.isArray(p.replies)) p.replies = [];
+                p.replies.push(reply);
+                return posts;
+            });
+            if (result) { syncAsrAfterWrite(result, target); openAsrDetail(asrCurrentIdx); }
         }
         async function deleteAsrReply(ri) {
             if (!asrCanEdit()) return;
-            const p = asrData[asrCurrentIdx]; if (!p || !p.replies) return;
+            const target = asrData[asrCurrentIdx]; if (!target || !target.replies) return;
+            const rt = target.replies[ri]; if (!rt) return;
             if (!(await showStaffConfirm('이 답글을 삭제할까요?'))) return;
-            p.replies.splice(ri, 1);
-            if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
+            const result = await commitAsrChange(posts => {
+                const p = posts.find(sp => asPostMatches(sp, target));
+                if (!p || !Array.isArray(p.replies)) return null;
+                // 서버 최신본에서 같은 답글을 내용으로 재탐색 (그사이 타인이 답글을 추가/삭제해 인덱스가 밀렸어도 안전)
+                const j = p.replies.findIndex(r => r.text === rt.text && r.author === rt.author && r.date === rt.date);
+                if (j < 0) throw asrAbort('이미 삭제된 답글입니다.');
+                p.replies.splice(j, 1);
+                return posts;
+            });
+            if (result) { syncAsrAfterWrite(result, target); openAsrDetail(asrCurrentIdx); }
         }
         // 구매이력 확인 메모 저장 (결재 권한자만)
         async function saveAsrPurchase() {
-            const p = asrData[asrCurrentIdx]; if (!p) return;
+            const target = asrData[asrCurrentIdx]; if (!target) return;
             if (!asrCanPurchase()) { alert('구매이력 확인은 결재 권한자만 작성할 수 있습니다.'); return; }
             const ta = document.getElementById('asr-purchase-input');
             const text = (ta ? ta.value : '').trim();
             let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
-            p.purchaseNote = { text, by: u.name || u.username || '임직원', date: new Date().toLocaleDateString('ko-KR') };
-            if (await saveAsrData()) { openAsrDetail(asrCurrentIdx); renderAsResult(); }
+            const note = { text, by: u.name || u.username || '임직원', date: new Date().toLocaleDateString('ko-KR') };
+            const result = await commitAsrChange(posts => {
+                const p = posts.find(sp => asPostMatches(sp, target));
+                if (!p) return null;
+                p.purchaseNote = note;
+                return posts;
+            });
+            if (result) { syncAsrAfterWrite(result, target); openAsrDetail(asrCurrentIdx); }
         }
 
         // 처리내용에 저장된 첨부 이미지 썸네일 HTML (이미지는 썸네일, 그 외는 파일 링크)
@@ -9543,58 +9621,95 @@
             asrRenderReportPreview();
         }
 
+        // 업로드는 성공했지만 문서 저장이 실패한 이미지 메타 — 재시도 시 같은 파일 재업로드·중복 첨부 방지
+        let asrReportUploaded = [];
         async function completeAsr() {
-            const p = asrData[asrCurrentIdx]; if (!p) return;
-            if (!asrIsDispatcher(p)) { alert('출동담당자로 지정된 분만 처리내용 작성·완료할 수 있습니다.'); return; }
+            const target = asrData[asrCurrentIdx]; if (!target) return;
+            if (!asrIsDispatcher(target)) { alert('출동담당자로 지정된 분만 처리내용 작성·완료할 수 있습니다.'); return; }
             const rep = document.getElementById('asr-report-input');
             const report = (rep.value || '').trim();
             if (!report) { alert('처리 내용을 작성하세요.'); return; }
             if (!(await showStaffConfirm('A/S 완료 처리하시겠습니까?'))) return;
             let u = {}; try { u = JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){}
 
+            const doneBtn = document.querySelector('#asr-modal-body .asr-btn.done');
+            const lockBtn = (label) => { if (doneBtn) { doneBtn.disabled = true; doneBtn.textContent = label; } };
+            const unlockBtn = () => { if (doneBtn) { doneBtn.disabled = false; doneBtn.textContent = '✅ 처리내용 저장 + 완료 처리'; } };
+
             // 첨부 이미지 업로드 (Storage에 올리고 문서엔 URL만 저장)
-            let uploaded = [];
+            // 업로드 성공분은 asrReportUploaded로 옮겨 두어, 이후 문서 저장이 실패해 재시도해도 재업로드하지 않는다.
             if (asrReportSelected.length) {
-                const doneBtn = document.querySelector('#asr-modal-body .asr-btn.done');
-                if (doneBtn) { doneBtn.disabled = true; doneBtn.textContent = '이미지 업로드 중…'; }
+                lockBtn('이미지 업로드 중…');
                 try {
-                    uploaded = await uploadFilesToStorage(asrReportSelected);
+                    const uploaded = await uploadFilesToStorage(asrReportSelected);
+                    asrReportUploaded = asrReportUploaded.concat(uploaded);
+                    asrReportSelected = [];
+                    asrRenderReportPreview();
                 } catch (e) {
                     alert('이미지 업로드 중 오류가 발생했습니다. 다시 시도해주세요.\n' + (e && e.message ? e.message : e));
-                    if (doneBtn) { doneBtn.disabled = false; doneBtn.textContent = '✅ 처리내용 저장 + 완료 처리'; }
+                    unlockBtn();
                     return;
                 }
             }
 
-            p.asReport = report;
-            if (uploaded.length) p.asReportFiles = (Array.isArray(p.asReportFiles) ? p.asReportFiles : []).concat(uploaded);
-            p.status = 'done';
-            p.completedBy = u.name || u.username || '임직원';
-            p.completedDate = new Date().toLocaleDateString('ko-KR');
-            if (await saveAsrData()) { asrReportSelected = []; closeAsrModal(); setAsrSegment('done'); }
+            lockBtn('저장 중…');
+            const newFiles = asrReportUploaded.slice();
+            const completedBy = u.name || u.username || '임직원';
+            const completedDate = new Date().toLocaleDateString('ko-KR');
+            const result = await commitAsrChange(posts => {
+                const p = posts.find(sp => asPostMatches(sp, target));
+                if (!p) return null;
+                if (!asrIsDispatcher(p)) throw asrAbort('출동담당자가 변경되어 완료 처리할 수 없습니다.\n목록을 새로고침한 뒤 확인해주세요.');
+                p.asReport = report;
+                if (newFiles.length) p.asReportFiles = (Array.isArray(p.asReportFiles) ? p.asReportFiles : []).concat(newFiles);
+                p.status = 'done';
+                p.completedBy = completedBy;
+                p.completedDate = completedDate;
+                return posts;
+            });
+            if (result) {
+                asrReportUploaded = [];
+                syncAsrAfterWrite(result, target);
+                closeAsrModal();
+                setAsrSegment('done');
+            } else {
+                unlockBtn(); // 저장 실패: 업로드분은 유지 → 재시도 시 재업로드 없이 문서 저장만 다시 수행
+            }
         }
         async function reopenAsr() {
             if (!asrCanEdit()) return;
-            const p = asrData[asrCurrentIdx]; if (!p) return;
-            if (!(await showStaffConfirm('이 건을 다시 신청목록으로 되돌릴까요?'))) return;
-            p.status = 'pending';
-            if (await saveAsrData()) { closeAsrModal(); setAsrSegment('pending'); }
+            const target = asrData[asrCurrentIdx]; if (!target) return;
+            if (!(await showStaffConfirm('이 건을 다시 신청목록으로 되돌릴까요?\n(결재선 도장과 완료자 정보는 초기화됩니다.)'))) return;
+            const result = await commitAsrChange(posts => {
+                const p = posts.find(sp => asPostMatches(sp, target));
+                if (!p) return null;
+                p.status = 'pending';
+                // 재완료 시 이전 결재 도장이 그대로 남아 결재가 생략된 것처럼 보이는 문제 방지
+                // (처리내용 텍스트·이미지는 참고용으로 보존)
+                delete p.apprStaff; delete p.apprAuth; delete p.apprCeo;
+                delete p.completedBy; delete p.completedDate;
+                return posts;
+            });
+            if (result) { syncAsrAfterWrite(result, target); closeAsrModal(); setAsrSegment('pending'); }
         }
 
         // A/S 완료 게시물 삭제 — 웹/서버 관리자(isAdmin)만 가능. 신청자에게도 더 이상 안 보임(완전 삭제).
         async function deleteAsrDone() {
             if (!asrIsAdmin()) { alert('관리자만 삭제할 수 있습니다.'); return; }
-            const idx = asrCurrentIdx;
-            const p = asrData[idx]; if (!p) return;
-            if (p.status !== 'done') { alert('완료된 A/S 건만 이 메뉴로 삭제할 수 있습니다.'); return; }
-            if (!(await showStaffConfirm(`이 A/S 완료 게시물을 삭제하시겠습니까?\n\n제목: ${p.title || '(제목 없음)'}\n\n삭제하면 신청자 화면에서도 사라지며 되돌릴 수 없습니다.`))) return;
-            const removed = asrData.splice(idx, 1)[0]; // 실패 시 복구용
-            if (await saveAsrData()) {
+            const target = asrData[asrCurrentIdx]; if (!target) return;
+            if (target.status !== 'done') { alert('완료된 A/S 건만 이 메뉴로 삭제할 수 있습니다.'); return; }
+            if (!(await showStaffConfirm(`이 A/S 완료 게시물을 삭제하시겠습니까?\n\n제목: ${target.title || '(제목 없음)'}\n\n삭제하면 신청자 화면에서도 사라지며 되돌릴 수 없습니다.`))) return;
+            const result = await commitAsrChange(posts => {
+                const i = posts.findIndex(sp => asPostMatches(sp, target));
+                if (i < 0) return null;
+                posts.splice(i, 1);
+                return posts;
+            });
+            if (result) {
+                syncAsrAfterWrite(result, null);
                 closeAsrModal();
                 setAsrSegment('done');
                 if (typeof showStaffDonePopup === 'function') showStaffDonePopup('A/S 완료 게시물이 삭제되었습니다.');
-            } else {
-                asrData.splice(idx, 0, removed); // 저장 실패 → 원복 (saveAsrData가 이미 원인 알림)
             }
         }
 
