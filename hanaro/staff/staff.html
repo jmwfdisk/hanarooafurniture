@@ -755,14 +755,15 @@
         }
         
         #member-section .board-table {
-            width: 900px;
+            width: 920px;
             max-width: 100%;
             margin: 0 auto;
         }
-        
-        /* 테이블 열 너비 고정: 아이디(120) 이름(100) 이메일(200) 회원유형(100) 신청일(120) 승인여부(150) 관리(80) */
+
+        /* 테이블 열 너비 고정: 소속(134, '하나로오에이퍼니처 ✎' 실측 134) 직급(76, 헤더 '직급 / 직책↕' 실측 70)
+           이름(124, 연락처 보조줄 '📞 01012345678 ✎' 실측 122) 이메일(1fr) 회원유형(98) 신청일(95) 승인여부(84) 관리(116) */
         #member-section .table-header {
-            grid-template-columns: 130px 96px 85px 1fr 98px 95px 84px 116px;
+            grid-template-columns: 134px 76px 124px 1fr 98px 95px 84px 116px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -776,7 +777,7 @@
         #member-section .table-row {
             position: static;
             left: auto;
-            grid-template-columns: 130px 96px 85px 1fr 98px 95px 84px 116px;
+            grid-template-columns: 134px 76px 124px 1fr 98px 95px 84px 116px;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -2002,9 +2003,9 @@
             }
 
             #member-section .table-header {
-                grid-template-columns: 110px 110px 80px 200px 98px 95px 100px 130px !important;
-                min-width: 923px !important;
-                width: 923px !important;
+                grid-template-columns: 126px 80px 124px 200px 98px 95px 100px 130px !important;
+                min-width: 953px !important;
+                width: 953px !important;
                 font-size: 12px;
                 padding: 8px 5px;
                 gap: 4px;
@@ -2025,9 +2026,9 @@
 
 
             #member-section .table-row {
-                grid-template-columns: 110px 110px 80px 200px 98px 95px 100px 130px !important;
-                min-width: 923px !important;
-                width: 923px !important;
+                grid-template-columns: 126px 80px 124px 200px 98px 95px 100px 130px !important;
+                min-width: 953px !important;
+                width: 953px !important;
                 font-size: 13px !important;
                 padding: 8px 5px !important;
                 gap: 4px;
@@ -2872,7 +2873,7 @@
     </nav>
 
     <!-- 공통 인증 스크립트 -->
-    <script src="../js/auth.js?v=20260709"></script>
+    <script src="../js/auth.js?v=20260710"></script>
     <script src="../js/footer-bar.js?v=20260703"></script>
     <!-- 글쓰기 리치 에디터 본문 살균(XSS 방지). 미로딩 시 평문 폴백 -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
