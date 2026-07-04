@@ -1528,6 +1528,8 @@ function ensureMyPageStyle() {
         '@media (min-width:769px){' +
           '#mypage-link{font-size:14px!important;padding:6px 14px!important;}' +
           '.employee-btn button{font-size:14px!important;padding:6px 14px!important;line-height:1!important;}' +
+          // 호버도 '내 정보'와 동일한 방식으로: 배경만 살짝 진해짐(떠오름 transform·그림자 확대 애니 제거)
+          '.employee-btn button:not(:disabled):hover{transform:none!important;box-shadow:0 2px 8px rgba(68,170,107,.3)!important;background:linear-gradient(135deg,#3d9d61 0%,#347f50 100%)!important;}' +
         '}' +
         // 로그인/로그아웃은 아이콘만 표시(텍스트 제거됨) → 아이콘 우측 여백 제거
         '#login-link .login-icon, #logout-link .login-icon{margin-right:0!important;}' +
