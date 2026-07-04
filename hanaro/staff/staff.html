@@ -851,6 +851,17 @@
         }
         #member-section .table-row span:nth-child(4)::-webkit-scrollbar { display: none; } /* Chrome/Safari: 스크롤바 숨김 */
 
+        /* 3. 이름: 이름 + 연락처 보조줄 2줄 셀 — 공통 span 고정높이(23px)에 눌려
+           상하가 잘리지 않도록 셀·컨테이너는 자동 높이, 줄 스팬은 세로 축소 금지 */
+        #member-section .table-row span:nth-child(3),
+        #member-section .table-row span:nth-child(3) .member-name-cell {
+            height: auto;
+            min-height: 23px;
+        }
+        #member-section .table-row span:nth-child(3) .member-name-cell > span {
+            flex-shrink: 0;
+        }
+
         #member-tbody {
             width: 100%;
             min-width: 0;
