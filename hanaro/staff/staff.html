@@ -10544,7 +10544,10 @@
         let calYear = null, calMonth = null;
         let companyEvents = [];
         let companyEventsCache = {};   // ym('YYYY-MM') -> events[]  (월 이동 시 재요청 방지)
+        let companyEventsCacheAt = {}; // cacheKey -> 저장 시각 — TTL 지나면 재조회(다른 직원의 등록이 월 재방문 때 보이도록)
+        const CAL_CACHE_TTL = 60 * 1000;
         let calLoadSeq = 0;            // 빠른 월 이동 시 늦게 도착한 응답을 무시하기 위한 시퀀스
+        let calSaving = false;         // 캘린더 등록/수정/삭제 in-flight 가드 (연타 시 그룹 2벌 생성 방지)
         let calLoading = false;        // 서버에서 일정 불러오는 중(로딩 스피너 표시용)
         let currentNoticeSegment = 'post';
         let dayModalDate = null;
@@ -10790,8 +10793,26 @@
             if (!(await showStaffConfirm(`${calYear}년 ${calMonth + 1}월 연월차 일정을 ${st.label} 결재로 확인·승인하시겠습니까?\n\n${label} · ${stamp.date}`, { icon: '' }))) return;
             if (db) {
                 try {
-                    await db.collection('appConfig').doc('leaveApprovals')
-                        .set({ months: { [ym]: { [stage]: stamp } } }, { merge: true });
+                    // 트랜잭션으로 서버 최신본 재확인 — 다른 결재자가 방금 결재한 달을
+                    // (세션 최초 1회만 로드하는) 낡은 화면이 다시 결재해 도장을 덮어쓰는 문제 방지
+                    const ref = db.collection('appConfig').doc('leaveApprovals');
+                    let existing = null;
+                    await db.runTransaction(async (tx) => {
+                        const d = await tx.get(ref);
+                        const months = (d.exists && d.data() && d.data().months) || {};
+                        const cur = months[ym] || {};
+                        // 구버전 flat 도장({title,name,date})은 hq 도장으로 해석 (leaveStampsOf와 동일 규칙)
+                        const st2 = cur[stage] || ((stage === 'hq' && cur.date) ? { title: cur.title, name: cur.name, date: cur.date } : null);
+                        if (st2 && st2.date) { existing = st2; return; }
+                        tx.set(ref, { months: { [ym]: { [stage]: stamp } } }, { merge: true });
+                    });
+                    if (existing) {
+                        leaveApprovals = leaveApprovals || {};
+                        leaveApprovals[ym] = Object.assign({}, leaveApprovals[ym], { [stage]: existing });
+                        renderCalendar();
+                        alert(`이미 다른 결재자가 ${calMonth + 1}월을 결재했습니다.\n(기존 도장을 유지합니다: ${((existing.title ? existing.title + ' ' : '') + (existing.name || '')).trim()} · ${existing.date})`);
+                        return;
+                    }
                 } catch (e) {
                     console.error('연월차 결재 저장 실패:', e);
                     alert('결재 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
@@ -10842,7 +10863,8 @@
             calLoading = false;
             companyEvents = companyEventsCache[cacheKey] || [];
             renderCalendar();
-            if (companyEventsCache[cacheKey]) return;        // 캐시 적중 → 네트워크 불필요
+            // 신선한(60초 이내) 캐시만 네트워크 생략 — 오래된 캐시는 즉시 표시 후 뒤에서 재조회(stale-while-revalidate)
+            if (companyEventsCache[cacheKey] && Date.now() - (companyEventsCacheAt[cacheKey] || 0) < CAL_CACHE_TTL) return;
             if (!db) return;
             // 2) 캐시에 없을 때만 해당 월 문서만 서버에서 조회. 응답이 늦어지면(250ms↑) 로딩 스피너 표시
             const spinnerTimer = setTimeout(function () {
@@ -10858,6 +10880,7 @@
                 const arr = [];
                 snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
                 companyEventsCache[cacheKey] = arr;
+                companyEventsCacheAt[cacheKey] = Date.now();
                 companyEvents = arr;
                 calLoading = false;
                 renderCalendar();                           // 일정 채워 재렌더
@@ -11163,6 +11186,8 @@
             if (dates.length === 0) { alert('유효한 날짜가 없습니다.'); return; }
             if (dates.length > 366) { alert('한 번에 등록 가능한 기간은 최대 1년입니다.'); return; }
 
+            if (calSaving) return;   // 연타 방지 (더블클릭 시 같은 기간이 2벌 등록되던 문제)
+            calSaving = true;
             try {
                 let user = {};
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
@@ -11170,11 +11195,15 @@
                 const createdBy = user.name || user.username || '';
                 const hasPeriod = dates.length > 1;   // 기간(여러 날) 등록일 때만 기간/그룹 정보 저장
                 const groupId = hasPeriod ? calMakeGroupId() : null;
-                await Promise.all(dates.map(dk => db.collection(calCfg().collection).add(Object.assign({
+                // 단일 batch로 원자 커밋 (기존 병렬 add는 도중 실패 시 기간이 며칠만 등록되는 반쪽 상태를 남겼음; ≤366건 < 500 한도)
+                const batch = db.batch();
+                const coll = db.collection(calCfg().collection);
+                dates.forEach(dk => batch.set(coll.doc(), Object.assign({
                     date: dk, time: time || '', title: title, memo: memo,
                     createdBy: createdBy, createdAt: createdAt
                 }, isLeave ? { author: author, leaveDays: leaveDays, leaveType: leaveType } : {},
-                   hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {}))));
+                   hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {})));
+                await batch.commit();
                 document.getElementById('day-ev-title').value = '';
                 document.getElementById('day-ev-time').value = '';
                 document.getElementById('day-ev-memo').value = '';
@@ -11185,6 +11214,8 @@
             } catch (e) {
                 console.error('일정 추가 실패:', e);
                 alert('일정 추가 중 오류가 발생했습니다.\n(쓰기 규칙/권한 확인)\n' + (e.message || ''));
+            } finally {
+                calSaving = false;
             }
         }
 
@@ -11250,23 +11281,39 @@
             if (dates.length === 0) { alert('유효한 날짜가 없습니다.'); return; }
             if (dates.length > 366) { alert('한 번에 등록 가능한 기간은 최대 1년입니다.'); return; }
 
+            if (calSaving) return;   // 연타 방지 (두 실행이 각자 delete+add → 그룹 2벌 중복되던 문제)
+            calSaving = true;
             try {
                 const coll = db.collection(calCfg().collection);
                 const createdBy = orig.createdBy || '';
                 const createdAt = orig.createdAt || new Date().toISOString();
 
-                // 1) 기존 문서 삭제: 기간 그룹이면 그룹 전체, 아니면 이 문서만
                 const delRefs = await calGroupDeleteRefs(coll, orig, id);
-                await Promise.all(delRefs.map(ref => ref.delete()));
-
-                // 2) 새 기간으로 재생성
                 const hasPeriod = dates.length > 1;
                 const groupId = hasPeriod ? calMakeGroupId() : null;
-                await Promise.all(dates.map(dk => coll.add(Object.assign({
+                const newDoc = (dk) => Object.assign({
                     date: dk, time: time || '', title: title, memo: memo,
                     createdBy: createdBy, createdAt: createdAt
                 }, isLeave ? { author: author, leaveDays: leaveDays, leaveType: leaveType } : {},
-                   hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {}))));
+                   hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {});
+
+                // 삭제+재생성을 가능하면 '한 batch'로 원자 커밋 — 기존 코드는 삭제 성공 후 재생성이
+                // 실패하면 원본까지 사라져 일정이 통째로 소실됐음.
+                if (delRefs.length + dates.length <= 500) {
+                    const batch = db.batch();
+                    dates.forEach(dk => batch.set(coll.doc(), newDoc(dk)));
+                    delRefs.forEach(ref => batch.delete(ref));
+                    await batch.commit();
+                } else {
+                    // 500 ops 초과(장기간→장기간 수정): '생성 먼저, 삭제 나중' 2-batch —
+                    // 중간 실패 시 최악이 '중복 표시'(재삭제로 복구 가능)이지 데이터 소실이 아님
+                    const createBatch = db.batch();
+                    dates.forEach(dk => createBatch.set(coll.doc(), newDoc(dk)));
+                    await createBatch.commit();
+                    const delBatch = db.batch();
+                    delRefs.forEach(ref => delBatch.delete(ref));
+                    await delBatch.commit();
+                }
 
                 editingCompanyEventId = null;
                 companyEventsCache = {};        // 여러 달에 걸칠 수 있어 캐시 전체 무효화
@@ -11276,6 +11323,8 @@
             } catch (e) {
                 console.error('일정 수정 실패:', e);
                 alert('일정 수정 중 오류가 발생했습니다.\n(쓰기 규칙/권한 확인)\n' + (e.message || ''));
+            } finally {
+                calSaving = false;
             }
         }
 
@@ -11296,15 +11345,24 @@
                 ? '기간(여러 날) 일정입니다.\n해당 기간의 동일한 일정을 모두 삭제하시겠습니까?'
                 : '이 일정을 삭제하시겠습니까?';
             if (!(await showStaffConfirm(msg))) return;
+            if (calSaving) return;   // 연타 방지
+            calSaving = true;
             try {
                 const refs = await calGroupDeleteRefs(coll, orig, id);
-                await Promise.all(refs.map(ref => ref.delete()));
+                // batch 삭제(450개 단위 청크) — 병렬 개별 delete는 도중 실패 시 그룹 반쪽만 남았음
+                for (let i = 0; i < refs.length; i += 450) {
+                    const batch = db.batch();
+                    refs.slice(i, i + 450).forEach(ref => batch.delete(ref));
+                    await batch.commit();
+                }
                 companyEventsCache = {};   // 다일정은 여러 달에 걸칠 수 있으므로 캐시 전체 무효화
                 await loadAndRenderCalendar();
                 renderDayModal();
             } catch (e) {
                 console.error('일정 삭제 실패:', e);
                 alert('일정 삭제 중 오류가 발생했습니다.\n' + (e.message || ''));
+            } finally {
+                calSaving = false;
             }
         }
 
