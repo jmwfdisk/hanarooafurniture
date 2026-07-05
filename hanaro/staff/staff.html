@@ -9195,6 +9195,8 @@
         function asrCurrentUser(){ try { return JSON.parse(sessionStorage.getItem('loggedInUser')||'{}'); } catch(e){ return {}; } }
         // 현재 로그인 사용자가 그 건의 '출동담당자'로 지정됐는지 → 지정 즉시 처리내용 입력칸이 자동으로 열림
         function asrIsDispatcher(p){ return !!p && asrNameMatches(p.assignee, asrCurrentUser()); }
+        // 처리내용 작성·완료 권한: 지정된 출동담당자 + 관리자(isAdmin/admin)도 허용
+        function asrCanReport(p){ return asrIsDispatcher(p) || asrIsAdmin(); }
         // 현재 로그인 사용자가 '출동 담당자 목록(asrAssignees)'에 등록된 사람인지
         function asrIsRegisteredDispatcher(){
             if (!Array.isArray(asrAssignees)) return false;
@@ -9482,7 +9484,7 @@
                     ${asrReportImagesHtml(p)}
                     <div class="asr-empty-line" style="margin-top:8px;">완료: ${asrEsc(p.completedBy||'')} · ${asrEsc(p.completedDate||'')}</div>
                     ${(canEdit || asrIsAdmin()) ? `<div class="asr-row2">${canEdit ? `<button class="asr-btn ghost" onclick="reopenAsr()">↩ 신청목록으로 되돌리기</button>` : ''}${asrIsAdmin() ? `<button class="asr-btn danger" onclick="deleteAsrDone()">🗑️ 게시물 삭제</button>` : ''}</div>` : ''}</div>`;
-            } else if (asrIsDispatcher(p)) {
+            } else if (asrCanReport(p)) {
                 body += `<div class="asr-card">
                     <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
                     <textarea id="asr-report-input" class="asr-input" placeholder="처리 내용을 작성하세요">${asrEsc(p.asReport||'')}</textarea>
@@ -9500,7 +9502,7 @@
                     <h4>🛠 A/S 출동담당자 (처리 내용)</h4>
                     ${p.asReport ? `<div class="asr-cell content" style="border:none;padding:0;"><div class="val" style="background:#fafbfc;border-radius:8px;padding:10px;">${asrEsc(p.asReport)}</div></div>` : ''}
                     ${asrReportImagesHtml(p)}
-                    <div class="asr-empty-line">출동담당자로 지정된 분만 처리내용을 작성·완료할 수 있습니다.</div></div>`;
+                    <div class="asr-empty-line">출동담당자로 지정된 분(또는 관리자)만 처리내용을 작성·완료할 수 있습니다.</div></div>`;
             }
 
             document.getElementById('asr-modal-title').textContent = '🧾 A/S 신청 상세';
@@ -9731,7 +9733,7 @@
         let asrReportUploaded = [];
         async function completeAsr() {
             const target = asrData[asrCurrentIdx]; if (!target) return;
-            if (!asrIsDispatcher(target)) { alert('출동담당자로 지정된 분만 처리내용 작성·완료할 수 있습니다.'); return; }
+            if (!asrCanReport(target)) { alert('출동담당자로 지정된 분(또는 관리자)만 처리내용 작성·완료할 수 있습니다.'); return; }
             const rep = document.getElementById('asr-report-input');
             const report = (rep.value || '').trim();
             if (!report) { alert('처리 내용을 작성하세요.'); return; }
@@ -9765,7 +9767,7 @@
             const result = await commitAsrChange(posts => {
                 const p = posts.find(sp => asPostMatches(sp, target));
                 if (!p) return null;
-                if (!asrIsDispatcher(p)) throw asrAbort('출동담당자가 변경되어 완료 처리할 수 없습니다.\n목록을 새로고침한 뒤 확인해주세요.');
+                if (!asrCanReport(p)) throw asrAbort('출동담당자가 변경되어 완료 처리할 수 없습니다.\n목록을 새로고침한 뒤 확인해주세요.');
                 p.asReport = report;
                 if (newFiles.length) p.asReportFiles = (Array.isArray(p.asReportFiles) ? p.asReportFiles : []).concat(newFiles);
                 p.status = 'done';
