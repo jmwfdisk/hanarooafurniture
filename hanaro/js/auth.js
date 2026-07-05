@@ -289,6 +289,20 @@ function setupAuthStateListener() {
                                     document.querySelectorAll('.employee-button, #employee-button, #employee-button-mobile').forEach(btn => {
                                         btn.disabled = !isEmployee;
                                     });
+                                    // ⚠ 페이지 훅은 UI 갱신 생략과 무관하게 반드시 호출.
+                                    // (pagehide 제거 후 세션이 내비게이션을 살아남으면서 staff.html 등이 이 빠른 경로로만
+                                    //  진입하는데, 예전 코드는 여기서 checkStaffAccess를 부르지 않아 게시판이
+                                    //  '불러오는 중…'에서 영영 멈췄음 — 이 두 호출을 제거하지 말 것)
+                                    if (typeof window.checkStaffAccess === 'function') {
+                                        try {
+                                            const r = window.checkStaffAccess(user, userData);
+                                            if (r && typeof r.catch === 'function') r.catch(() => {});
+                                        } catch (e) { logError('[Auth 리스너] checkStaffAccess 오류:', e); }
+                                    }
+                                    // school.html 등은 이 이벤트로 데이터 로드를 시작한다
+                                    window.dispatchEvent(new CustomEvent('authStateRestored', {
+                                        detail: { user: user, userData: userData, restored: true }
+                                    }));
                                 }
                             });
                             return; // UI 업데이트 없이 종료
