@@ -43,8 +43,13 @@ let authDb = null;
 let auth = null;
 let authStateUnsubscribe = null;
 let authStateChangedCount = 0;
-let isInitializing = false;
+let initFirebasePromise = null; // 초기화 진행 중이면 이 Promise를 공유(동시 호출이 null 대신 완료를 기다림)
 let isLoggingIn = false;
+let isRegistering = false;      // 가입 신청 진행 중 — 연타 차단 + onAuthStateChanged 개입 차단
+// 로그아웃 세대 카운터: 로그아웃/세션정리 때마다 +1.
+// 비동기 콜백(fetchUserData .then 등)은 시작 시점 값을 캡처해 두었다가,
+// sessionStorage에 쓰기 직전 값이 그대로인지 재확인한다(로그아웃 이후 뒤늦게 도착한 응답이 세션을 부활시키는 문제 방지).
+let authEpoch = 0;
 
 // Firestore 조회 캐시 (중복 조회 방지)
 let userDataCache = null;
@@ -52,65 +57,68 @@ let userDataCacheTime = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5분
 
 // Firebase 초기화 (싱글톤 패턴)
+// 동시 호출 시 이전에는 null을 반환해 빠른 로그인 클릭이 "새로고침" 오류로 실패했음 →
+// 진행 중인 초기화 Promise를 공유해 모든 호출자가 같은 결과를 기다리도록 변경.
 async function initFirebase() {
     if (firebaseApp && auth && authDb) {
         log('[Firebase 초기화] 이미 초기화됨, 재사용');
         return { app: firebaseApp, auth: auth, db: authDb };
     }
-    
-    if (isInitializing) {
-        log('[Firebase 초기화] 초기화 중, 대기...');
-        return null;
+
+    if (initFirebasePromise) {
+        log('[Firebase 초기화] 초기화 진행 중 → 완료 대기');
+        return initFirebasePromise;
     }
-    
-    isInitializing = true;
-    
-    try {
-        if (typeof firebase === 'undefined') {
-            logWarn('[Firebase 초기화] Firebase SDK가 로드되지 않았습니다.');
-            isInitializing = false;
-            return null;
-        }
-        
+
+    initFirebasePromise = (async () => {
         try {
-            if (firebase.apps.length === 0) {
-                firebaseApp = firebase.initializeApp(firebaseConfig);
-                log('[Firebase 초기화] 새로 초기화됨');
-            } else {
-                firebaseApp = firebase.app();
-                log('[Firebase 초기화] 기존 앱 재사용');
+            if (typeof firebase === 'undefined') {
+                logWarn('[Firebase 초기화] Firebase SDK가 로드되지 않았습니다.');
+                return null;
             }
-        } catch (error) {
-            if (error.code === 'app/duplicate-app') {
-                firebaseApp = firebase.app();
-            } else {
-                throw error;
-            }
-        }
-        
-        auth = firebaseApp.auth();
-        authDb = firebaseApp.firestore();
-        
-        if (auth) {
+
             try {
-                const currentUser = auth.currentUser;
-                if (!currentUser) {
-                    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-                    log('[Firebase 초기화] Auth persistence를 LOCAL로 설정 완료');
+                if (firebase.apps.length === 0) {
+                    firebaseApp = firebase.initializeApp(firebaseConfig);
+                    log('[Firebase 초기화] 새로 초기화됨');
+                } else {
+                    firebaseApp = firebase.app();
+                    log('[Firebase 초기화] 기존 앱 재사용');
                 }
             } catch (error) {
-                logWarn('[Firebase 초기화] Auth persistence 설정 실패:', error.message);
+                if (error.code === 'app/duplicate-app') {
+                    firebaseApp = firebase.app();
+                } else {
+                    throw error;
+                }
             }
+
+            auth = firebaseApp.auth();
+            authDb = firebaseApp.firestore();
+
+            if (auth) {
+                try {
+                    const currentUser = auth.currentUser;
+                    if (!currentUser) {
+                        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+                        log('[Firebase 초기화] Auth persistence를 LOCAL로 설정 완료');
+                    }
+                } catch (error) {
+                    logWarn('[Firebase 초기화] Auth persistence 설정 실패:', error.message);
+                }
+            }
+
+            log('[Firebase 초기화] 완료');
+            return { app: firebaseApp, auth: auth, db: authDb };
+        } catch (error) {
+            logError('[Firebase 초기화] 실패:', error);
+            return null;
         }
-        
-        log('[Firebase 초기화] 완료');
-        isInitializing = false;
-        return { app: firebaseApp, auth: auth, db: authDb };
-    } catch (error) {
-        logError('[Firebase 초기화] 실패:', error);
-        isInitializing = false;
-        return null;
-    }
+    })();
+
+    const result = await initFirebasePromise;
+    if (!result) initFirebasePromise = null; // 실패 시 다음 호출에서 재시도 가능
+    return result;
 }
 
 // 즉시 초기화 시도
@@ -180,14 +188,28 @@ async function fetchUserData(uid, forceRefresh = false) {
         logError('[Firestore] 사용자 데이터 조회 실패:', error);
         // Firestore 접근 실패 시에도 기본 정보 반환 (로그인 상태 유지)
         // Firebase Auth는 성공했으므로 Firestore 접근 실패는 로그인 상태와 별개
+        // _fallback: 일시 장애 폴백 표식 — 이 값으로 sessionStorage의 정상 프로필을 덮어쓰지 않는다
+        // (임직원이 세션 내내 guest로 고착되던 문제 방지)
         console.warn('[Firestore] 접근 실패했지만 기본 정보로 로그인 상태 유지');
         return {
             uid: uid,
             email: auth.currentUser?.email || '',
             userType: 'guest',
-            isAdmin: false
+            isAdmin: false,
+            _fallback: true
         };
     }
+}
+
+// Firestore 일시 장애 폴백(guest)이 기존의 정상 프로필을 덮어쓰지 않도록 보정.
+// 폴백이고 sessionStorage에 같은 uid의 정상 프로필이 있으면 그 프로필을 유지한다.
+function preferStoredProfile(userData, uid) {
+    if (!userData || !userData._fallback) return userData;
+    try {
+        const prev = JSON.parse(sessionStorage.getItem('loggedInUser') || 'null');
+        if (prev && prev.uid === uid && !prev._fallback) return prev;
+    } catch (e) { /* 파싱 실패 시 폴백 사용 */ }
+    return userData;
 }
 
 function setupAuthStateListener() {
@@ -221,8 +243,15 @@ function setupAuthStateListener() {
     authStateUnsubscribe = auth.onAuthStateChanged(async function(user) {
         authStateChangedCount++;
         window.authStateChangedCount = authStateChangedCount;
-        
+
         if (user) {
+            // 가입 신청 처리 중 createUserWithEmailAndPassword가 일으키는 임시 사인인은 무시
+            // (guest로 로그인 UI·sessionStorage가 세워졌다가 signOut 후 유령 세션으로 남던 문제 방지)
+            if (isRegistering) {
+                log('[Auth 리스너] 가입 신청 처리 중 — 임시 사인인 무시');
+                return;
+            }
+            const epochAtStart = authEpoch; // 이 콜백이 시작된 세대 — 쓰기 직전 재확인용
             isLoggingIn = false;
             authChecked = true;
             
@@ -249,7 +278,10 @@ function setupAuthStateListener() {
                             // UI가 이미 올바른 상태이면 Firestore 조회만 수행 (캐시 갱신)
                             needsUpdate = false;
                             fetchUserData(user.uid, true).then(userData => {
+                                // 로그아웃 이후 뒤늦게 도착한 응답이면 기록하지 않음 (세션 부활 방지)
+                                if (epochAtStart !== authEpoch || !auth || !auth.currentUser || auth.currentUser.uid !== user.uid) return;
                                 if (userData) {
+                                    userData = preferStoredProfile(userData, user.uid); // 폴백이 정상 프로필을 덮지 않게
                                     sessionStorage.setItem("loggedInUser", JSON.stringify(userData));
                                     sessionStorage.setItem("loggedIn", "true");
                                     // UI는 이미 올바른 상태이므로 임직원 버튼만 업데이트
@@ -289,10 +321,18 @@ function setupAuthStateListener() {
                     uid: user.uid,
                     email: user.email || '',
                     userType: 'guest',
-                    isAdmin: false
+                    isAdmin: false,
+                    _fallback: true
                 };
             }
-            
+
+            // 로그아웃 이후 뒤늦게 도착한 조회 결과면 여기서 중단 (세션 부활 방지)
+            if (epochAtStart !== authEpoch || !auth || !auth.currentUser || auth.currentUser.uid !== user.uid) {
+                log('[Auth 리스너] 조회 완료 전에 로그아웃됨 — 세션 기록 생략');
+                return;
+            }
+            userData = preferStoredProfile(userData, user.uid); // 폴백(guest)이 정상 프로필을 덮지 않게
+
             // 항상 로그인 상태 유지 (Firestore 접근 실패와 무관)
             if (needsUpdate) {
                 setLoggedInState(true, userData);
@@ -376,13 +416,13 @@ function setupAuthStateListener() {
                             if (loginLink && loginLink.style.display === 'flex' && 
                                 logoutLink && logoutLink.style.display === 'none') {
                                 // 이미 로그아웃 상태로 표시되어 있으면 업데이트 생략
-                                sessionStorage.removeItem("loggedInUser");
+                                authEpoch++; sessionStorage.removeItem("loggedInUser");
                                 sessionStorage.removeItem("loggedIn");
                                 userDataCache = null;
                                 return;
                             }
                             setLoggedInState(false);
-                            sessionStorage.removeItem("loggedInUser");
+                            authEpoch++; sessionStorage.removeItem("loggedInUser");
                             sessionStorage.removeItem("loggedIn");
                             userDataCache = null;
                             
@@ -407,7 +447,7 @@ function setupAuthStateListener() {
                 loginLink && loginLink.style.display === 'flex' && 
                 logoutLink && logoutLink.style.display === 'none') {
                 // 이미 로그아웃 상태로 표시되어 있고 sessionStorage에도 없으면 업데이트 생략
-                sessionStorage.removeItem("loggedInUser");
+                authEpoch++; sessionStorage.removeItem("loggedInUser");
                 sessionStorage.removeItem("loggedIn");
                 userDataCache = null;
                 return;
@@ -439,7 +479,7 @@ function setupAuthStateListener() {
                             if (recheckLoginLink && recheckLoginLink.style.display === 'flex' && 
                                 recheckLogoutLink && recheckLogoutLink.style.display === 'none') {
                                 setLoggedInState(false);
-                                sessionStorage.removeItem("loggedInUser");
+                                authEpoch++; sessionStorage.removeItem("loggedInUser");
                                 sessionStorage.removeItem("loggedIn");
                                 userDataCache = null;
                                 
@@ -453,7 +493,7 @@ function setupAuthStateListener() {
                 }
                 
                 setLoggedInState(false);
-                sessionStorage.removeItem("loggedInUser");
+                authEpoch++; sessionStorage.removeItem("loggedInUser");
                 sessionStorage.removeItem("loggedIn");
                 userDataCache = null;
                 
@@ -589,6 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                        (loggedInUser && JSON.parse(loggedInUser).uid !== currentUser.uid);
                     
                     if (needsUpdate) {
+                        const epochAtStart = authEpoch;
                         let userData;
                         try {
                             userData = await fetchUserData(currentUser.uid);
@@ -599,20 +640,26 @@ document.addEventListener('DOMContentLoaded', function() {
                                 uid: currentUser.uid,
                                 email: currentUser.email || '',
                                 userType: 'guest',
-                                isAdmin: false
+                                isAdmin: false,
+                                _fallback: true
                             };
                         }
-                        
+
                         // userData가 없으면 기본 정보 생성
                         if (!userData) {
                             userData = {
                                 uid: currentUser.uid,
                                 email: currentUser.email || '',
                                 userType: 'guest',
-                                isAdmin: false
+                                isAdmin: false,
+                                _fallback: true
                             };
                         }
-                        
+
+                        // 로그아웃 이후 뒤늦게 도착한 응답이면 기록하지 않음 (세션 부활 방지)
+                        if (epochAtStart !== authEpoch || !auth || !auth.currentUser || auth.currentUser.uid !== currentUser.uid) return;
+                        userData = preferStoredProfile(userData, currentUser.uid);
+
                         sessionStorage.setItem("loggedInUser", JSON.stringify(userData));
                         sessionStorage.setItem("loggedIn", "true");
                         sessionStorage.setItem("lastLoginTime", Date.now().toString());
@@ -658,12 +705,16 @@ function resetAutoLogoutTimer() {
     }
     
     lastActivityTime = Date.now();
-    
+    // 다른 탭과 활동 시각 공유 — 한 탭의 방치 타이머가 활발히 쓰는 다른 탭까지 로그아웃시키지 않도록
+    try { localStorage.setItem('lastActivityTime', String(lastActivityTime)); } catch (e) {}
+
     const warningModal = document.getElementById('auto-logout-warning');
     if (warningModal) {
         warningModal.remove();
-        warningShown = false;
     }
+    // 경고 표시 여부는 모달 존재와 무관하게 항상 리셋
+    // (자동 로그아웃/3분 타임아웃이 모달만 제거하고 플래그를 남겨, 재로그인 후 경고 없이 로그아웃되던 문제)
+    warningShown = false;
     
     if (autoLogoutTimer) {
         clearTimeout(autoLogoutTimer);
@@ -740,21 +791,37 @@ function showAutoLogoutWarning() {
     setTimeout(() => {
         if (warningModal.parentElement) {
             warningModal.remove();
+            warningShown = false; // 플래그 잔존 시 재로그인 후 경고 없이 로그아웃되는 문제 방지
         }
     }, 3 * 60 * 1000);
 }
 
 async function autoLogout() {
+    // 다른 탭에서 최근 활동이 있었으면 로그아웃하지 않는다
+    // (Auth persistence는 LOCAL로 전 탭 공유라, 방치된 탭의 signOut이 작업 중인 탭까지 로그아웃시키던 문제)
+    try {
+        const shared = parseInt(localStorage.getItem('lastActivityTime') || '0', 10);
+        if (shared && Date.now() - shared < AUTO_LOGOUT_TIME) {
+            log('[자동 로그아웃] 다른 탭에서 최근 활동 감지 — 로그아웃 취소, 타이머 재설정');
+            warningShown = false;
+            const warningModal = document.getElementById('auto-logout-warning');
+            if (warningModal) warningModal.remove();
+            resetAutoLogoutTimer();
+            return;
+        }
+    } catch (e) { /* localStorage 접근 실패 시 기존 동작 유지 */ }
+
     const warningModal = document.getElementById('auto-logout-warning');
     if (warningModal) {
         warningModal.remove();
     }
-    
+    warningShown = false;
+
     const timerDisplay = document.getElementById('logout-timer');
     if (timerDisplay) {
         timerDisplay.remove();
     }
-    
+
     await logout();
     alert('15분간 활동이 없어 자동으로 로그아웃되었습니다.');
 }
@@ -1026,10 +1093,8 @@ function showLogin() {
                 const userData = JSON.parse(loggedInUser);
                 const confirmLogout = confirm(`이미 ${userData.name || userData.username || userData.email}님으로 로그인되어 있습니다.\n로그아웃 후 다시 로그인하시겠습니까?`);
                 if (confirmLogout) {
-                    logout();
-                    setTimeout(() => {
-                        showLogin();
-                    }, 500);
+                    // 고정 500ms 대기 대신 로그아웃 완료를 실제로 기다림 (signOut이 늦으면 confirm이 다시 뜨던 문제)
+                    logout().then(function () { showLogin(); });
                 }
                 return;
             } catch (e) {
@@ -1251,6 +1316,13 @@ async function login() {
 
 async function register(userTypeArg) {
     log('[회원가입] register() 함수 호출됨 - userType:', userTypeArg);
+
+    // 연타/중복 진입 차단 — 첫 await(initFirebase) 이전에 걸어야 초기화 지연 중 이중 가입 시도가 안 생김
+    if (isRegistering) {
+        alert('가입 신청 처리 중입니다. 잠시만 기다려주세요.');
+        return;
+    }
+
     const password = document.getElementById('reg-password').value;
     const passwordConfirm = document.getElementById('reg-password-confirm').value;
     const name = document.getElementById('reg-name').value.trim();
@@ -1295,82 +1367,107 @@ async function register(userTypeArg) {
         return;
     }
 
-    if (!auth || !authDb) {
-        const result = await initFirebase();
-        if (result) {
-            auth = result.auth;
-            authDb = result.db;
-        }
-    }
-    
-    if (!auth || !authDb) {
-        alert('서버 연결에 실패했습니다.\n페이지를 새로고침 후 다시 시도해주세요.');
-        return;
-    }
-
-    setRegisterBtnLoading(true, userTypeArg);   // 가입 신청 처리 시작 → 버튼 스피너
+    isRegistering = true;   // 이 시점부터 onAuthStateChanged가 임시 사인인을 무시(유령 세션 방지)
     try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
+        if (!auth || !authDb) {
+            const result = await initFirebase();
+            if (result) {
+                auth = result.auth;
+                authDb = result.db;
+            }
+        }
 
-        try {
-            await user.getIdToken(true);
-        } catch (tokenError) {
-            logError('[회원가입] 인증 토큰 준비 오류:', tokenError);
-            await user.delete();
-            alert('인증 토큰을 가져올 수 없습니다.\n다시 시도해주세요.');
+        if (!auth || !authDb) {
+            alert('서버 연결에 실패했습니다.\n페이지를 새로고침 후 다시 시도해주세요.');
             return;
         }
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        setRegisterBtnLoading(true, userTypeArg);   // 가입 신청 처리 시작 → 버튼 스피너
+
+        // 가입 도중 실패 시 계정 정리 폴백 — users 문서 없는 Auth 계정이 남으면
+        // 같은 이메일 재가입이 email-already-in-use로 영구히 막히므로, 어떤 실패든 삭제를 시도한다.
+        // (delete 자체가 실패하면 최소한 signOut으로 로그인 잔류만이라도 정리)
+        const cleanupAccount = async (user) => {
+            try { await user.delete(); }
+            catch (delErr) {
+                logError('[회원가입] 계정 롤백(delete) 실패:', delErr);
+                try { await auth.signOut(); } catch (e2) { /* 무시 */ }
+            }
+        };
 
         try {
-            const userDocRef = authDb.collection('users').doc(user.uid);
-            await userDocRef.set({
-                uid: user.uid,
-                username: username,
-                name: name,
-                email: email,
-                phone: phone || '',
-                org: org || '',
-                position: position || '',
-                userType: userType,
-                empGroup: empGroup,
-                status: 'pending',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                isAdmin: false
-            });
-        } catch (setError) {
-            logError('[회원가입] Firestore 저장 오류:', setError);
-            
-            if (setError.code === 'permission-denied') {
-                await user.delete();
-                alert('사용자 정보 저장 권한이 없습니다.\nFirestore 보안 규칙을 확인해주세요.');
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+
+            try {
+                await user.getIdToken(true);
+            } catch (tokenError) {
+                logError('[회원가입] 인증 토큰 준비 오류:', tokenError);
+                await cleanupAccount(user);
+                alert('인증 토큰을 가져올 수 없습니다.\n다시 시도해주세요.');
                 return;
             }
-            throw setError;
-        }
 
-        await auth.signOut();
-        alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 로그인이 가능합니다.');
-        hideLogin();
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-    } catch (error) {
-        logError('[회원가입] 오류:', error);
-        
-        if (error.code === 'auth/email-already-in-use') {
-            alert('이미 사용 중인 이메일입니다.');
-        } else if (error.code === 'auth/invalid-email') {
-            alert('올바른 이메일 형식을 입력해주세요.');
-        } else if (error.code === 'auth/weak-password') {
-            alert('비밀번호가 너무 약합니다.\n6자 이상 입력해주세요.');
-        } else if (error.code === 'permission-denied') {
-            alert('권한이 없습니다.\n관리자에게 문의해주세요.');
-        } else {
-            alert('회원가입 중 오류가 발생했습니다.\n' + (error.message || '잠시 후 다시 시도해주세요.'));
+            try {
+                const userDocRef = authDb.collection('users').doc(user.uid);
+                await userDocRef.set({
+                    uid: user.uid,
+                    username: username,
+                    name: name,
+                    email: email,
+                    phone: phone || '',
+                    org: org || '',
+                    position: position || '',
+                    userType: userType,
+                    empGroup: empGroup,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    isAdmin: false
+                });
+            } catch (setError) {
+                logError('[회원가입] Firestore 저장 오류:', setError);
+                // 사유 불문 계정 정리 (이전에는 permission-denied만 정리해 고아 계정이 남았음)
+                await cleanupAccount(user);
+                if (setError.code === 'permission-denied') {
+                    alert('사용자 정보 저장 권한이 없습니다.\nFirestore 보안 규칙을 확인해주세요.');
+                } else {
+                    alert('가입 정보 저장에 실패했습니다.\n네트워크 상태를 확인한 뒤 같은 이메일로 다시 가입 신청해주세요.\n(' + (setError.message || '') + ')');
+                }
+                return;
+            }
+
+            // 가입 성공 확정 — signOut 실패는 가입 성공 안내를 막지 않는다 (성공을 오류로 오인시키던 문제 방지)
+            try { await auth.signOut(); }
+            catch (soErr) { logWarn('[회원가입] 가입 후 로그아웃 실패(가입 자체는 완료):', soErr); }
+            // 가입 절차 중 세션 흔적 정리 (리스너는 isRegistering으로 차단되지만 이중 안전장치)
+            authEpoch++;
+            sessionStorage.removeItem('loggedInUser');
+            sessionStorage.removeItem('loggedIn');
+            document.documentElement.setAttribute('data-auth', 'out');
+            alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 로그인이 가능합니다.');
+            hideLogin();
+
+        } catch (error) {
+            logError('[회원가입] 오류:', error);
+
+            if (error.code === 'auth/email-already-in-use') {
+                alert('이미 사용 중인 이메일입니다.');
+            } else if (error.code === 'auth/invalid-email') {
+                alert('올바른 이메일 형식을 입력해주세요.');
+            } else if (error.code === 'auth/weak-password') {
+                alert('비밀번호가 너무 약합니다.\n6자 이상 입력해주세요.');
+            } else if (error.code === 'permission-denied') {
+                alert('권한이 없습니다.\n관리자에게 문의해주세요.');
+            } else {
+                alert('회원가입 중 오류가 발생했습니다.\n' + (error.message || '잠시 후 다시 시도해주세요.'));
+            }
+        } finally {
+            setRegisterBtnLoading(false);   // 성공·오류·중단 모든 경우 버튼 원복
         }
     } finally {
-        setRegisterBtnLoading(false);   // 성공·오류·중단 모든 경우 버튼 원복
+        isRegistering = false;
     }
 }
 
@@ -1399,11 +1496,13 @@ async function logout() {
         if (auth) {
             await auth.signOut();
         }
-        
-        sessionStorage.removeItem("loggedInUser");
+
+        authEpoch++; sessionStorage.removeItem("loggedInUser");
         sessionStorage.removeItem("loggedIn");
         userDataCache = null; // 캐시 초기화
         setLoggedInState(false);
+        // 다른 탭에 로그아웃 전파 (Auth는 LOCAL 공유라 이미 로그아웃 — 각 탭의 sessionStorage/UI도 정리시킴)
+        try { localStorage.setItem('authLogoutAt', String(Date.now())); } catch (e) {}
         
         if (!warningShown || Date.now() - lastActivityTime < AUTO_LOGOUT_TIME) {
             alert('로그아웃되었습니다.');
@@ -1421,7 +1520,7 @@ async function logout() {
         }
     } catch (error) {
         logError('[로그아웃] 오류:', error);
-        sessionStorage.removeItem("loggedInUser");
+        authEpoch++; sessionStorage.removeItem("loggedInUser");
         sessionStorage.removeItem("loggedIn");
         userDataCache = null;
         setLoggedInState(false);
@@ -1439,44 +1538,27 @@ async function logout() {
     }
 }
 
-let isLoggingOut = false;
+// (제거됨) 기존 pagehide 핸들러는 탭 닫기뿐 아니라 '모든 페이지 이동'에서 발화해
+// 매 내비게이션마다 로그인 캐시(sessionStorage)를 지웠고, <html data-auth> 첫 페인트 설계를 무력화했다.
+// 탭이 닫히면 sessionStorage는 브라우저가 자동 소거하고 Firebase signOut은 애초에 호출하지 않았으므로
+// 보안 효과도 없어 핸들러 자체를 제거함. "탭을 닫으면 로그아웃" 정책이 필요해지면
+// persistence를 SESSION으로 바꾸는 것이 올바른 수단이다. — 재도입 금지.
 
-window.addEventListener('pagehide', function(event) {
-    if (!isLoggingOut) {
-        performAutoLogout();
-    }
-});
-
-function performAutoLogout() {
-    const isLoggedIn = sessionStorage.getItem("loggedIn");
-    if (isLoggedIn === "true" && !isLoggingOut) {
-        isLoggingOut = true;
-        
-        try {
-            if (autoLogoutTimer) {
-                clearTimeout(autoLogoutTimer);
-                autoLogoutTimer = null;
-            }
-            if (autoLogoutWarningTimer) {
-                clearTimeout(autoLogoutWarningTimer);
-                autoLogoutWarningTimer = null;
-            }
-            if (logoutTimerUpdateInterval) {
-                clearInterval(logoutTimerUpdateInterval);
-                logoutTimerUpdateInterval = null;
-            }
-            
-            sessionStorage.removeItem("loggedInUser");
-            sessionStorage.removeItem("loggedIn");
-            userDataCache = null;
-            setLoggedInState(false);
-        } catch (error) {
-            logError('[자동 로그아웃] 오류:', error);
-            sessionStorage.removeItem("loggedInUser");
-            sessionStorage.removeItem("loggedIn");
+// 다른 탭에서의 로그아웃을 이 탭에도 반영 (storage 이벤트는 다른 탭에서만 발화)
+window.addEventListener('storage', function (e) {
+    if (e.key === 'authLogoutAt' && e.newValue) {
+        log('[멀티탭] 다른 탭 로그아웃 감지 — 이 탭 세션 정리');
+        authEpoch++;
+        sessionStorage.removeItem('loggedInUser');
+        sessionStorage.removeItem('loggedIn');
+        userDataCache = null;
+        document.documentElement.setAttribute('data-auth', 'out');
+        setLoggedInState(false);
+        if (typeof window.checkStaffAccess === 'function') {
+            try { window.checkStaffAccess(null, null); } catch (err) { /* 무시 */ }
         }
     }
-}
+});
 
 function getCurrentUser() {
     const userStr = sessionStorage.getItem("loggedInUser");
@@ -1628,6 +1710,8 @@ function hideMyPage() {
 }
 async function saveMyPage() {
     if (!auth || !auth.currentUser || !authDb) { alert('로그인 상태를 확인할 수 없습니다.\n다시 로그인해 주세요.'); return; }
+    if (saveMyPage._busy) return; // 연타 가드
+    saveMyPage._busy = true;
     // 이름·연락처는 관리자만 수정 가능 → 여기선 소속·직급/직책만 저장(Firestore 규칙도 이 둘만 허용)
     var org = (document.getElementById('mp-org').value || '').trim();
     var position = (document.getElementById('mp-position').value || '').trim();
@@ -1647,18 +1731,22 @@ async function saveMyPage() {
         logError('[마이페이지] 저장 실패:', e);
         if (e && e.code === 'permission-denied') alert('저장 권한이 없습니다.\n보안 규칙을 확인해 주세요.');
         else alert('저장 중 오류가 발생했습니다.\n' + (e && e.message ? e.message : ''));
+    } finally {
+        saveMyPage._busy = false;
     }
 }
 async function changeMyPassword() {
     if (!auth || !auth.currentUser) { alert('로그인 상태를 확인할 수 없습니다.'); return; }
+    if (changeMyPassword._busy) return; // 연타 가드 — 두 번째 reauth가 옛 비밀번호로 실패해 "방금 성공했는데 오류" 혼란을 일으키던 문제
+    changeMyPassword._busy = true;
     var cur = document.getElementById('mp-pw-current').value;
     var nw = document.getElementById('mp-pw-new').value;
     var cf = document.getElementById('mp-pw-confirm').value;
-    if (!cur || !nw || !cf) { alert('현재 비밀번호와 새 비밀번호를 모두 입력해주세요.'); return; }
-    if (nw.length < 6) { alert('새 비밀번호는 6자 이상이어야 합니다.'); return; }
-    if (nw !== cf) { alert('새 비밀번호가 일치하지 않습니다.'); return; }
-    var user = auth.currentUser;
     try {
+        if (!cur || !nw || !cf) { alert('현재 비밀번호와 새 비밀번호를 모두 입력해주세요.'); return; }
+        if (nw.length < 6) { alert('새 비밀번호는 6자 이상이어야 합니다.'); return; }
+        if (nw !== cf) { alert('새 비밀번호가 일치하지 않습니다.'); return; }
+        var user = auth.currentUser;
         var cred = firebase.auth.EmailAuthProvider.credential(user.email, cur);
         await user.reauthenticateWithCredential(cred);
         await user.updatePassword(nw);
@@ -1670,6 +1758,8 @@ async function changeMyPassword() {
         else if (e && e.code === 'auth/weak-password') alert('새 비밀번호가 너무 약합니다.');
         else if (e && e.code === 'auth/requires-recent-login') alert('보안을 위해 다시 로그인한 뒤 시도해주세요.');
         else alert('비밀번호 변경 중 오류가 발생했습니다.\n' + (e && e.message ? e.message : ''));
+    } finally {
+        changeMyPassword._busy = false;
     }
 }
 
