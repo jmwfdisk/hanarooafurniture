@@ -3598,35 +3598,64 @@
             }
         }
 
+        // 게시판 검색 상태 — 뷰 전용 필터. 전역 allPosts를 절대 바꿔치기하지 않는다.
+        // (예전 방식은 filtered로 스왑 후 setTimeout(0) 복원 → 검색 결과 클릭 시 복원된 원본 배열의
+        //  같은 인덱스에 있는 '엉뚱한 글'이 열리고 그 글의 조회수까지 올라가던 버그)
+        let boardSearchQuery = '';
+        let boardSearchType = 'all';
+        function boardPostMatchesSearch(post) {
+            const q = boardSearchQuery;
+            if (!q) return true;
+            const inTitle = (post.title || '').toLowerCase().includes(q);
+            if (boardSearchType === 'title') return inTitle;
+            const c = post.content || '';
+            const plain = /<[a-z!/][^>]*>/i.test(c) ? rteToText(c) : c;
+            const inContent = plain.toLowerCase().includes(q);
+            if (boardSearchType === 'content') return inContent;
+            return inTitle || inContent; // 'all'
+        }
+        // 화면용 목록: [{post, mi}] — mi는 마스터 배열(allPosts[currentBoard]) 인덱스라
+        // viewPost/deletePost 등 기존 인덱스 기반 호출이 그대로 안전하다.
+        function boardViewPosts() {
+            const view = [];
+            (allPosts[currentBoard] || []).forEach((post, mi) => {
+                if (boardPostMatchesSearch(post)) view.push({ post, mi });
+            });
+            return view;
+        }
+
         function renderPosts() {
             const tbody = document.getElementById('board-tbody');
-            const posts = allPosts[currentBoard];
-            
+            const view = boardViewPosts();
+
             tbody.innerHTML = '';
 
-            if (posts.length === 0) {
+            if (view.length === 0) {
                 // 아직 서버에서 한 번도 불러오지 못했으면 스피너, 불러온 뒤 비어 있으면 안내 문구
-                tbody.innerHTML = postsLoaded
-                    ? '<div class="table-empty">게시글이 없습니다.</div>'
-                    : '<div class="table-loading"><span class="table-spinner"></span>게시글을 불러오는 중…</div>';
+                tbody.innerHTML = boardSearchQuery
+                    ? '<div class="table-empty">검색 결과가 없습니다.</div>'
+                    : (postsLoaded
+                        ? '<div class="table-empty">게시글이 없습니다.</div>'
+                        : '<div class="table-loading"><span class="table-spinner"></span>게시글을 불러오는 중…</div>');
                 renderPagination();
                 return;
             }
 
             const start = (currentPage[currentBoard] - 1) * postsPerPage;
             const end = start + postsPerPage;
-            const pagePosts = posts.slice(start, end);
+            const pageItems = view.slice(start, end);
 
             const today = new Date().toLocaleDateString('ko-KR');
 
             const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-            pagePosts.forEach((post, index) => {
+            pageItems.forEach((item, index) => {
+                const post = item.post;
+                const globalIndex = item.mi;   // 마스터 배열 기준 인덱스
                 const row = document.createElement('div');
                 row.className = 'table-row';
-                const globalIndex = start + index;
                 const isNew = post.date === today;
                 row.innerHTML = `
-                    <span>${posts.length - globalIndex}</span>
+                    <span>${view.length - (start + index)}</span>
                     <span><a href="#" onclick="viewPost(${globalIndex}); return false;">${esc(post.title)}</a>${isNew ? '<span class="post-badge-n">NEW</span>' : ''}</span>
                     <span>${esc(post.author)}</span>
                     <span>${esc(post.date)}</span>
@@ -3709,7 +3738,7 @@
             const pagination = document.getElementById('pagination');
             pagination.innerHTML = '';
             
-            const totalPages = Math.ceil(allPosts[currentBoard].length / postsPerPage);
+            const totalPages = Math.ceil(boardViewPosts().length / postsPerPage); // 검색 중이면 검색 결과 기준
             if (totalPages === 0) return;
 
             const cur = currentPage[currentBoard];
@@ -4270,6 +4299,17 @@
                 return;
             }
 
+            // 첨부 용량 검증은 '잠금 이전'에 수행 — 잠금 후 검증 반려되면 잠금 해제 없이 return되어
+            // 등록 버튼이 영구 비활성(폼을 닫아야만 해제)되던 문제 방지. 수정 모드에도 동일 적용.
+            const isFileBoard = (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data');
+            if (isFileBoard && selectedFiles.length > 0) {
+                const oversizedFiles = selectedFiles.filter(f => f.size > 10 * 1024 * 1024);
+                if (oversizedFiles.length > 0) {
+                    alert(`다음 파일의 크기가 너무 큽니다. (최대 10MB):\n${oversizedFiles.map(f => f.name).join('\n')}`);
+                    return;
+                }
+            }
+
             // 여기서부터 실제 저장 시작 → 중복 제출 잠금 + 등록 버튼 비활성화
             isSubmittingPost = true;
             const submitBtn = document.querySelector('#write-form .write-submit, #write-form button[onclick="submitPost()"]');
@@ -4301,7 +4341,6 @@
                 const target = editingPostRef; // 어떤 글을 고치는지 식별용(인덱스가 흔들려도 안전)
                 const editedDate = new Date().toLocaleDateString('ko-KR');
                 const boardAtSave = currentBoard;
-                const isFileBoard = (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data');
 
                 // 1) 새 첨부가 있으면 먼저 Storage 업로드(문서엔 URL만) → 2) 트랜잭션으로 해당 글만 갱신
                 const uploadStep = (isFileBoard && selectedFiles.length > 0)
@@ -4336,26 +4375,20 @@
                 return;
             }
 
-            // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 처리
-            if ((currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') && selectedFiles.length > 0) {
-                // 파일 크기 검증
-                const oversizedFiles = selectedFiles.filter(f => f.size > 10 * 1024 * 1024);
-                if (oversizedFiles.length > 0) {
-                    alert(`다음 파일의 크기가 너무 큽니다. (최대 10MB):\n${oversizedFiles.map(f => f.name).join('\n')}`);
-                    return;
-                }
-                
+            // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 처리 (용량 검증은 위 잠금 이전에 완료)
+            if (isFileBoard && selectedFiles.length > 0) {
                 // Storage 초기화 시도 (파일을 base64로 Firestore에 넣어 용량 초과로 사라지는 문제 방지)
                 if (!storage && typeof firebase !== 'undefined' && firebase.storage) {
                     try { storage = firebase.storage(); } catch (e) {}
                 }
                 // Firebase Storage에 업로드 (URL만 저장 → 문서 가벼움)
+                // 게시판은 업로드 완료 '후'가 아니라 지금 캡처해 넘긴다 — 업로드 중 탭을 이동해도 원래 게시판에 저장
                 if (storage) {
-                    uploadFilesToFirebase(selectedFiles, title, author, content, uid, username, name);
+                    uploadFilesToFirebase(selectedFiles, title, author, content, uid, username, name, currentBoard);
                 } else if (!db) {
                     // 순수 로컬(개발) 모드에서만 base64 임시 저장 허용
                     alert('파일 저장소(Storage) 연결을 확인할 수 없어 임시 저장합니다.\n새로고침 시 사라질 수 있으니, 잠시 후 다시 시도해주세요.');
-                    uploadFilesToLocalStorage(selectedFiles, title, author, content, uid, username, name);
+                    uploadFilesToLocalStorage(selectedFiles, title, author, content, uid, username, name, currentBoard);
                 } else {
                     // db는 있는데 Storage만 실패 → base64를 본문 문서에 넣으면 용량 초과로 '나중에 사라지는' 원인이 되므로 저장 중단
                     alert('파일 저장소(Storage) 연결을 확인할 수 없습니다.\n잠시 후 다시 시도해주세요.\n\n(파일을 글 문서에 직접 넣으면 용량 초과로 사라질 수 있어 저장을 중단했습니다.)');
@@ -4391,7 +4424,10 @@
         }
         
         // Firebase Storage에 파일 업로드
-        async function uploadFilesToFirebase(files, title, author, content, uid, username, name) {
+        async function uploadFilesToFirebase(files, title, author, content, uid, username, name, boardArg) {
+            // 게시판은 호출 시점(제출 시점)에 캡처된 값을 사용 — 업로드가 끝난 뒤 currentBoard를 읽으면
+            // 업로드 중 사용자가 다른 게시판으로 이동했을 때 글이 엉뚱한 게시판에 저장됐음
+            const boardAtSave = boardArg || currentBoard;
             const fileUrls = [];
             const fileData = [];
             const fileNames = files.map(f => f.name);
@@ -4440,7 +4476,6 @@
                     fileUrls: fileUrls
                 };
 
-                const boardAtSave = currentBoard;
                 await commitBoardChange(boardAtSave, posts => { posts.unshift(newPost); return posts; });
 
                 currentPage[boardAtSave] = 1;
@@ -4455,7 +4490,8 @@
         }
 
         // localStorage에 파일 저장 (Firebase 미사용 시)
-        async function uploadFilesToLocalStorage(files, title, author, content, uid, username, name) {
+        async function uploadFilesToLocalStorage(files, title, author, content, uid, username, name, boardArg) {
+            const boardAtSave = boardArg || currentBoard; // 제출 시점 게시판 캡처(업로드 중 탭 이동 대비)
             const fileData = [];
             const fileNames = files.map(f => f.name);
             let processedFiles = 0;
@@ -4493,18 +4529,18 @@
                                 fileUrls: []
                             };
 
-                            if (!allPosts[currentBoard]) {
-                                allPosts[currentBoard] = [];
+                            if (!allPosts[boardAtSave]) {
+                                allPosts[boardAtSave] = [];
                             }
                             
-                            allPosts[currentBoard].unshift(newPost);
-                            savePosts(currentBoard).then(() => {
-                                currentPage[currentBoard] = 1;
+                            allPosts[boardAtSave].unshift(newPost);
+                            savePosts(boardAtSave).then(() => {
+                                currentPage[boardAtSave] = 1;
                                 renderPosts();
                                 hideWriteForm();
                                 showStaffDonePopup('게시글이 등록되었습니다.');
                             }).catch(() => {
-                                allPosts[currentBoard].shift();
+                                allPosts[boardAtSave].shift();
                                 resetSubmitLock();
                             });
                         } else {
@@ -4533,18 +4569,18 @@
                                 fileUrls: []
                             };
 
-                            if (!allPosts[currentBoard]) {
-                                allPosts[currentBoard] = [];
+                            if (!allPosts[boardAtSave]) {
+                                allPosts[boardAtSave] = [];
                             }
                             
-                            allPosts[currentBoard].unshift(newPost);
-                            savePosts(currentBoard).then(() => {
-                                currentPage[currentBoard] = 1;
+                            allPosts[boardAtSave].unshift(newPost);
+                            savePosts(boardAtSave).then(() => {
+                                currentPage[boardAtSave] = 1;
                                 renderPosts();
                                 hideWriteForm();
                                 showStaffDonePopup('게시글이 등록되었습니다.');
                             }).catch(() => {
-                                allPosts[currentBoard].shift();
+                                allPosts[boardAtSave].shift();
                                 resetSubmitLock();
                             });
                         } else {
@@ -4765,37 +4801,11 @@
             if (currentBoard === 'as-result') { searchAsr(); return; }
             const typeEl = document.getElementById('search-type');
             // 모바일에서는 제목/내용 선택이 숨겨지므로(offsetParent=null) 제목·내용 모두 검색
-            const searchType = (typeEl && typeEl.offsetParent !== null) ? typeEl.value : 'all';
-            const searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
-
-            if (!searchQuery) {
-                renderPosts();
-                return;
-            }
-
-            const matchContent = (post) => {
-                // 리치 에디터 HTML은 태그를 제거한 평문으로 검색
-                const c = post.content || '';
-                const plain = /<[a-z!/][^>]*>/i.test(c) ? rteToText(c) : c;
-                return plain.toLowerCase().includes(searchQuery);
-            };
-            const filtered = allPosts[currentBoard].filter(post => {
-                const inTitle = post.title.toLowerCase().includes(searchQuery);
-                if (searchType === 'title') return inTitle;
-                if (searchType === 'content') return matchContent(post);
-                return inTitle || matchContent(post); // 'all'
-            });
-
-            // 검색 결과를 임시로 저장하고 렌더링
-            const originalPosts = [...allPosts[currentBoard]];
-            allPosts[currentBoard] = filtered;
+            boardSearchType = (typeEl && typeEl.offsetParent !== null) ? typeEl.value : 'all';
+            boardSearchQuery = document.getElementById('search-input').value.trim().toLowerCase();
+            // 상태 기반 필터 — renderPosts가 boardViewPosts()로 필터링해 렌더 (전역 배열 스왑 없음)
             currentPage[currentBoard] = 1;
             renderPosts();
-            
-            // 원본 복원 (다음 검색을 위해)
-            setTimeout(() => {
-                allPosts[currentBoard] = originalPosts;
-            }, 0);
         }
 
         // A/S 처리결과 전용 검색 (제목·작성자·구분·내용·담당자 대상)
@@ -4816,6 +4826,7 @@
             // 게시판/세그먼트 전환 시 이전 검색어·결과 초기화
             if (inp) inp.value = '';
             asrSearchQuery = '';
+            boardSearchQuery = '';
 
             let target = null;
             const b = currentBoard;
@@ -4840,7 +4851,9 @@
         // 오버레이 클릭 이벤트 (auth.js에서 로그인 관련 처리)
         document.getElementById('overlay').addEventListener('click', function() {
             if (typeof hideLogin === 'function') hideLogin();
-            hideWriteForm();
+            // 등록/수정 커밋 진행 중엔 폼을 닫지 않음 — hideWriteForm이 잠금을 풀어
+            // 사용자가 "취소됐다"고 여기고 같은 글을 다시 등록(중복 글)하는 것을 방지
+            if (!isSubmittingPost) hideWriteForm();
             closePostModal();
         });
 
