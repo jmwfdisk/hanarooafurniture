@@ -831,6 +831,7 @@
       <!-- 모바일용 임직원 버튼 -->
       <a href="../staff/staff.html" class="employee-btn">
           <button id="employee-button-mobile" disabled>임직원</button>
+          <script>try{var _u=JSON.parse(sessionStorage.getItem("loggedInUser")||"null");if(_u&&sessionStorage.getItem("loggedIn")==="true"&&(_u.userType==="employee"||_u.isAdmin===true)){var _bs=document.querySelectorAll(".employee-button,#employee-button,#employee-button-mobile");for(var _i=0;_i<_bs.length;_i++)_bs[_i].disabled=false;}}catch(_e){}</script>
       </a>
   </div>
 </header>
