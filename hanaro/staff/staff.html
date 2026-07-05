@@ -3292,11 +3292,16 @@
                             // 다음 방문 즉시 렌더용 캐시 갱신(용량 초과 등은 조용히 무시)
                             try { localStorage.setItem(`staffPosts_${board}`, JSON.stringify(allPosts[board])); } catch (e) {}
                         } else {
-                            // 기존 localStorage 데이터 마이그레이션(쓰기는 await 불필요)
+                            // 기존 localStorage 데이터 마이그레이션 — 문서가 없을 때만 생성
+                            // (두 세션이 동시에 문서 부재를 관측해 각자 캐시로 set하던 경쟁 제거)
                             const stored = localStorage.getItem(`staffPosts_${board}`);
                             if (stored) {
-                                allPosts[board] = JSON.parse(stored);
-                                db.collection('staffPosts').doc(board).set({ posts: allPosts[board] });
+                                try { allPosts[board] = JSON.parse(stored); } catch (e) { return; }
+                                const migRef = db.collection('staffPosts').doc(board);
+                                db.runTransaction(async (tx) => {
+                                    const s = await tx.get(migRef);
+                                    if (!s.exists) tx.set(migRef, { posts: allPosts[board] });
+                                }).catch(() => { /* 마이그레이션 실패는 다음 로드에서 재시도됨 */ });
                             }
                         }
                     });
@@ -4347,6 +4352,7 @@
                     ? uploadFilesToStorage(selectedFiles)
                     : Promise.resolve([]);
 
+                let editTargetFound = true; // 그사이 다른 사용자가 글을 삭제했는지 감지 (성공 오표시 방지)
                 uploadStep.then((newFiles) => {
                     return commitBoardChange(boardAtSave, posts => {
                         const p = posts.find(x => postMatches(x, target));
@@ -4360,10 +4366,18 @@
                                 p.fileUrls = (Array.isArray(p.fileUrls) ? p.fileUrls : []).concat(newFiles.map(f => f.url));
                                 p.fileData = (Array.isArray(p.fileData) ? p.fileData : []).concat(newFiles);
                             }
+                        } else {
+                            editTargetFound = false;
                         }
                         return posts;
                     });
                 }).then(() => {
+                    if (!editTargetFound) {
+                        alert('이미 삭제된 글이라 수정 내용을 저장하지 못했습니다.');
+                        renderPosts();
+                        hideWriteForm();
+                        return;
+                    }
                     renderPosts();
                     hideWriteForm();
                     showStaffDonePopup('게시글이 수정되었습니다.');
@@ -4861,6 +4875,15 @@
         let materialsTable = null;
         let materialsUnsub = null;
         let materialsDeleting = false; // 삭제 작업 중 플래그
+        let materialsPendingRows = null; // 삭제/셀 편집 중 도착한 스냅샷 보류 — 무시하면 놓친 스냅샷은 재전송되지 않아 삭제된 행이 화면에 유령처럼 남았음
+        function materialsFlushPending() {
+            if (!materialsPendingRows || !materialsTable) { materialsPendingRows = null; return; }
+            const rows = materialsPendingRows; materialsPendingRows = null;
+            try {
+                const el = materialsTable.element;
+                if (el && el.parentElement) materialsTable.replaceData(rows);
+            } catch (e) { /* 무시 */ }
+        }
         // 앱 레벨 실행취소/재실행 (Tabulator native 히스토리는 replaceData로 초기화되어 사용 불가)
         let materialsUndoStack = [];
         let materialsRedoStack = [];
@@ -5570,7 +5593,9 @@
                         }
                     } catch (e) { /* 무시 */ }
                     upsertMaterial(row);
+                    materialsFlushPending();   // 편집 중 보류된 스냅샷 반영
                 });
+                materialsTable.on('cellEditCancelled', function () { materialsFlushPending(); });
             }
         }
 
@@ -5599,11 +5624,6 @@
                         const matLoading = document.getElementById('materials-loading');
                         if (matLoading) matLoading.style.display = 'none';
 
-                        // 삭제 작업 중이면 업데이트 무시
-                        if (materialsDeleting) {
-                            return;
-                        }
-
                         const rows = [];
                         snapshot.forEach((doc) => {
                             rows.push({
@@ -5611,6 +5631,17 @@
                                 ...doc.data()
                             });
                         });
+
+                        // 삭제 작업 중이면 보류했다가 완료 시 반영 (무시하면 다음 변경까지 화면이 낡은 채 남음)
+                        if (materialsDeleting) {
+                            materialsPendingRows = rows;
+                            return;
+                        }
+                        // 셀 편집 중이면 보류 — replaceData가 열려 있는 에디터를 닫아 입력을 날리는 문제 방지
+                        if (materialsTable && materialsTable.element && materialsTable.element.querySelector('.tabulator-editing')) {
+                            materialsPendingRows = rows;
+                            return;
+                        }
                         
                         if (materialsTable) {
                             // 테이블이 유효한지 확인
@@ -5652,8 +5683,19 @@
                 );
         }
 
-        // 자재 추가/수정
-        async function upsertMaterial(row) {
+        // 자재 추가/수정 — 행 단위 직렬화: 새 행(id 없음)에서 셀을 연속 편집하면
+        // 첫 add()가 id를 돌려주기 전에 두 번째 add()가 실행돼 같은 자재 문서가 2개 생겼음.
+        // 같은 행의 저장을 프라미스 체인으로 순차 실행해 두 번째 저장은 id가 생긴 뒤 update 경로를 탄다.
+        const materialsRowSaveChain = new WeakMap();
+        function upsertMaterial(row) {
+            const key = (row && row.getElement) ? row.getElement() : row;
+            let prev = Promise.resolve();
+            try { prev = materialsRowSaveChain.get(key) || Promise.resolve(); } catch (e) {}
+            const job = prev.then(() => doUpsertMaterial(row));
+            try { materialsRowSaveChain.set(key, job.catch(() => {})); } catch (e) {}
+            return job;
+        }
+        async function doUpsertMaterial(row) {
             const { canEdit } = getMaterialsPermission();
             if (!canEdit) {
                 return;
@@ -5898,7 +5940,7 @@
                     if (!db) {
                         console.error('Firestore 초기화 실패');
                         // Firestore 초기화 실패해도 저장되지 않은 행은 이미 삭제됨
-                        materialsDeleting = false; // 플래그 해제
+                        materialsDeleting = false; materialsFlushPending(); // 플래그 해제 + 보류 스냅샷 반영
                         if (unsavedRows.length > 0) {
                             alert(`${unsavedRows.length}개의 저장되지 않은 행이 삭제되었습니다.`);
                         }
@@ -5928,7 +5970,7 @@
                     await new Promise(resolve => setTimeout(resolve, 300));
                 } catch (error) {
                     console.error('자재 삭제 오류:', error);
-                    materialsDeleting = false; // 플래그 해제
+                    materialsDeleting = false; materialsFlushPending(); // 플래그 해제 + 보류 스냅샷 반영
                     if (error.code === 'permission-denied') {
                         alert('자재 데이터를 삭제할 권한이 없습니다.');
                     } else {
@@ -5939,7 +5981,7 @@
             }
             
             // 삭제 작업 완료 플래그 해제
-            materialsDeleting = false;
+            materialsDeleting = false; materialsFlushPending();
             
             // 테이블 갱신 (안전하게)
             setTimeout(() => {
@@ -6024,7 +6066,7 @@
                 console.error('행 삭제 오류:', e);
                 alert('행 삭제 실패: ' + (e && e.message ? e.message : e));
             } finally {
-                materialsDeleting = false;
+                materialsDeleting = false; materialsFlushPending();
             }
         }
         function materialsInsertCtxRow(row, above) {
@@ -6151,45 +6193,60 @@
             try { const u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); userUid = u.uid || null; } catch (e) {}
 
             const get = (row, field) => (fieldIndexes[field] != null ? row[fieldIndexes[field]] : undefined);
-            const batch = db.batch();
-            let count = 0;
 
-            for (let i = 1; i < aoa.length; i++) {
-                const row = aoa[i];
-                if (!row || row.every(v => String(v == null ? '' : v).trim() === '')) continue;
-
-                const sku = String(get(row, 'sku') == null ? '' : get(row, 'sku')).trim();
-                if (!sku) continue;
-
-                const payload = {
-                    sku: sku,
-                    name: String(get(row, 'name') || '').trim(),
-                    spec: String(get(row, 'spec') || '').trim(),
-                    unit: String(get(row, 'unit') || 'EA').trim() || 'EA',
-                    stock: Number(get(row, 'stock')) || 0,
-                    safety: Number(get(row, 'safety')) || 0,
-                    location: String(get(row, 'location') || '').trim(),
-                    vendor: String(get(row, 'vendor') || '').trim(),
-                    note: String(get(row, 'note') || '').trim(),
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    updatedBy: userUid
-                };
-
-                const existingQuery = await db.collection('materials').where('sku', '==', sku).limit(1).get();
-                if (!existingQuery.empty) {
-                    batch.update(db.collection('materials').doc(existingQuery.docs[0].id), payload);
-                } else {
-                    payload.registeredAt = firebase.firestore.Timestamp.fromDate(new Date());
-                    batch.set(db.collection('materials').doc(), payload);
+            if (importMaterialsRows._busy) { alert('가져오기가 이미 진행 중입니다.'); return; }
+            importMaterialsRows._busy = true;
+            let committed = 0;
+            try {
+                // 파일 내 같은 SKU가 여러 행이면 '마지막 행'만 반영 — 예전엔 둘 다 서버 조회 시점에
+                // 미존재로 판정돼 신규 문서가 2개 생겼음
+                const bySku = new Map();
+                for (let i = 1; i < aoa.length; i++) {
+                    const row = aoa[i];
+                    if (!row || row.every(v => String(v == null ? '' : v).trim() === '')) continue;
+                    const sku = String(get(row, 'sku') == null ? '' : get(row, 'sku')).trim();
+                    if (!sku) continue;
+                    bySku.set(sku, {
+                        sku: sku,
+                        name: String(get(row, 'name') || '').trim(),
+                        spec: String(get(row, 'spec') || '').trim(),
+                        unit: String(get(row, 'unit') || 'EA').trim() || 'EA',
+                        stock: Number(get(row, 'stock')) || 0,
+                        safety: Number(get(row, 'safety')) || 0,
+                        location: String(get(row, 'location') || '').trim(),
+                        vendor: String(get(row, 'vendor') || '').trim(),
+                        note: String(get(row, 'note') || '').trim(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedBy: userUid
+                    });
                 }
-                count++;
-            }
 
-            if (count > 0) {
-                await batch.commit();
-                alert(`${count}개의 자재 데이터를 가져왔습니다.`);
-            } else {
-                alert('가져올 데이터가 없습니다. (SKU가 있는 행만 가져옵니다)');
+                const entries = Array.from(bySku.values());
+                if (!entries.length) { alert('가져올 데이터가 없습니다. (SKU가 있는 행만 가져옵니다)'); return; }
+
+                // 400행 단위 청크 커밋 — batch 500 ops 한도로 대용량 파일이 통째 실패하던 문제.
+                // SKU 기존 문서는 update라 도중 실패 후 같은 파일을 다시 가져와도 중복이 생기지 않음(재시도 안전).
+                for (let s0 = 0; s0 < entries.length; s0 += 400) {
+                    const chunk = entries.slice(s0, s0 + 400);
+                    const batch = db.batch();
+                    for (const payload of chunk) {
+                        const existingQuery = await db.collection('materials').where('sku', '==', payload.sku).limit(1).get();
+                        if (!existingQuery.empty) {
+                            batch.update(db.collection('materials').doc(existingQuery.docs[0].id), payload);
+                        } else {
+                            payload.registeredAt = firebase.firestore.Timestamp.fromDate(new Date());
+                            batch.set(db.collection('materials').doc(), payload);
+                        }
+                    }
+                    await batch.commit();
+                    committed += chunk.length;
+                }
+                alert(`${committed}개의 자재 데이터를 가져왔습니다.`);
+            } catch (e) {
+                console.error('자재 가져오기 실패:', e);
+                alert(`가져오기 중 오류가 발생했습니다. (${committed}개는 반영됨)\n같은 파일을 다시 가져오면 이어서 반영됩니다(중복 생성 없음).\n` + (e.message || ''));
+            } finally {
+                importMaterialsRows._busy = false;
             }
         }
 
@@ -6259,14 +6316,32 @@
         // 되돌리기
         // 셀 편집값을 Firestore에 반영 (실시간 리스너가 표를 갱신)
         async function materialsApplyHistory(entry, useOld) {
-            if (!entry) return;
+            if (!entry) return false;
             const val = useOld ? entry.oldValue : entry.newValue;
+            const expected = useOld ? entry.newValue : entry.oldValue; // 적용 직전 서버에 있어야 할 값
             try {
                 if (!db) initStaffDB();
-                if (db) await db.collection('materials').doc(entry.id).update({ [entry.field]: val });
+                if (!db) return false;
+                const ref = db.collection('materials').doc(entry.id);
+                let conflict = false;
+                // 서버 현재값이 내 기록과 같을 때만 적용 — 그사이 동료가 바꾼 값을
+                // 실행취소가 조용히 롤백해 버리던 문제 방지
+                await db.runTransaction(async (tx) => {
+                    const d = await tx.get(ref);
+                    if (!d.exists) { conflict = true; return; }
+                    const cur = d.data()[entry.field];
+                    if (String(cur == null ? '' : cur) !== String(expected == null ? '' : expected)) { conflict = true; return; }
+                    tx.update(ref, { [entry.field]: val });
+                });
+                if (conflict) {
+                    alert('다른 사용자가 이 값을 변경했거나 행이 삭제되어, 해당 작업은 적용하지 않았습니다.\n(실행취소 목록에서 제거됩니다)');
+                    return false;
+                }
+                return true;
             } catch (e) {
                 console.error('작업 적용 오류:', e);
                 alert('작업 적용 실패: ' + (e && e.message ? e.message : e));
+                return false;
             }
         }
         async function undoMaterials() {
@@ -6274,16 +6349,16 @@
             if (!canEdit) { alert('편집 권한이 없습니다.'); return; }
             if (!materialsUndoStack.length) { alert('되돌릴 작업이 없습니다.'); return; }
             const entry = materialsUndoStack.pop();
-            materialsRedoStack.push(entry);
-            await materialsApplyHistory(entry, true);
+            const ok = await materialsApplyHistory(entry, true);
+            if (ok) materialsRedoStack.push(entry); // 충돌로 미적용이면 재실행 목록에도 넣지 않음
         }
         async function redoMaterials() {
             const { canEdit } = getMaterialsPermission();
             if (!canEdit) { alert('편집 권한이 없습니다.'); return; }
             if (!materialsRedoStack.length) { alert('다시 실행할 작업이 없습니다.'); return; }
             const entry = materialsRedoStack.pop();
-            materialsUndoStack.push(entry);
-            await materialsApplyHistory(entry, false);
+            const ok = await materialsApplyHistory(entry, false);
+            if (ok) materialsUndoStack.push(entry);
         }
 
         // 행 복제
@@ -7413,6 +7488,7 @@
         let currentPhotoIndex = 0;
         let selectedPhotoFiles = [];
         let selectedPhotoTitles = [];
+        let photoUploading = false; // 배치 업로드 진행 중 (모달 닫기 차단용)
         function photoEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
         // Firebase Storage 참조
@@ -7531,7 +7607,9 @@
             let finished = false;
             const finish = async (save) => {
                 if (finished) return; finished = true;
-                if (save) await savePhotoTitle(index, inp.value.trim());
+                // 편집 시작 시점의 photo 객체(id)를 넘긴다 — 편집 중 loadPhotos로 배열이
+                // 교체·재정렬되면 index가 다른 사진을 가리켜 엉뚱한 제목을 덮던 문제 방지
+                if (save) await savePhotoTitle(photo, inp.value.trim());
                 renderPhotoGrid();
             };
             inp.addEventListener('blur', () => finish(true));
@@ -7540,9 +7618,11 @@
                 else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
             });
         }
-        async function savePhotoTitle(index, title) {
-            const photo = allPhotos[index];
-            allPhotos[index].title = title;
+        async function savePhotoTitle(photoRef, title) {
+            // photoRef: 편집 시작 시 캡처한 photo 객체 — 현재 배열에서 id로 재탐색해 반영
+            const photo = (photoRef && photoRef.id) ? (allPhotos.find(p => p.id === photoRef.id) || photoRef) : photoRef;
+            if (!photo) return;
+            photo.title = title;
             try {
                 if (db && photo.id) await db.collection('activityPhotos').doc(photo.id).update({ title: title });
             } catch (e) {
@@ -7573,6 +7653,11 @@
         }
 
         function closePhotoUpload() {
+            // 업로드 진행 중엔 닫지 않음 — 대기 배열이 비면 진행 중인 루프가 파손되고 반쪽 배치가 남는다
+            if (typeof photoUploading !== 'undefined' && photoUploading) {
+                alert('사진 업로드가 진행 중입니다.\n완료될 때까지 잠시 기다려주세요.');
+                return;
+            }
             document.getElementById('photo-upload-modal').style.display = 'none';
             selectedPhotoFiles = [];
             selectedPhotoTitles = [];
@@ -7687,89 +7772,64 @@
             
             uploadBtn.disabled = true;
             uploadBtn.textContent = '업로드 중...';
+            photoUploading = true;   // 진행 중 모달 닫기 차단 (대기 배열이 비면 루프가 파손됨)
 
             // 업로드 묶음 공통 제목 (모든 사진에 동일 적용 → 같은 제목 그룹으로 묶임)
             const commonTitle = (document.getElementById('photo-upload-title')?.value || '').trim();
 
             try {
-                for (let fi = 0; fi < selectedPhotoFiles.length; fi++) {
-                    const file = selectedPhotoFiles[fi];
+                // 스냅샷 순회 — 도중에 selectedPhotoFiles가 바뀌어도 루프는 안전.
+                // 파일별로 add 성공 시 대기 목록에서 즉시 제거 → 중간 실패 후 재시도해도 성공분이 중복 등록되지 않음.
+                const batch = selectedPhotoFiles.slice();
+                for (const file of batch) {
                     const photoTitle = commonTitle;
                     const timestamp = Date.now();
                     const filename = `${timestamp}_${file.name}`;
-                    let uploaded = false;
-                    
-                    // Firebase Storage에 업로드 시도
+
+                    // 1) Storage 업로드 시도 — 'Storage 실패'만 base64 폴백 대상
+                    let downloadURL = null;
+                    let uploadedRef = null;
                     if (storage) {
                         try {
                             console.log('Storage 업로드 시작:', filename);
-                            console.log('사용자 정보:', {
-                                uid: userData.uid,
-                                username: userData.username,
-                                name: userData.name
-                            });
-                            
                             const storageRef = storage.ref(`activity-photos/${filename}`);
                             const uploadTask = await storageRef.put(file);
-                            const downloadURL = await uploadTask.ref.getDownloadURL();
+                            downloadURL = await uploadTask.ref.getDownloadURL();
+                            uploadedRef = uploadTask.ref;
                             console.log('Storage 업로드 완료, URL:', downloadURL);
-
-                            // Firestore에 메타데이터 저장
-                            console.log('Firestore 저장 시도...');
-                            try {
-                                await db.collection('activityPhotos').add({
-                                    filename: filename,
-                                    originalName: file.name,
-                                    title: photoTitle,
-                                    url: downloadURL,
-                                    uploadedBy: userData.uid || userData.username,
-                                    uploaderName: userData.name || userData.username,
-                                    createdAt: new Date().toISOString()
-                                });
-                                console.log('Firestore 저장 성공');
-                                uploaded = true;
-                            } catch (firestoreError) {
-                                console.error('Firestore 저장 오류:', firestoreError);
-                                throw firestoreError; // 상위 catch로 전달
-                            }
                         } catch (storageError) {
-                            console.warn('Storage 업로드 실패, Base64로 대체:', storageError);
-                            console.warn('Storage 오류 상세:', storageError.code, storageError.message);
-                            // Storage 업로드 실패 시 Base64로 저장
+                            console.warn('Storage 업로드 실패, Base64로 대체:', storageError.code, storageError.message);
+                            downloadURL = null;
                         }
                     }
-                    
-                    // Storage 업로드 실패했거나 Storage가 없으면 압축된 Base64로 저장
-                    if (!uploaded) {
-                        console.log('압축된 Base64로 저장');
-                        const compressedBase64 = await compressImage(file, 800);
-                        console.log('압축 완료, 크기:', Math.round(compressedBase64.length / 1024), 'KB');
-                        
-                        console.log('Firestore 저장 시도...');
-                        console.log('사용자 정보:', {
-                            uid: userData.uid,
-                            username: userData.username,
-                            name: userData.name
+                    const url = downloadURL || await compressImage(file, 800);
+
+                    // 2) Firestore 메타 저장 — 실패는 폴백 없이 전파.
+                    //    (예전엔 Storage 폴백 catch가 Firestore 오류까지 삼켜 같은 사진을 base64로
+                    //     다시 add 시도했고, put된 Storage 파일이 고아로 남았음 → 여기서 보상 삭제)
+                    try {
+                        await db.collection('activityPhotos').add({
+                            filename: filename,
+                            originalName: file.name,
+                            title: photoTitle,
+                            url: url,
+                            uploadedBy: userData.uid || userData.username,
+                            uploaderName: userData.name || userData.username,
+                            createdAt: new Date().toISOString()
                         });
-                        
-                        try {
-                            await db.collection('activityPhotos').add({
-                                filename: filename,
-                                originalName: file.name,
-                                title: photoTitle,
-                                url: compressedBase64,
-                                uploadedBy: userData.uid || userData.username,
-                                uploaderName: userData.name || userData.username,
-                                createdAt: new Date().toISOString()
-                            });
-                            console.log('Firestore 저장 성공');
-                        } catch (firestoreError) {
-                            console.error('Firestore 저장 오류:', firestoreError);
-                            throw firestoreError; // 상위 catch로 전달
-                        }
+                        console.log('Firestore 저장 성공');
+                    } catch (firestoreError) {
+                        console.error('Firestore 저장 오류:', firestoreError);
+                        if (uploadedRef) uploadedRef.delete().catch(() => {});
+                        throw firestoreError;
                     }
+
+                    // 3) 이 파일 확정 → 대기 목록에서 제거
+                    const si = selectedPhotoFiles.indexOf(file);
+                    if (si >= 0) { selectedPhotoFiles.splice(si, 1); selectedPhotoTitles.splice(si, 1); }
                 }
 
+                photoUploading = false;   // closePhotoUpload가 닫을 수 있게 먼저 해제
                 alert('사진이 업로드되었습니다!');
                 closePhotoUpload();
                 loadPhotos();
@@ -7792,9 +7852,13 @@
                         errorMessage += '\n오류 코드: ' + error.code;
                     }
                 }
-                
+                if (selectedPhotoFiles.length) {
+                    errorMessage += `\n\n이미 올라간 사진은 제외하고, 남은 ${selectedPhotoFiles.length}장만 다시 [업로드]를 눌러 재시도하세요.`;
+                    if (typeof renderPhotoPreview === 'function') { try { renderPhotoPreview(); } catch (e2) {} }
+                }
                 alert(errorMessage);
             } finally {
+                photoUploading = false;
                 uploadBtn.disabled = false;
                 uploadBtn.textContent = '업로드';
             }
@@ -8108,13 +8172,16 @@
         const membersPerPage = 10;
 
         // 회원 목록 로드 (user 확정 후에만 호출)
-        async function loadMembers(retryCount = 0) {
+        let loadMembersSeq = 0; // 재시도 체인 세대 토큰 — 탭 재진입 시 이전 체인을 무효화(병렬 체인의 중복 조회·last-write 경합 방지)
+        async function loadMembers(retryCount = 0, seq) {
             // 회원관리를 열면(첫 시도) 즉시 로딩 스피너 표시 → 로드 완료 전 '없습니다' 오표시 방지
             if (retryCount === 0) {
+                seq = ++loadMembersSeq;
                 membersLoaded = false;
                 const tb = document.getElementById('member-tbody');
                 if (tb) tb.innerHTML = '<div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>';
             }
+            if (seq !== loadMembersSeq) return; // 새 체인이 시작됨 → 이 체인은 종료
             // user가 확정되지 않았으면 실행하지 않음
             if (!staffAccessGranted) {
                 console.warn('[Staff 페이지] loadMembers() - 접근 권한 없음, 실행 안 함');
@@ -8136,7 +8203,7 @@
                 console.warn(`[Staff 페이지] 회원목록 로드 대기(db/auth 준비 전) - 재시도 ${retryCount + 1}/10`);
                 const tbodyLoading = document.getElementById('member-tbody');
                 if (tbodyLoading) tbodyLoading.innerHTML = '<div class="table-loading"><span class="table-spinner"></span>회원 목록을 불러오는 중…</div>';
-                setTimeout(() => loadMembers(retryCount + 1), 300);
+                setTimeout(() => loadMembers(retryCount + 1, seq), 300);
                 return;
             }
             if (!db) {
@@ -8651,9 +8718,13 @@
             const permissions = {};
             PERM_AREAS.forEach(a => { permissions[a.key] = document.getElementById('perm-' + a.key).checked === true; });
             try {
-                // 레거시 scheduleEditor는 permissions로 일원화
-                await db.collection('users').doc(permModalUserId).update({ permissions: permissions, scheduleEditor: firebase.firestore.FieldValue.delete() });
-                if (member) { member.permissions = permissions; member.scheduleEditor = false; }
+                // 레거시 scheduleEditor는 permissions로 일원화.
+                // permissions는 맵 통째 교체 대신 dot-path 부분 업데이트 — 모달을 연 사이
+                // 다른 관리자가 부여한 권한이나 목록에 없는 커스텀 키를 지우지 않는다.
+                const updates = { scheduleEditor: firebase.firestore.FieldValue.delete() };
+                PERM_AREAS.forEach(a => { updates['permissions.' + a.key] = permissions[a.key]; });
+                await db.collection('users').doc(permModalUserId).update(updates);
+                if (member) { member.permissions = Object.assign({}, member.permissions, permissions); member.scheduleEditor = false; }
                 renderMembers();
                 closePermModal();
                 alert('권한이 저장되었습니다.');
@@ -8678,23 +8749,45 @@
             ids.splice(to, 0, ids.splice(from, 1)[0]);
             memberOrder = ids;
             renderMembers();
-            saveMemberOrder();
+            saveMemberOrder(srcId, targetId);
         }
 
-        async function saveMemberOrder() {
-            if (!db) return;
-            try {
-                let user = {};
-                try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
-                await db.collection('appConfig').doc('memberOrder').set({
-                    order: memberOrder,
-                    updatedAt: new Date().toISOString(),
-                    updatedBy: user.name || user.username || ''
-                });
-            } catch (e) {
-                console.error('회원 순서 저장 실패:', e);
-                alert('순서 저장 중 오류가 발생했습니다.\n(Firestore appConfig 쓰기 규칙 게시 필요)\n' + (e.message || ''));
-            }
+        // 연속 드래그 저장 직렬화 — 네트워크 응답 역전으로 이전 순서가 최종본이 되는 것 방지
+        let memberOrderSaveChain = Promise.resolve();
+        function saveMemberOrder(srcId, targetId) {
+            if (!db) return Promise.resolve();
+            memberOrderSaveChain = memberOrderSaveChain.then(async () => {
+                try {
+                    let user = {};
+                    try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+                    const ref = db.collection('appConfig').doc('memberOrder');
+                    await db.runTransaction(async (tx) => {
+                        const d = await tx.get(ref);
+                        const serverOrder = (d.exists && Array.isArray(d.data().order)) ? d.data().order : [];
+                        // 서버 최신 order에 '이동 연산'만 적용 — 내 로컬 전체 목록으로 통째 set하면
+                        // 다른 관리자의 재배치·그사이 승인된 새 회원 항목이 지워졌음
+                        let order;
+                        if (srcId && targetId && serverOrder.includes(srcId)) {
+                            order = serverOrder.slice();
+                            order.splice(order.indexOf(srcId), 1);
+                            const ti = order.indexOf(targetId);
+                            if (ti === -1) order.push(srcId); else order.splice(ti, 0, srcId);
+                        } else {
+                            order = memberOrder.slice(); // 서버 목록에 없으면(최초 저장 등) 로컬 기준
+                        }
+                        tx.set(ref, {
+                            order: order,
+                            updatedAt: new Date().toISOString(),
+                            updatedBy: user.name || user.username || ''
+                        });
+                        memberOrder = order; // 로컬도 서버 반영본 기준으로 동기화
+                    });
+                } catch (e) {
+                    console.error('회원 순서 저장 실패:', e);
+                    alert('순서 저장 중 오류가 발생했습니다.\n(Firestore appConfig 쓰기 규칙 게시 필요)\n' + (e.message || ''));
+                }
+            });
+            return memberOrderSaveChain;
         }
 
         // 회원유형 변경 (관리자 전용)
@@ -8733,7 +8826,7 @@
             const cur = member.org || '';
             const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             el.outerHTML = `<input class="member-org-input" type="text" maxlength="40" value="${escAttr(cur)}" placeholder="소속 입력"
-                              onblur="saveMemberOrg('${userId}', this.value)"
+                              onblur="if(this.dataset.cancel==='1')return;saveMemberOrg('${userId}', this.value)"
                               onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
             const inp = document.querySelector('.member-org-input');
             if (inp) { inp.focus(); inp.select(); }
@@ -8761,7 +8854,7 @@
             const cur = member.position || '';
             const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             el.outerHTML = `<input class="member-org-input" type="text" maxlength="40" value="${escAttr(cur)}" placeholder="직급 / 직책 입력"
-                              onblur="saveMemberPosition('${userId}', this.value)"
+                              onblur="if(this.dataset.cancel==='1')return;saveMemberPosition('${userId}', this.value)"
                               onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
             const inp = document.querySelector('.member-org-input');
             if (inp) { inp.focus(); inp.select(); }
@@ -8789,7 +8882,7 @@
             const cur = member.name || '';
             const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             el.outerHTML = `<input class="member-org-input" type="text" maxlength="30" value="${escAttr(cur)}" placeholder="이름 입력"
-                              onblur="saveMemberName('${userId}', this.value)"
+                              onblur="if(this.dataset.cancel==='1')return;saveMemberName('${userId}', this.value)"
                               onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
             const inp = document.querySelector('.member-org-input');
             if (inp) { inp.focus(); inp.select(); }
@@ -8817,7 +8910,7 @@
             const cur = member.phone || '';
             const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             el.outerHTML = `<input class="member-org-input" type="text" maxlength="20" value="${escAttr(cur)}" placeholder="연락처 입력"
-                              onblur="saveMemberPhone('${userId}', this.value)"
+                              onblur="if(this.dataset.cancel==='1')return;saveMemberPhone('${userId}', this.value)"
                               onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();} else if(event.key==='Escape'){this.dataset.cancel='1';renderMembers();}">`;
             const inp = document.querySelector('.member-org-input');
             if (inp) { inp.focus(); inp.select(); }

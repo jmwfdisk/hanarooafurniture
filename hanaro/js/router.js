@@ -186,6 +186,8 @@
     
     // 엑셀 파일 업로드 처리
     window.handleExcelUpload = async function(event) {
+        // 업로드 진행 중 재선택/연타 차단 (같은 경로 last-write-wins·진행률 UI 혼선 방지)
+        if (window.__schoolExcelUploading) { alert('엑셀 업로드가 진행 중입니다. 완료 후 다시 시도해주세요.'); event.target.value = ''; return; }
         const file = event.target.files[0];
         if (!file) {
             event.target.value = '';
@@ -221,6 +223,7 @@
                 tabulatorTable.style.display = 'none';
             }
             
+            window.__schoolExcelUploading = true;
             const uploadTask = fileRef.put(file);
             
             uploadTask.on('state_changed',
@@ -232,6 +235,7 @@
                     }
                 },
                 (error) => {
+                    window.__schoolExcelUploading = false;
                     console.error('업로드 오류:', error);
                     event.target.value = '';
                     let errorMsg = '파일 업로드 중 오류가 발생했습니다.';
@@ -252,6 +256,7 @@
                     }
                 },
                 async () => {
+                    window.__schoolExcelUploading = false;
                     try {
                         console.log('업로드 완료');
                         await loadExcelFile();
@@ -264,6 +269,7 @@
                 }
             );
         } catch (error) {
+            window.__schoolExcelUploading = false;
             console.error('업로드 오류:', error);
             event.target.value = '';
             alert('파일 업로드 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
@@ -271,7 +277,13 @@
     };
     
     // Firebase Storage에서 엑셀 파일 로드
+    let loadExcelFilePromise = null; // 이중 호출(라우트 진입 + authStateRestored) 시 같은 로드를 공유
     async function loadExcelFile() {
+        if (loadExcelFilePromise) return loadExcelFilePromise;
+        loadExcelFilePromise = (async () => { try { await doLoadExcelFile(); } finally { loadExcelFilePromise = null; } })();
+        return loadExcelFilePromise;
+    }
+    async function doLoadExcelFile() {
         const excelContent = document.getElementById('excel-content');
         const tabulatorTable = document.getElementById('tabulator-table');
         

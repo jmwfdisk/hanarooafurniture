@@ -1749,6 +1749,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // 엑셀 파일 업로드 처리
         async function handleExcelUpload(event) {
+            // 업로드 진행 중 재선택/연타 차단 (같은 경로 last-write-wins·진행률 UI 혼선 방지)
+            if (window.__schoolExcelUploading) { alert('엑셀 업로드가 진행 중입니다. 완료 후 다시 시도해주세요.'); event.target.value = ''; return; }
             const file = event.target.files[0];
             if (!file) {
                 event.target.value = '';
@@ -1787,6 +1789,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     tabulatorTable.style.display = 'none';
                 }
                 
+                window.__schoolExcelUploading = true;
                 const uploadTask = fileRef.put(file);
                 
                 uploadTask.on('state_changed',
@@ -1800,6 +1803,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     },
                     (error) => {
+                        window.__schoolExcelUploading = false;
                         console.error('업로드 오류:', error);
                         event.target.value = '';
                         let errorMsg = '파일 업로드 중 오류가 발생했습니다.';
@@ -1822,7 +1826,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     async () => {
                         try {
-                            // 업로드 완료
+                            window.__schoolExcelUploading = false; // 업로드 완료
                             console.log('업로드 완료');
                             // 파일 읽기 및 표시
                             await loadExcelFile();
