@@ -10035,10 +10035,13 @@
             if (!dateKey || dateKey === '__latest__') { alert('삭제할 날짜를 드롭다운에서 선택하세요.\n(\'최신\'은 삭제할 수 없습니다)'); return; }
             if (!(await showStaffConfirm(`'${dateKey}' 재고현황 스냅샷을 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))) return;
             try {
-                await db.collection('inventory').doc(dateKey).delete();
-                const dates = invDateList.filter(d => d !== dateKey).sort();
-                await db.collection('inventory').doc('_index').set({ dates }, { merge: true });
-                invDateList = dates.slice().reverse();
+                // 스냅샷 삭제 + 인덱스 제거를 한 batch로(반쪽 상태 방지), 목록은 arrayRemove(동시 저장자 날짜 보존)
+                const batch = db.batch();
+                batch.delete(db.collection('inventory').doc(dateKey));
+                batch.set(db.collection('inventory').doc('_index'),
+                    { dates: firebase.firestore.FieldValue.arrayRemove(dateKey) }, { merge: true });
+                await batch.commit();
+                invDateList = invDateList.filter(d => d !== dateKey);
                 populateInvDateSelect('__latest__');
                 await loadInventory();   // 최신본으로 복귀
                 alert(`'${dateKey}' 스냅샷을 삭제했습니다.`);
@@ -10053,14 +10056,20 @@
         }
 
         // dateKey 없으면 최신본(main), 있으면 해당 날짜 스냅샷(inventory/{date}) 로드
+        // invLoadedMainAt: 최신본을 불러온 시점의 updatedAt — 저장 시 낙관적 잠금 기준
+        // (두 관리자가 동시에 편집하면 늦게 저장한 쪽이 먼저 저장분을 조용히 덮던 문제 감지용.
+        //  날짜 스냅샷을 불러온 경우는 의도적 복원이므로 null → 검사 생략)
+        let invLoadedMainAt = null;
         async function loadInventory(dateKey) {
             inventoryData = invDefaultData();
             injectTableSpinner('inventory-thead', 'inventory-tbody', '재고현황을 불러오는 중…');
+            invLoadedMainAt = null;
             if (db) {
                 try {
                     const docId = dateKey ? dateKey : 'main';
                     const snap = await db.collection('inventory').doc(docId).get();
                     if (snap.exists) inventoryData = invMigrate(snap.data());
+                    if (!dateKey) invLoadedMainAt = snap.exists ? (snap.data().updatedAt || '') : '';
                 } catch (e) {
                     console.error('재고현황 로드 실패:', e);
                     alert('재고현황을 불러오지 못했습니다.\n' + (e.message || ''));
@@ -10262,12 +10271,15 @@
             XLSX.writeFile(wb, `재고현황_${new Date().toISOString().slice(0, 10)}.xlsx`);
         }
 
+        let invSaving = false; // 저장 연타 가드
         async function saveInventory() {
             if (!invCanEdit()) { alert('재고현황 작성 권한이 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
             const dateKey = (inventoryData.updatedDate || '').trim();
             if (!dateKey) { alert('먼저 "📅 최신화 날짜"를 지정한 뒤 저장하세요.\n해당 날짜로 재고현황이 저장됩니다.'); return; }
             if (dateKey > invTodayKey()) { alert('미래 날짜로는 저장할 수 없습니다.\n오늘 또는 이전 날짜를 선택하세요.'); return; }
+            if (invSaving) return;
+            invSaving = true;
             try {
                 let user = {};
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
@@ -10281,18 +10293,40 @@
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
                 };
-                // 날짜별 스냅샷 + 최신본(main) 동시 저장
-                await db.collection('inventory').doc(dateKey).set(payload);
-                await db.collection('inventory').doc('main').set(payload);
-                // 날짜 인덱스 갱신 (목록 누적)
-                const dates = Array.from(new Set(invDateList.concat(dateKey))).sort();
-                await db.collection('inventory').doc('_index').set({ dates }, { merge: true });
-                invDateList = dates.slice().reverse();
+                // 스냅샷 + 최신본(main) + 날짜 인덱스를 '한 트랜잭션'으로 저장 —
+                // 순차 set은 도중 실패 시 최신본/목록이 어긋나는 반쪽 상태를 남겼고,
+                // _index.dates의 로컬 concat 통째 set은 동시 저장 시 상대 날짜를 지웠음(arrayUnion으로 교체).
+                // main은 updatedAt 낙관적 잠금: 내가 불러온 이후 다른 사용자가 저장했으면 덮지 않고 안내.
+                const mainRef = db.collection('inventory').doc('main');
+                const snapRef = db.collection('inventory').doc(dateKey);
+                const idxRef = db.collection('inventory').doc('_index');
+                let conflict = null;
+                await db.runTransaction(async (tx) => {
+                    const cur = await tx.get(mainRef);
+                    const serverAt = cur.exists ? (cur.data().updatedAt || '') : '';
+                    if (invLoadedMainAt !== null && serverAt && serverAt !== invLoadedMainAt) {
+                        conflict = { at: serverAt, by: (cur.data() && cur.data().updatedBy) || '' };
+                        return;
+                    }
+                    tx.set(snapRef, payload);
+                    tx.set(mainRef, payload);
+                    tx.set(idxRef, { dates: firebase.firestore.FieldValue.arrayUnion(dateKey) }, { merge: true });
+                });
+                if (conflict) {
+                    alert('저장하지 않았습니다.\n\n내가 불러온 이후 다른 사용자가 재고현황을 저장했습니다.\n' +
+                          `(저장자: ${conflict.by || '알 수 없음'} · ${conflict.at})\n\n` +
+                          '작업 내용을 엑셀 내보내기로 보관한 뒤, 표를 닫았다 다시 열어 최신본 기준으로 편집해주세요.');
+                    return;
+                }
+                invLoadedMainAt = payload.updatedAt;   // 방금 저장본이 새 기준
+                invDateList = Array.from(new Set(invDateList.concat(dateKey))).sort().reverse();
                 populateInvDateSelect('__latest__');
                 alert('재고현황이 저장되었습니다. (날짜: ' + dateKey + ')');
             } catch (e) {
                 console.error('재고현황 저장 실패:', e);
                 alert('저장 중 오류가 발생했습니다.\n(inventory 쓰기 규칙/권한 확인)\n' + (e.message || ''));
+            } finally {
+                invSaving = false;
             }
         }
 
@@ -11606,16 +11640,21 @@
         }
 
         // 특정 기준일의 일정 로드
+        // schedLoadedAt: 불러온 시점의 updatedAt — 저장 시 낙관적 잠금 기준(동시 편집 덮어쓰기 감지)
+        let schedLoadedAt = null;
         async function loadScheduleForDate(dateKey) {
             scheduleCurrentDate = dateKey;
             injectTableSpinner('schedule-thead', 'schedule-tbody', '일정을 불러오는 중…');
+            schedLoadedAt = null;
             if (db) {
                 try {
                     const snap = await db.collection('deliverySchedule').doc(dateKey).get();
                     if (snap.exists) {
                         scheduleData = migrateSchedule(snap.data());
+                        schedLoadedAt = snap.data().updatedAt || '';
                     } else {
                         scheduleData = emptyScheduleData();
+                        schedLoadedAt = '';
                     }
                 } catch (e) {
                     console.error('일정 로드 실패:', e);
@@ -11988,7 +12027,7 @@
             try {
                 let user = {};
                 try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
-                await db.collection('deliverySchedule').doc(scheduleCurrentDate).set({
+                const payload = {
                     date: scheduleCurrentDate,
                     notice: scheduleData.notice,
                     columns: scheduleData.columns,
@@ -11998,7 +12037,27 @@
                     images: scheduleData.images,
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
+                };
+                // 낙관적 잠금 트랜잭션: 내가 불러온 이후 다른 사용자가 같은 날짜를 저장했으면
+                // 경고 없이 통째로 덮지 않고 안내 후 중단 (whole-doc set last-write-wins 문제)
+                const ref = db.collection('deliverySchedule').doc(scheduleCurrentDate);
+                let conflict = null;
+                await db.runTransaction(async (tx) => {
+                    const cur = await tx.get(ref);
+                    const serverAt = cur.exists ? (cur.data().updatedAt || '') : '';
+                    if (schedLoadedAt !== null && serverAt && serverAt !== schedLoadedAt) {
+                        conflict = { at: serverAt, by: (cur.data() && cur.data().updatedBy) || '' };
+                        return;
+                    }
+                    tx.set(ref, payload);
                 });
+                if (conflict) {
+                    alert('저장하지 않았습니다.\n\n내가 불러온 이후 다른 사용자가 이 날짜의 일정을 저장했습니다.\n' +
+                          `(저장자: ${conflict.by || '알 수 없음'} · ${conflict.at})\n\n` +
+                          '작업 내용을 엑셀 내보내기로 보관한 뒤, 날짜를 다시 선택해 최신본 기준으로 편집해주세요.');
+                    return false;
+                }
+                schedLoadedAt = payload.updatedAt;   // 방금 저장본이 새 기준
                 if (!scheduleDates.includes(scheduleCurrentDate)) {
                     scheduleDates.push(scheduleCurrentDate);
                     scheduleDates.sort();
@@ -12089,7 +12148,7 @@
             if (!storage && typeof firebase !== 'undefined' && firebase.storage) storage = firebase.storage();
             if (!storage) { alert('스토리지 연결이 없습니다.'); return; }
 
-            let uploaded = 0;
+            const newImgs = [];
             for (const file of files) {
                 if (!file.type.startsWith('image/')) { alert(`${file.name}은(는) 이미지 파일이 아닙니다.`); continue; }
                 if (file.size > 10 * 1024 * 1024) { alert(`${file.name}은(는) 10MB를 초과합니다.`); continue; }
@@ -12098,19 +12157,38 @@
                     const ref = storage.ref(`schedule-images/${name}`);
                     const snap = await ref.put(file);
                     const url = await snap.ref.getDownloadURL();
+                    newImgs.push({ name: file.name, url });
                     scheduleData.images.push({ name: file.name, url });
-                    uploaded++;
                 } catch (e) {
                     console.error('이미지 업로드 실패:', e);
                     alert('이미지 업로드 실패: ' + e.message + '\n(Storage 규칙에 schedule-images/ 쓰기 허용이 필요합니다.)');
                 }
             }
             renderSchedule();
-            if (uploaded) {
-                const ok = await persistSchedule(true);
-                if (ok) {
-                    alert(`이미지 ${uploaded}장이 첨부·저장되었습니다.`);
-                } else {
+            if (newImgs.length) {
+                // images 필드만 arrayUnion으로 갱신 — 예전처럼 시트 전체를 자동 저장하면
+                // 편집 중인(또는 낡은) 그리드가 함께 set되어 그사이 타인이 저장한 표를 덮었음
+                if (!db) { alert('이미지는 업로드됐지만 DB 연결이 없어 문서에 기록하지 못했습니다.'); return; }
+                try {
+                    if (!scheduleCurrentDate) scheduleCurrentDate = scheduleTodayKey();
+                    let user = {};
+                    try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+                    const at = new Date().toISOString();
+                    await db.collection('deliverySchedule').doc(scheduleCurrentDate).set({
+                        date: scheduleCurrentDate,
+                        images: firebase.firestore.FieldValue.arrayUnion(...newImgs),
+                        updatedAt: at,
+                        updatedBy: user.name || user.username || ''
+                    }, { merge: true });
+                    schedLoadedAt = at;   // 내 기준 갱신(직후의 내 시트 저장이 자기 자신과 충돌하지 않게)
+                    if (!scheduleDates.includes(scheduleCurrentDate)) {
+                        scheduleDates.push(scheduleCurrentDate);
+                        scheduleDates.sort();
+                        updateScheduleDateUI();
+                    }
+                    alert(`이미지 ${newImgs.length}장이 첨부·저장되었습니다.`);
+                } catch (e) {
+                    console.error('이미지 문서 기록 실패:', e);
                     alert('이미지는 업로드됐지만 일정 저장(DB)에 실패했습니다.\n' +
                           'Firestore 규칙에 deliverySchedule 쓰기 허용이 게시되었는지 확인하세요.\n' +
                           '(F12 콘솔의 빨간 오류 메시지를 확인하면 원인을 알 수 있습니다.)');
@@ -12121,10 +12199,29 @@
         async function deleteScheduleImage(i) {
             if (!(await showStaffConfirm('이미지를 삭제할까요?'))) return;
             const img = scheduleData.images[i];
+            if (!img) return;
+            // 문서에서 먼저 제거(성공 후 Storage 삭제) — 반대 순서는 문서 갱신 실패 시 깨진 URL이 남았음.
+            // images 필드만 arrayRemove — 시트 전체 자동 저장으로 타인 그리드를 덮지 않음
+            if (db && scheduleCurrentDate) {
+                try {
+                    let user = {};
+                    try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+                    const at = new Date().toISOString();
+                    await db.collection('deliverySchedule').doc(scheduleCurrentDate).set({
+                        images: firebase.firestore.FieldValue.arrayRemove(img),
+                        updatedAt: at,
+                        updatedBy: user.name || user.username || ''
+                    }, { merge: true });
+                    schedLoadedAt = at;
+                } catch (e) {
+                    console.error('이미지 삭제 기록 실패:', e);
+                    alert('이미지 삭제를 저장하지 못했습니다.\n' + (e.message || ''));
+                    return;   // 문서 반영 실패 → 로컬/Storage도 유지
+                }
+            }
             scheduleData.images.splice(i, 1);
             renderSchedule();
-            try { if (img && img.url && storage) await storage.refFromURL(img.url).delete(); } catch (e) { /* 이미 삭제 등 무시 */ }
-            await persistSchedule(true);
+            try { if (img.url && storage) await storage.refFromURL(img.url).delete(); } catch (e) { /* 이미 삭제 등 무시 */ }
         }
 
         // 모달 바깥(어두운 배경) 클릭 시 닫기
