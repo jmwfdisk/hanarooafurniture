@@ -1027,10 +1027,13 @@
             justify-content: center !important;
         }
         
+        /* 로그인/로그아웃은 아이콘만(텍스트 삭제됨)이라 축소 불필요.
+           예전 14px는 769~1200px 구간에서만 아이콘이 작아지는 딥을 만들었음
+           (데스크탑 20px → 중간 14px → 모바일 22px). 데스크탑과 동일한 20px로 통일. */
         .login-icon {
-            height: 14px !important;  /* 30% 감소: 20px -> 14px */
+            height: 20px !important;
             width: auto !important;
-            margin-right: 3.5px !important;  /* 30% 감소: 5px -> 3.5px */
+            margin-right: 0 !important;
             display: inline-block !important;
             vertical-align: middle !important;
         }
@@ -1107,9 +1110,9 @@
         }
 
         .footer-top { display: none; }
-        .login-icon { 
+        .login-icon {
             display: inline-block !important;  /* 모바일에서도 아이콘 표시 */
-            height: 14px !important;  /* 30% 감소된 크기 유지 */
+            height: 20px !important;  /* 딥 제거: 데스크탑과 동일(모바일은 auth.js가 22px로 확대) */
         }
         .navbar > .logo { margin-right: 0; }
 
