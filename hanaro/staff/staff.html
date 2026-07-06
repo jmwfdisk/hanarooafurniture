@@ -2264,7 +2264,7 @@
             .post-modal h3 {
                 font-size: 20px;
                 margin-bottom: 16px;
-                padding-right: 30px;
+                padding-right: 76px;   /* 알약형 '닫기' 버튼 폭만큼 확보(제목 겹침 방지) */
             }
 
             .post-modal .post-meta {
@@ -2281,13 +2281,15 @@
                 overflow-wrap: break-word;
             }
 
+            /* 알약형 '닫기' 텍스트 버튼 — 데스크톱과 동일한 작은 알약 유지
+               (font-size 28px는 예전 × 아이콘 시절 잔재라 글자가 거대해졌음) */
             .post-modal .close-btn {
                 top: 12px;
                 right: 12px;
-                font-size: 28px;
-                padding: 8px;
-                min-width: 44px;
-                min-height: 44px;
+                font-size: 14px;
+                padding: 8px 16px;
+                min-width: 0;
+                min-height: 0;
             }
 
             .post-modal-actions {
