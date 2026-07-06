@@ -166,12 +166,13 @@
     '.fbz-sl-btn:hover{border-color:#888;}' +
     '.fbz-sl-caret{font-size:22px;color:#666;line-height:1;transition:transform .15s ease;}' +
     '.fbz-sitelinks.open .fbz-sl-caret{transform:rotate(180deg);}' +
-    /* position:fixed → 정부로고 가로 스크롤(overflow) 컨테이너에 잘리지 않도록 좌표는 JS가 계산 */
+    /* position:fixed + document.body 직속(포털): iOS Safari는 overflow 스크롤 컨테이너(-webkit-overflow-scrolling)
+       안의 fixed를 absolute처럼 취급해 정부로고 스트립 높이에 메뉴가 잘림 → body로 빼서 해결. 좌표는 JS가 계산 */
     '.fbz-sl-menu{display:none;position:fixed;z-index:3000;min-width:170px;' +
       'background:#fff;border:1px solid #cfcfcf;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.15);' +
       'overflow-y:auto;overflow-x:hidden;max-height:340px;padding:4px 0;text-align:left;' +
       '-webkit-overflow-scrolling:touch;}' +
-    '.fbz-sitelinks.open .fbz-sl-menu{display:block;}' +
+    '.fbz-sl-menu.open{display:block;}' +
     '.fbz-sl-menu a{display:block !important;background:none !important;border:none !important;' +
       'box-shadow:none !important;border-radius:0 !important;width:auto !important;height:auto !important;' +
       'margin:0 !important;padding:10px 16px !important;font-size:14px !important;color:#444 !important;' +
@@ -359,6 +360,10 @@
       pl.appendChild(wrap);
       var btn = wrap.querySelector('.fbz-sl-btn');
       var menu = wrap.querySelector('.fbz-sl-menu');
+      // 메뉴는 body 직속으로 이동(포털): iOS Safari가 overflow 스크롤 스트립 안의
+      // fixed 메뉴를 스트립 높이로 잘라버리는 문제 + .fbz-sitelinks(z-index:30)
+      // 스태킹 컨텍스트에 갇혀 다른 요소에 덮이는 문제를 동시에 해결.
+      document.body.appendChild(menu);
 
       // 메뉴는 position:fixed 라서 버튼 위치를 기준으로 좌표를 직접 계산한다.
       // (정부로고 가로 스크롤 컨테이너의 overflow에 잘리는 문제 해결 + 아래 공간 부족 시 위로 펼침)
@@ -382,17 +387,20 @@
       }
       function closeMenu() {
         wrap.classList.remove('open');
+        menu.classList.remove('open');
         btn.setAttribute('aria-expanded', 'false');
       }
 
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var open = wrap.classList.toggle('open');
+        menu.classList.toggle('open', open);
         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) positionMenu();
       });
       document.addEventListener('click', function (e) {
-        if (!wrap.contains(e.target)) closeMenu();
+        // 메뉴가 body 직속이라 wrap 밖 — 메뉴 내부 클릭은 닫지 않음
+        if (!wrap.contains(e.target) && !menu.contains(e.target)) closeMenu();
       });
       // 열린 상태에서 스크롤/리사이즈 시 좌표 갱신(가로 스크롤 strip 포함)
       window.addEventListener('resize', function () { if (wrap.classList.contains('open')) positionMenu(); });
