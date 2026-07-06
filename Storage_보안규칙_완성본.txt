@@ -1,0 +1,55 @@
+rules_version = '2';
+
+// Firebase Storage 보안규칙 — 콘솔(Storage → Rules)에 붙여넣어 게시할 것.
+// 이 파일이 캔버스(단일 원본). 수정 시 콘솔 게시까지 해야 실제 적용됨.
+// 버킷: hanarooa-f227d.firebasestorage.app
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── A/S 신청 첨부파일 ─────────────────────────────
+    // 이전: read/write: if true (누구나 다운로드·업로드 가능 → 개인정보/비용 위험)
+    // 변경: 읽기=로그인 사용자, 쓰기=로그인 사용자 + 10MB + 이미지/PDF만
+    match /as-files/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType.matches('application/pdf'));
+    }
+
+    // ── 납품학교 리스트 ───────────────────────────────
+    match /school-list/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ── 활동사진첩 ────────────────────────────────────
+    match /activity-photos/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── A/S 처리결과 첨부(임직원) ─────────────────────
+    match /as-result-files/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ── 일정관리 이미지 ───────────────────────────────
+    match /schedule-images/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ── 그 외 경로 전부 차단 ──────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

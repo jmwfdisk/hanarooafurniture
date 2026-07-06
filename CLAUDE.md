@@ -93,7 +93,7 @@ New registrations are created with `status: 'pending'` and require admin approva
 | Collection | Used by | Write access (see `Firestore_보안규칙_완성본.txt`) |
 |------------|---------|-----------------|
 | `users` | all pages | self-update = `org`/`position` only (`hasOnly`); admin = any field; `uid`/`username` never |
-| `asPosts/posts` | AS.html ↔ staff A/S 처리결과 | authenticated (read public) |
+| `asPosts/posts` | AS.html ↔ staff A/S 처리결과 | write=authenticated; **read=`isApprovedUser() OR isEmployee()`** (비인증 공개읽기 차단 — 신청서에 연락처 등 PII. AS.html은 비로그인 시 목록 대신 로그인 안내를 표시하고 로그인 시 `authStateRestored`로 재로드) |
 | `staffPosts/{board}` | staff 직원게시판·회사운영 (boards: `notice`/`staff`/`staff-data`/`staff-report`/`suggestion`/`as-result`) | employee (`as-result` needs `permFor('asResult')`; `staff-report`(업무보고 본사) read+write need `permFor('report')`) |
 | `activityPhotos` | staff 활동사진첩 | owner or admin (per-doc) |
 | `materials/{id}` | staff 자재관리 (one doc per row) | read=`isEmployee()`; create/update/delete=`permFor('materials')` |

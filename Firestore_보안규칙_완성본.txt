@@ -122,9 +122,12 @@ service cloud.firestore {
     // 구조: doc('posts') 단일 문서에 { posts: [...] } 형태로 저장
     
     match /asPosts/{document} {
-      // 읽기: 모든 사용자 가능 (공개 게시판)
-      allow read: if true;
-      
+      // 읽기: 승인된 회원 또는 임직원만 (비인증 공개 읽기 차단 — 신청서에 연락처 등 개인정보 포함)
+      // 주의: 단일 문서 {posts:[...]} 구조라 글 단위 서버 권한은 불가 → 승인 회원/임직원은
+      //       배열 전체를 읽을 수 있고, '본인 글만 열람' 제한은 클라이언트(viewContent)가 담당.
+      //       (자기 등록만 한 미승인 계정·비로그인 방문자는 이 규칙에서 차단됨)
+      allow read: if isApprovedUser() || isEmployee();
+
       // 생성: 인증된 사용자만 가능 (초기 문서 생성)
       allow create: if isAuthenticated() &&
         // 필수 필드 검증
