@@ -2225,6 +2225,31 @@
                 width: 100%;
             }
 
+            /* 리치에디터 툴바는 위 .write-form button 전체폭 규칙에서 제외 —
+               모바일에서도 콤팩트한 가로 배열(줄바꿈)로 유지. 등록/취소 버튼만 전체폭 */
+            .write-form .rte-toolbar {
+                gap: 6px;
+                padding: 8px 6px;
+            }
+            .write-form .rte-toolbar .rte-btn {
+                width: auto;
+                min-width: 36px;
+                height: 36px;
+                min-height: 36px;
+                margin: 0;
+                padding: 0 9px;
+                font-size: 14px;
+                box-sizing: border-box;
+            }
+            .write-form .rte-toolbar .rte-select {
+                height: 36px;
+                font-size: 13px;
+            }
+            .write-form .rte-toolbar .rte-color {
+                width: 36px;
+                height: 36px;
+            }
+
             .post-modal {
                 padding: 20px 16px;
                 max-width: 95%;
