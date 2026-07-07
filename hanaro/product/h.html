@@ -910,6 +910,11 @@
   .h-hero-text .eyebrow { color:#ef7a13; font-weight:700; font-size:26px; margin:0 0 12px; letter-spacing:0; }
   .h-hero-text h1 { font-size:64px; font-weight:800; color:#1a1a1a; margin:0 0 22px; letter-spacing:-1.5px; line-height:1.15; }
   .h-hero-text .desc { font-size:26px; color:#555; line-height:1.7; margin:0; }
+  .h-hero-video { display:inline-flex; align-items:center; gap:9px; margin-top:30px; padding:14px 32px;
+    border-radius:999px; background:#3FA9DC; color:#fff; font-size:18px; font-weight:650; text-decoration:none;
+    box-shadow:0 8px 20px rgba(63,169,220,.35); transition:background .2s ease, transform .2s ease; }
+  .h-hero-video:hover { background:#2E97CC; transform:translateY(-2px); }
+  .h-hero-video svg { width:17px; height:17px; }
   @media (max-width:768px) {
     /* 데스크탑처럼 제품사진 오른쪽에 텍스트 오버레이(한 줄) 유지 — 좁은 폭이라 텍스트 영역 확대 + 폰트 축소 */
     .h-hero-text { left:48%; right:3%; }
@@ -917,6 +922,8 @@
     .h-hero-text .eyebrow { font-size:12px; margin-bottom:4px; }
     .h-hero-text h1 { font-size:22px; margin-bottom:7px; }
     .h-hero-text .desc { font-size:11px; line-height:1.45; }
+    .h-hero-video { margin-top:10px; padding:6px 14px; font-size:11px; gap:5px; box-shadow:none; }
+    .h-hero-video svg { width:10px; height:10px; }
   }
   @media (max-width:400px) {
     .h-hero-text { left:46%; }
@@ -924,6 +931,7 @@
     .h-hero-text .eyebrow { font-size:10px; margin-bottom:3px; }
     .h-hero-text h1 { font-size:18px; margin-bottom:5px; }
     .h-hero-text .desc { font-size:9.5px; line-height:1.4; }
+    .h-hero-video { margin-top:7px; padding:5px 11px; font-size:9.5px; }
   }
 </style>
 <div class="h-hero">
@@ -933,6 +941,7 @@
     <p class="eyebrow">이동식 스툴 테이블</p>
     <h1>H 시리즈</h1>
     <p class="desc">조달청 우수제품으로 검증된<br>우수한 편의성과 기능을 제공합니다.</p>
+    <a class="h-hero-video" href="https://youtu.be/BCFoUwoQyVo?si=FD8xSulI00cRH1LS" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>영상보기</a>
   </div>
 </div>
 
@@ -1034,6 +1043,7 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- 공통 인증 스크립트 -->
 <script src="../js/auth.js?v=20260713"></script>
 <script src="../js/footer-bar.js?v=20260706a"></script>
+<script src="../js/redesign.js?v=20260706"></script>
 
     <div class="partner-logos">
         <a href="https://www.g2b.go.kr/" target="_blank">
