@@ -26,7 +26,7 @@
             background-color: #ffffff;
             color: #000000;
             text-align: center;
-            overflow-x: auto;
+            overflow-x: clip; /* 스티키 스택 카드가 뷰포트 기준으로 고정되도록(auto면 body가 스크롤 컨테이너가 되어 sticky 깨짐) */
         }
 
         .navbar {
@@ -842,29 +842,47 @@
   .hiw-hero .eyebrow { display:inline-block; font-size:13px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:#2e9e54; margin:0 0 16px; }
   .hiw-hero h1 { font-size:clamp(30px,5vw,52px); font-weight:700; letter-spacing:-1.2px; color:#111; margin:0 0 18px; line-height:1.15; word-break:keep-all; }
   .hiw-hero p { font-size:clamp(16px,1.8vw,20px); color:#555; margin:0 auto; max-width:58ch; line-height:1.7; word-break:keep-all; }
-  .hiw-steps { max-width:940px; margin:16px auto 30px; padding:0 24px; box-sizing:border-box; }
-  .hiw-step { display:grid; grid-template-columns:120px 1fr; gap:40px; padding:52px 0; border-top:1px solid #ececec; align-items:start; text-align:left; }
-  .hiw-step:first-child { border-top:none; }
-  .hiw-num { font-size:70px; font-weight:800; color:#e6efe9; line-height:.9; letter-spacing:-2px; }
-  .hiw-step h2 { font-size:clamp(22px,2.6vw,30px); font-weight:700; color:#1a1a1a; margin:0 0 14px; letter-spacing:-.5px; word-break:keep-all; }
-  .hiw-step .desc { font-size:17px; color:#555; line-height:1.75; margin:0 0 20px; max-width:54ch; word-break:keep-all; }
-  .hiw-feats { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
-  .hiw-feats li { display:flex; align-items:flex-start; gap:11px; font-size:15.5px; color:#444; line-height:1.6; word-break:keep-all; }
-  .hiw-feats li svg { width:15px; height:15px; flex:0 0 auto; margin-top:4px; }
-  .hiw-cta { text-align:center; padding:24px 24px 84px; }
+  /* 스티키 스택 카드: 스크롤하면 카드가 위로 쌓이고 이전 STEP 헤더만 상단에 남음 */
+  .hiw-steps { --stick-top:126px; --stack-gap:60px;
+    max-width:1040px; margin:8px auto 0; padding:0 24px 14vh; box-sizing:border-box; }
+  .hiw-step { position:sticky; top:calc(var(--stick-top) + var(--i) * var(--stack-gap));
+    display:flex; flex-direction:column;
+    background:#ffffff; border:1px solid #e7ece9; border-radius:26px;
+    box-shadow:0 -1px 0 rgba(0,0,0,.03), 0 26px 60px rgba(20,50,32,.12);
+    padding:26px 44px 40px; margin-bottom:26px; min-height:58vh; box-sizing:border-box; text-align:left; }
+  .hiw-step-eyebrow { flex:0 0 auto; font-size:14px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+    color:#2e9e54; padding-bottom:16px; margin-bottom:28px; border-bottom:1px solid #eef1ef; }
+  .hiw-step-eyebrow b { color:#a7c1b2; font-weight:800; margin-right:6px; }
+  .hiw-step-grid { flex:1 1 auto; display:grid; grid-template-columns:1.15fr .85fr; gap:44px;
+    align-items:center; align-content:center; }
+  .hiw-step-main h2 { font-size:clamp(26px,3vw,40px); font-weight:750; color:#161616; margin:0 0 16px;
+    letter-spacing:-.8px; line-height:1.16; word-break:keep-all; }
+  .hiw-step-main .desc { font-size:17px; color:#555; line-height:1.75; margin:0 0 22px; max-width:52ch; word-break:keep-all; }
+  .hiw-feats { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:13px; }
+  .hiw-feats li { display:flex; align-items:flex-start; gap:11px; font-size:15.5px; color:#3f4a44; line-height:1.6; word-break:keep-all; }
+  .hiw-feats li svg { width:16px; height:16px; flex:0 0 auto; margin-top:3px; }
+  .hiw-step-side { display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(150deg,#eef7f1 0%,#dcefe3 100%); border-radius:20px; min-height:230px;
+    position:relative; overflow:hidden; }
+  .hiw-step-side .hiw-bignum { font-size:150px; font-weight:850; color:#2e9e54; opacity:.92; line-height:.85; letter-spacing:-4px; }
+  .hiw-step-side .hiw-side-cap { position:absolute; bottom:20px; font-size:13px; font-weight:700; color:#4b8f66; letter-spacing:.06em; }
+  .hiw-cta { text-align:center; padding:36px 24px 90px; position:relative; z-index:2; }
   .hiw-cta a { display:inline-block; background:#2e9e54; color:#fff; text-decoration:none; padding:15px 40px; border-radius:999px; font-size:17px; font-weight:650; transition:background .18s ease; }
   .hiw-cta a:hover { background:#268047; }
+  @media (max-width:900px){
+    .hiw-step-grid { grid-template-columns:1fr; gap:24px; }
+    .hiw-step-side { order:-1; min-height:120px; }
+    .hiw-step-side .hiw-bignum { font-size:92px; }
+  }
   @media (max-width:768px){
-    .hiw-hero { padding:44px 20px 18px; }
-    /* 카드 줄바꿈 없이 가로 스와이프(스냅) */
-    .hiw-steps { display:flex; flex-wrap:nowrap; overflow-x:auto; gap:14px; padding:6px 20px 16px; margin:8px 0 24px;
-      scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
-    .hiw-steps::-webkit-scrollbar { display:none; }
-    .hiw-step { display:block; flex:0 0 auto; width:82vw; max-width:340px; scroll-snap-align:center;
-      border-top:none; padding:26px 24px; background:#f7f8fa; border:1px solid #ececec; border-radius:18px; text-align:left; }
-    .hiw-num { font-size:40px; margin-bottom:6px; }
-    .hiw-step h2 { font-size:22px; margin-bottom:12px; }
-    .hiw-step .desc { font-size:15px; max-width:none; margin-bottom:16px; }
+    .hiw-hero { padding:44px 20px 14px; }
+    .hiw-steps { --stick-top:88px; --stack-gap:50px; padding:0 16px 22vh; }
+    .hiw-step { padding:20px 22px 30px; border-radius:20px; min-height:56vh; }
+    .hiw-step-eyebrow { font-size:12.5px; padding-bottom:12px; margin-bottom:18px; }
+    .hiw-step-main h2 { font-size:23px; }
+    .hiw-step-main .desc { font-size:15px; margin-bottom:16px; }
+    .hiw-step-side { min-height:100px; }
+    .hiw-step-side .hiw-bignum { font-size:68px; }
   }
 </style>
 <div class="hiw-hero">
@@ -873,42 +891,51 @@
   <p>하나로오에이퍼니처 제품을 안전하고 깨끗하게 오래 사용하실 수 있도록 일상 관리부터 점검·A/S까지 단계별로 안내합니다.</p>
 </div>
 <div class="hiw-steps">
-  <div class="hiw-step">
-    <div class="hiw-num">01</div>
-    <div>
-      <h2>일상 청소</h2>
-      <p class="desc">부드러운 천으로 표면의 먼지와 오염을 닦아 주세요. 좌판·상판은 중성세제를 옅게 희석해 닦은 뒤 마른 천으로 마무리하면 깨끗하게 유지됩니다.</p>
-      <ul class="hiw-feats">
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 마른 천 → 물기 있는 천 → 마른 천 순서로 닦기</li>
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 오염이 심하면 중성세제를 물에 희석해 사용</li>
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 연마제·강한 화학세제·거친 수세미는 표면 손상의 원인</li>
-      </ul>
+  <section class="hiw-step" style="--i:0">
+    <div class="hiw-step-eyebrow"><b>STEP 01</b> · 일상 청소</div>
+    <div class="hiw-step-grid">
+      <div class="hiw-step-main">
+        <h2>매일 부드럽게 닦아<br>새것처럼 오래</h2>
+        <p class="desc">부드러운 천으로 표면의 먼지와 오염을 닦아 주세요. 좌판·상판은 중성세제를 옅게 희석해 닦은 뒤 마른 천으로 마무리하면 깨끗하게 유지됩니다.</p>
+        <ul class="hiw-feats">
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 마른 천 → 물기 있는 천 → 마른 천 순서로 닦기</li>
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 오염이 심하면 중성세제를 물에 희석해 사용</li>
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 연마제·강한 화학세제·거친 수세미는 표면 손상의 원인</li>
+        </ul>
+      </div>
+      <div class="hiw-step-side"><span class="hiw-bignum">01</span><span class="hiw-side-cap">일상 관리</span></div>
     </div>
-  </div>
-  <div class="hiw-step">
-    <div class="hiw-num">02</div>
-    <div>
-      <h2>정기 점검</h2>
-      <p class="desc">학기 시작 전이나 계절이 바뀔 때 볼트·이음부·스프링 상태를 한 번씩 점검하면 고장을 예방하고 더 오래 사용할 수 있습니다.</p>
-      <ul class="hiw-feats">
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 흔들림·소음이 있으면 이음부 볼트를 다시 조임</li>
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 업다운·인입 스프링의 작동이 부드러운지 확인</li>
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 파손·이상이 발견되면 사용을 멈추고 A/S 접수</li>
-      </ul>
+  </section>
+  <section class="hiw-step" style="--i:1">
+    <div class="hiw-step-eyebrow"><b>STEP 02</b> · 정기 점검</div>
+    <div class="hiw-step-grid">
+      <div class="hiw-step-main">
+        <h2>제철마다 한 번,<br>미리 점검하기</h2>
+        <p class="desc">학기 시작 전이나 계절이 바뀔 때 볼트·이음부·스프링 상태를 한 번씩 점검하면 고장을 예방하고 더 오래 사용할 수 있습니다.</p>
+        <ul class="hiw-feats">
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 흔들림·소음이 있으면 이음부 볼트를 다시 조임</li>
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 업다운·인입 스프링의 작동이 부드러운지 확인</li>
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 파손·이상이 발견되면 사용을 멈추고 A/S 접수</li>
+        </ul>
+      </div>
+      <div class="hiw-step-side"><span class="hiw-bignum">02</span><span class="hiw-side-cap">정기 점검</span></div>
     </div>
-  </div>
-  <div class="hiw-step">
-    <div class="hiw-num">03</div>
-    <div>
-      <h2>A/S 신청</h2>
-      <p class="desc">문제가 생기면 홈페이지 또는 전화로 접수해 주세요. 납품일로부터 10년간 중요부품을 무상 A/S로 지원하며, 접수 후 일주일 이내 처리합니다.</p>
-      <ul class="hiw-feats">
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 온라인 접수 : 홈페이지 A/S신청 게시판</li>
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 유선 문의 : 043-731-9511</li>
-        <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 무상보증 부품 : 스프링·회전정지·플라스틱 좌판·스테인레스 다리 등</li>
-      </ul>
+  </section>
+  <section class="hiw-step" style="--i:2">
+    <div class="hiw-step-eyebrow"><b>STEP 03</b> · A/S 신청</div>
+    <div class="hiw-step-grid">
+      <div class="hiw-step-main">
+        <h2>문제가 생기면<br>바로 접수하세요</h2>
+        <p class="desc">문제가 생기면 홈페이지 또는 전화로 접수해 주세요. 납품일로부터 10년간 중요부품을 무상 A/S로 지원하며, 접수 후 일주일 이내 처리합니다.</p>
+        <ul class="hiw-feats">
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 온라인 접수 : 홈페이지 A/S신청 게시판</li>
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 유선 문의 : 043-731-9511</li>
+          <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 무상보증 부품 : 스프링·회전정지·플라스틱 좌판·스테인레스 다리 등</li>
+        </ul>
+      </div>
+      <div class="hiw-step-side"><span class="hiw-bignum">03</span><span class="hiw-side-cap">사후 관리</span></div>
     </div>
-  </div>
+  </section>
 </div>
 <div class="hiw-cta"><a href="../AS/AS.html">A/S 신청하기 →</a></div>
 
