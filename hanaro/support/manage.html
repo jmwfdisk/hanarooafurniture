@@ -844,7 +844,7 @@
   .hiw-hero p { font-size:clamp(16px,1.8vw,20px); color:#555; margin:0 auto; max-width:58ch; line-height:1.7; word-break:keep-all; }
   /* 스티키 스택 카드: 스크롤하면 카드가 위로 쌓이고 이전 STEP 헤더만 상단에 남음 */
   .hiw-steps { --stick-top:126px; --stack-gap:60px;
-    max-width:1040px; margin:8px auto 0; padding:0 24px 14vh; box-sizing:border-box; }
+    max-width:1040px; margin:8px auto 0; padding:0 24px 8vh; box-sizing:border-box; }
   .hiw-step { position:sticky; top:calc(var(--stick-top) + var(--i) * var(--stack-gap));
     display:flex; flex-direction:column;
     background:#ffffff; border:1px solid #e7ece9; border-radius:26px;
@@ -866,6 +866,9 @@
     position:relative; overflow:hidden; }
   .hiw-step-side .hiw-bignum { font-size:150px; font-weight:850; color:#2e9e54; opacity:.92; line-height:.85; letter-spacing:-4px; }
   .hiw-step-side .hiw-side-cap { position:absolute; bottom:20px; font-size:13px; font-weight:700; color:#4b8f66; letter-spacing:.06em; }
+  .hiw-step-btn { display:inline-block; margin-top:28px; background:#2e9e54; color:#fff; text-decoration:none;
+    padding:14px 34px; border-radius:999px; font-size:16px; font-weight:650; transition:background .18s ease; box-shadow:0 8px 22px rgba(46,158,84,.28); }
+  .hiw-step-btn:hover { background:#268047; }
   .hiw-cta { text-align:center; padding:36px 24px 90px; position:relative; z-index:2; }
   .hiw-cta a { display:inline-block; background:#2e9e54; color:#fff; text-decoration:none; padding:15px 40px; border-radius:999px; font-size:17px; font-weight:650; transition:background .18s ease; }
   .hiw-cta a:hover { background:#268047; }
@@ -932,12 +935,12 @@
           <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 유선 문의 : 043-731-9511</li>
           <li><svg viewBox='0 0 24 24' fill='none' stroke='#2e9e54' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg> 무상보증 부품 : 스프링·회전정지·플라스틱 좌판·스테인레스 다리 등</li>
         </ul>
+        <a class="hiw-step-btn" href="../AS/AS.html">A/S 신청하기 →</a>
       </div>
       <div class="hiw-step-side"><span class="hiw-bignum">03</span><span class="hiw-side-cap">사후 관리</span></div>
     </div>
   </section>
 </div>
-<div class="hiw-cta"><a href="../AS/AS.html">A/S 신청하기 →</a></div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
