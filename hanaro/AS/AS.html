@@ -1324,6 +1324,8 @@
             loadAsPosts().then(posts => {
                 asPosts = posts || [];
                 renderAsPosts();
+                // 서버 최신본으로 localStorage 캐시를 갱신 → 다음 새로고침 때 삭제된 글이 캐시로 잠깐 다시 떴다 사라지는 현상 방지
+                try { localStorage.setItem('asPosts', JSON.stringify(asPosts)); } catch (e) {}
             }).catch(error => {
                 console.error('A/S 게시글 로드 실패:', error);
                 if (!Array.isArray(asPosts)) asPosts = []; // 캐시로 이미 표시 중이면 유지
@@ -1339,6 +1341,7 @@
                 loadAsPosts().then(posts => {
                     asPosts = posts || [];
                     renderAsPosts();
+                    try { localStorage.setItem('asPosts', JSON.stringify(asPosts)); } catch (e) {}
                 }).catch(() => {}).finally(() => { asReloadInFlight = false; });
             });
 
