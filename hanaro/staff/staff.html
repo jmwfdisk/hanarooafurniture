@@ -1186,9 +1186,11 @@
         }
         .search-group.seg-search button svg { width: 15px; height: 15px; display: block; }
         @media (max-width: 1024px) {
+            /* 검색 알약: 전체폭이 과해 60%로 축소(가로 40% 감소) — 세그먼트 줄에서는 우측 정렬 유지 */
             .notice-segment .search-group.seg-search,
+            .member-tabs .search-group.seg-search,
             .seg-search-bar .search-group.seg-search {
-                width: 100%; margin-left: 0;
+                width: 60%; margin-left: auto;
                 flex-direction: row; gap: 0;
             }
             .search-group.seg-search input { flex: 1 1 auto; width: auto; min-width: 0; min-height: 40px; }
@@ -3643,6 +3645,8 @@
         //  같은 인덱스에 있는 '엉뚱한 글'이 열리고 그 글의 조회수까지 올라가던 버그)
         let boardSearchQuery = '';
         let boardSearchType = 'all';
+        // 회원관리 검색어 — placeBoardSearch(이 블록)가 초기화하므로 뒤 블록(회원관리)이 아닌 여기서 선언
+        let memberSearchQuery = '';
         function boardPostMatchesSearch(post) {
             const q = boardSearchQuery;
             if (!q) return true;
@@ -4872,6 +4876,8 @@
         function searchPosts() {
             // A/S 처리결과는 별도 데이터(asrData) 기반이므로 전용 검색으로 분기
             if (currentBoard === 'as-result') { searchAsr(); return; }
+            // 회원관리도 별도 데이터(allMembers) 기반 — 전용 검색으로 분기
+            if (currentBoard === 'member-management') { searchMembers(); return; }
             const typeEl = document.getElementById('search-type');
             // 모바일에서는 제목/내용 선택이 숨겨지므로(offsetParent=null) 제목·내용 모두 검색
             boardSearchType = (typeEl && typeEl.offsetParent !== null) ? typeEl.value : 'all';
@@ -4888,9 +4894,17 @@
             if (typeof renderAsResult === 'function') renderAsResult();
         }
 
+        // 회원관리 전용 검색 (소속·직급/직책·이름·이메일·연락처 대상)
+        function searchMembers() {
+            const inp = document.getElementById('search-input');
+            memberSearchQuery = (inp ? inp.value : '').trim().toLowerCase();
+            memberCurrentPage = 1;
+            if (typeof renderMembers === 'function') renderMembers();
+        }
+
         // 검색 알약을 현재 게시판의 세그먼트 메뉴 오른쪽 끝으로 이동시킨다.
         // 세그먼트가 없는 게시판(제안활동)은 표 위 우측정렬 바(#suggestion-search-bar)로,
-        // 검색 대상이 없는 화면(캘린더/활동사진첩/회원관리)에서는 숨긴다.
+        // 회원관리는 탭 칩 행(.member-tabs) 우측 끝으로, 검색 대상이 없는 화면(캘린더/활동사진첩)에서는 숨긴다.
         function placeBoardSearch() {
             const sg = document.getElementById('board-search');
             if (!sg) return;
@@ -4900,6 +4914,7 @@
             if (inp) inp.value = '';
             asrSearchQuery = '';
             boardSearchQuery = '';
+            memberSearchQuery = '';
 
             let target = null;
             const b = currentBoard;
@@ -4909,6 +4924,8 @@
                 target = document.getElementById('staff-segment');
             } else if (b === 'as-result') {
                 target = document.getElementById('asresult-segment');
+            } else if (b === 'member-management') {
+                target = document.querySelector('.member-tabs');
             } else if (b === 'suggestion') {
                 target = sugBar;
             }
@@ -8460,6 +8477,10 @@
         function showMemberTab(tab) {
             currentMemberTab = tab;
             memberCurrentPage = 1;
+            // 탭 이동 시 검색어 초기화(게시판 세그먼트 전환과 동일 규칙)
+            memberSearchQuery = '';
+            const si = document.getElementById('search-input');
+            if (si) si.value = '';
             document.querySelectorAll('.member-tab').forEach(t => {
                 t.classList.toggle('active', t.dataset.tab === tab);
             });
@@ -8490,7 +8511,7 @@
 
             // 탭별 필터: 대기/거절은 status, 승인완료 계열은 status==='approved' + 역할 구분
             const isMemberAdmin = (m) => m.isAdmin === true || m.username === 'admin';
-            const filteredMembers = allMembers.filter(m => {
+            let filteredMembers = allMembers.filter(m => {
                 if (currentMemberTab === 'pending') return m.status === 'pending';
                 if (currentMemberTab === 'rejected') return m.status === 'rejected';
                 if (m.status !== 'approved') return false;
@@ -8499,6 +8520,13 @@
                 if (currentMemberTab === 'general') return !isMemberAdmin(m) && m.userType !== 'employee';
                 return false;
             });
+
+            // 검색어 필터(소속·직급/직책·이름·이메일·연락처) — 뷰 전용, allMembers 원본은 그대로
+            if (memberSearchQuery) {
+                const q = memberSearchQuery;
+                filteredMembers = filteredMembers.filter(m =>
+                    [m.org, m.position, m.name, m.email, m.phone].some(v => String(v || '').toLowerCase().includes(q)));
+            }
 
             // 승인완료 계열 탭은 저장된 표시 순서대로 정렬 (순서 미지정 회원은 뒤로)
             if (isApprovedTab && memberOrder.length) {
@@ -8541,7 +8569,7 @@
                     'general': '일반회원이 없습니다.',
                     'rejected': '승인거절된 회원이 없습니다.'
                 };
-                tbody.innerHTML = `<div class="table-empty">${messages[currentMemberTab] || '회원이 없습니다.'}</div>`;
+                tbody.innerHTML = `<div class="table-empty">${memberSearchQuery ? '검색 결과가 없습니다.' : (messages[currentMemberTab] || '회원이 없습니다.')}</div>`;
                 document.getElementById('member-pagination').innerHTML = '';
                 return;
             }
