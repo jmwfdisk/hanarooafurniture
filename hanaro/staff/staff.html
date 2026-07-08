@@ -3550,7 +3550,7 @@
             const leaveCalView = document.getElementById('leave-calendar-view');
             if (leaveCalView && boardType !== 'staff-leave') leaveCalView.style.display = 'none';
 
-            // 회사운영 탭: 세그먼트(공지사항/주요회사운영/인증서) 토글 표시
+            // 회사운영 탭: 세그먼트(공지사항/주요회사운영/규격서·인증서) 토글 표시
             const noticeSegment = document.getElementById('notice-segment');
             const postView = document.getElementById('notice-post-view');
             const calView = document.getElementById('company-calendar-view');
@@ -3629,7 +3629,7 @@
             if (currentBoard === 'notice') {
                 writeBtn.style.display = (typeof userCan === 'function' && userCan('notice')) ? 'block' : 'none';
             } else if (currentBoard === 'cert') {
-                // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 작성 가능
+                // 규격서/인증서: '인증서(cert)' 권한(또는 전체/관리자) 보유자만 작성 가능
                 writeBtn.style.display = (typeof userCan === 'function' && userCan('cert')) ? 'block' : 'none';
             } else if (currentBoard === 'as-result') {
                 // A/S 처리결과는 작성 권한(asResult) 보유자만
@@ -3735,11 +3735,11 @@
                     errorMessage = '공지사항 삭제 권한이 없습니다.';
                 }
             } else if (currentBoard === 'cert') {
-                // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 삭제 가능
+                // 규격서/인증서: '인증서(cert)' 권한(또는 전체/관리자) 보유자만 삭제 가능
                 if (typeof userCan === 'function' && userCan('cert')) {
                     canDelete = true;
                 } else {
-                    errorMessage = '인증서 삭제 권한이 없습니다.';
+                    errorMessage = '규격서/인증서 삭제 권한이 없습니다.';
                 }
             } else if (currentBoard === 'staff' || currentBoard === 'staff-data' || currentBoard === 'suggestion' || currentBoard === 'as-result') {
                 // 직원게시판, 제안활동, A/S 처리결과: 작성자 또는 관리자만 삭제 가능
@@ -3840,9 +3840,9 @@
                 alert('공지사항 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
                 return;
             }
-            // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 작성 가능
+            // 규격서/인증서: '인증서(cert)' 권한(또는 전체/관리자) 보유자만 작성 가능
             if (currentBoard === 'cert' && !(typeof userCan === 'function' && userCan('cert'))) {
-                alert('인증서 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
+                alert('규격서/인증서 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
                 return;
             }
 
@@ -3874,7 +3874,7 @@
             if (authorInput) { authorInput.value = currentAuthorLabel(); authorInput.readOnly = true; }
             if (contentInput) contentInput.innerHTML = ''; // 리치 에디터(contenteditable) 초기화
             
-            // 공지사항·인증서·A/S 처리결과·자료실 게시판일 때 파일 업로드 섹션 표시
+            // 공지사항·규격서/인증서·A/S 처리결과·자료실 게시판일 때 파일 업로드 섹션 표시
             if (currentBoard === 'notice' || currentBoard === 'cert' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
                 if (fileUploadSection) fileUploadSection.style.display = 'block';
                 if (fileUpload) {
@@ -3965,7 +3965,7 @@
                 if (!canEdit) { alert('공지사항 수정 권한이 없습니다.'); return; }
             } else if (currentBoard === 'cert') {
                 canEdit = (typeof userCan === 'function' && userCan('cert'));
-                if (!canEdit) { alert('인증서 수정 권한이 없습니다.'); return; }
+                if (!canEdit) { alert('규격서/인증서 수정 권한이 없습니다.'); return; }
             } else {
                 const isAuthor = post.author === userData.name ||
                                  post.author === userData.username ||
@@ -4331,9 +4331,9 @@
                 return;
             }
 
-            // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 작성 가능
+            // 규격서/인증서: '인증서(cert)' 권한(또는 전체/관리자) 보유자만 작성 가능
             if (currentBoard === 'cert' && !(typeof userCan === 'function' && userCan('cert'))) {
-                alert('인증서 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
+                alert('규격서/인증서 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
                 return;
             }
 
@@ -4764,7 +4764,7 @@
                     // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 수정/삭제
                     canModify = (typeof userCan === 'function' && userCan('notice'));
                 } else if (currentBoard === 'cert') {
-                    // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 수정/삭제
+                    // 규격서/인증서: '인증서(cert)' 권한(또는 전체/관리자) 보유자만 수정/삭제
                     canModify = (typeof userCan === 'function' && userCan('cert'));
                 } else {
                     // 그 외 게시판: 작성자 또는 관리자만 수정/삭제 가능
@@ -6691,7 +6691,7 @@
     <div id="notice-segment" class="notice-segment" style="display:flex;">
         <button class="seg-btn active" data-seg="post" onclick="setNoticeSegment('post')">공지사항</button>
         <button class="seg-btn" data-seg="calendar" onclick="setNoticeSegment('calendar')">주요회사운영</button>
-        <button class="seg-btn" data-seg="cert" onclick="setNoticeSegment('cert')">인증서</button>
+        <button class="seg-btn" data-seg="cert" onclick="setNoticeSegment('cert')">규격서/인증서</button>
     </div>
     <div id="staff-segment" class="notice-segment" style="display:none;">
         <button class="seg-btn active" data-board="staff" onclick="switchBoard('staff')">자유게시판</button>
@@ -8761,7 +8761,7 @@
         const PERM_AREAS = [
             { key: 'all',       label: '전체' },
             { key: 'notice',    label: '공지사항' },
-            { key: 'cert',      label: '인증서' },
+            { key: 'cert',      label: '규격서/인증서' },
             { key: 'company',   label: '회사운영' },
             { key: 'photos',    label: '활동사진첩' },
             { key: 'schedule',  label: '일정관리' },
@@ -10553,7 +10553,7 @@
           </div>
           <div class="perm-list">
           <label class="perm-row" data-cat="notice"><span>공지사항 <small class="perm-desc">(쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-notice"></label>
-          <label class="perm-row" data-cat="notice"><span>인증서 <small class="perm-desc">(인증서 게시판 쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-cert"></label>
+          <label class="perm-row" data-cat="notice"><span>규격서/인증서 <small class="perm-desc">(규격서/인증서 게시판 쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-cert"></label>
           <label class="perm-row" data-cat="notice"><span>회사운영 <small class="perm-desc">(회사운영 캘린더 일정 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-company"></label>
           <label class="perm-row" data-cat="staff"><span>업무보고(본사) <small class="perm-desc">(읽기·쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-report"></label>
           <label class="perm-row" data-cat="staff"><span>연월차일정 <small class="perm-desc">(일정 수정·삭제 / 추가·읽기는 전 직원)</small></span><input type="checkbox" id="perm-leaveSchedule"></label>
@@ -11105,13 +11105,13 @@
             });
             if (seg === 'calendar') {
                 currentCalKind = 'company';
-                currentBoard = 'notice';   // 인증서에서 넘어온 경우 보드 복원(검색·권한 판정 기준)
+                currentBoard = 'notice';   // 규격서/인증서에서 넘어온 경우 보드 복원(검색·권한 판정 기준)
                 if (postView) postView.style.display = 'none';
                 if (calView) calView.style.display = 'block';
                 if (calYear === null) { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
                 loadAndRenderCalendar();
             } else {
-                // 'post'=공지사항(notice 보드) / 'cert'=인증서(cert 보드) — 같은 게시글 목록 뷰를 보드만 바꿔 공유
+                // 'post'=공지사항(notice 보드) / 'cert'=규격서/인증서(cert 보드) — 같은 게시글 목록 뷰를 보드만 바꿔 공유
                 currentBoard = (seg === 'cert') ? 'cert' : 'notice';
                 if (postView) postView.style.display = '';
                 if (calView) calView.style.display = 'none';
