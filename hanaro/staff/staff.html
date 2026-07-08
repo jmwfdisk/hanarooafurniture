@@ -3145,6 +3145,7 @@
         let currentPostRef = null; // 현재 상세보기 중인 글 객체(인덱스가 흔들려도 식별용)
         let editingPostIndex = -1; // 수정 중인 게시글 인덱스 (-1이면 새 글 작성)
         let editingPostRef = null; // 수정 중인 글 객체(인덱스가 흔들려도 식별용)
+        let editRemovedFiles = []; // 수정 중 삭제 예약된 기존 첨부 [{idx,name,url}] — 저장(수정) 시에만 실제 제거
         const postsPerPage = 10;
         let allPosts = {
             notice: [],
@@ -3857,6 +3858,7 @@
             // 새 글 작성 모드로 초기화 (수정 모드 잔여 상태 복원)
             editingPostIndex = -1;
             editingPostRef = null;
+            editRemovedFiles = [];
             setWriteFormMode(false);
 
             writeForm.style.display = 'block';
@@ -3907,6 +3909,7 @@
             // 수정 모드 해제 + 폼 라벨 복원
             editingPostIndex = -1;
             editingPostRef = null;
+            editRemovedFiles = [];
 
             // 제출 잠금 해제
             resetSubmitLock();
@@ -3999,24 +4002,15 @@
                     : String(raw).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
             }
 
-            // 첨부 가능 게시판: 업로드 섹션 표시 + 기존 첨부 안내(보존됨, 새 파일은 추가됨)
+            // 첨부 가능 게시판: 업로드 섹션 표시 + 기존 첨부 칩(✕로 저장 시 삭제 예약, 새 파일은 뒤에 추가)
             const fileUploadSection = document.getElementById('file-upload-section');
             const fileUpload = document.getElementById('write-file-upload');
             const note = document.getElementById('edit-existing-files');
             if (currentBoard === 'notice' || currentBoard === 'cert' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
                 if (fileUploadSection) fileUploadSection.style.display = 'block';
                 if (fileUpload) { fileUpload.value = ''; fileUpload.onchange = handleFileSelect; }
-                if (note) {
-                    const files = Array.isArray(post.files) ? post.files : [];
-                    if (files.length) {
-                        const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                        note.innerHTML = '<div style="font-size:13px;color:#6c757d;margin-bottom:6px;">기존 첨부파일 (그대로 유지됩니다. 새로 추가한 파일은 뒤에 더해집니다.)</div>'
-                            + files.map(n => '<span style="display:inline-block;background:#eef1f4;border-radius:6px;padding:4px 10px;margin:0 6px 6px 0;font-size:13px;color:#495057;">📎 ' + esc(n) + '</span>').join('');
-                        note.style.display = 'block';
-                    } else {
-                        note.style.display = 'none'; note.innerHTML = '';
-                    }
-                }
+                editRemovedFiles = [];
+                renderEditExistingFiles();
             } else {
                 if (fileUploadSection) fileUploadSection.style.display = 'none';
                 if (note) { note.style.display = 'none'; note.innerHTML = ''; }
@@ -4026,6 +4020,40 @@
             selectedFiles = [];
             const filePreview = document.getElementById('write-file-preview');
             if (filePreview) filePreview.innerHTML = '';
+        }
+
+        // 수정 폼: 기존 첨부 칩 렌더 — 각 칩의 ✕가 저장 시 삭제를 예약(editRemovedFiles). 취소하면 아무 변화 없음.
+        function renderEditExistingFiles() {
+            const note = document.getElementById('edit-existing-files');
+            const post = editingPostRef;
+            if (!note) return;
+            const files = (post && Array.isArray(post.files)) ? post.files : [];
+            if (!files.length) { note.style.display = 'none'; note.innerHTML = ''; return; }
+            const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const removedIdx = new Set(editRemovedFiles.map(r => r.idx));
+            const remain = files.map((n, i) => ({ n, i })).filter(x => !removedIdx.has(x.i));
+            let html = '<div style="font-size:13px;color:#6c757d;margin-bottom:6px;">기존 첨부파일 (✕를 누르면 저장 시 삭제됩니다. 새로 추가한 파일은 뒤에 더해집니다.)</div>';
+            html += remain.map(x =>
+                '<span style="display:inline-flex;align-items:center;background:#eef1f4;border-radius:6px;padding:4px 6px 4px 10px;margin:0 6px 6px 0;font-size:13px;color:#495057;">📎 ' + esc(x.n)
+                // width:auto·min-height:0 인라인 — 모바일 .write-form button{width:100%} 규칙이 ✕를 전체폭으로 키우는 것 방지
+                + '<button type="button" onclick="removeExistingEditFile(' + x.i + ')" title="저장(수정) 시 이 첨부를 삭제" aria-label="첨부 삭제" style="width:auto;min-height:0;border:none;background:transparent;color:#adb5bd;font-size:14px;font-weight:700;margin-left:5px;cursor:pointer;padding:0 2px;line-height:1;">✕</button></span>'
+            ).join('');
+            if (removedIdx.size) {
+                html += '<div style="font-size:12px;color:#e03131;margin-top:2px;">삭제 예정 ' + removedIdx.size + '개 — 저장(수정)을 눌러야 실제로 삭제됩니다.</div>';
+            }
+            note.innerHTML = html;
+            note.style.display = 'block';
+        }
+
+        // 기존 첨부 삭제 예약: 즉시 지우지 않고 저장 시 트랜잭션에서 제거(취소 시 원본 그대로)
+        function removeExistingEditFile(idx) {
+            const post = editingPostRef;
+            if (!post) return;
+            const files = Array.isArray(post.files) ? post.files : [];
+            if (idx < 0 || idx >= files.length) return;
+            if (editRemovedFiles.some(r => r.idx === idx)) return;
+            editRemovedFiles.push({ idx: idx, name: files[idx], url: (Array.isArray(post.fileUrls) && post.fileUrls[idx]) || null });
+            renderEditExistingFiles();
         }
 
         // ===== 글쓰기 리치 에디터 (워드/한글 스타일 기본 서식) =====
@@ -4401,9 +4429,10 @@
                 }
             }
             
-            // ===== 수정 모드: 기존 글을 갱신 (제목·작성자·내용, 첨부는 유지하고 새 파일만 추가) =====
+            // ===== 수정 모드: 기존 글을 갱신 (제목·작성자·내용, 첨부는 ✕로 예약된 것 제거 + 새 파일 추가) =====
             if (editingPostIndex >= 0 && editingPostRef) {
                 const target = editingPostRef; // 어떤 글을 고치는지 식별용(인덱스가 흔들려도 안전)
+                const removedList = editRemovedFiles.slice(); // 저장 시점 스냅샷(폼 리셋과 무관하게 유지)
                 const editedDate = new Date().toLocaleDateString('ko-KR');
                 const boardAtSave = currentBoard;
 
@@ -4421,6 +4450,27 @@
                             p.author = author;
                             p.content = content;
                             p.editedDate = editedDate;
+                            // 삭제 예약된 기존 첨부 제거 — 서버 최신본 기준으로 이름(+URL) 일치 확인 후
+                            // files/fileUrls/fileData 세 배열을 같은 항목 기준으로 동기 제거.
+                            // (그사이 배열이 변해 인덱스가 어긋났으면 이름+URL로 재탐색, 못 찾으면 건너뜀)
+                            if (removedList.length) {
+                                removedList.slice().sort((a, b) => b.idx - a.idx).forEach(rm => {
+                                    const names = Array.isArray(p.files) ? p.files : [];
+                                    let i = rm.idx;
+                                    const urlAt = j => (Array.isArray(p.fileUrls) && p.fileUrls[j]) || null;
+                                    if (!(names[i] === rm.name && (!rm.url || urlAt(i) === rm.url))) {
+                                        i = names.findIndex((n, j) => n === rm.name && (!rm.url || urlAt(j) === rm.url));
+                                    }
+                                    if (i < 0) return;
+                                    if (Array.isArray(p.files)) p.files.splice(i, 1);
+                                    if (Array.isArray(p.fileUrls) && i < p.fileUrls.length) p.fileUrls.splice(i, 1);
+                                    if (Array.isArray(p.fileData)) {
+                                        const di = p.fileData.findIndex(f => f && f.name === rm.name);
+                                        if (di >= 0) p.fileData.splice(di, 1);
+                                        else if (i < p.fileData.length) p.fileData.splice(i, 1);
+                                    }
+                                });
+                            }
                             if (newFiles && newFiles.length) {
                                 p.files = (Array.isArray(p.files) ? p.files : []).concat(newFiles.map(f => f.name));
                                 p.fileUrls = (Array.isArray(p.fileUrls) ? p.fileUrls : []).concat(newFiles.map(f => f.url));
