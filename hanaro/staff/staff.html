@@ -2390,8 +2390,9 @@
             background: #f3f3f3;
             border-bottom: 1px solid #d0d0d0;
             padding: 0;
-            position: sticky;
-            top: 60px; /* 헤더 높이만큼 아래로 */
+            /* sticky(top:60px, 옛 헤더 높이 기준) 제거 — 카드가 overflow:hidden 스크롤 컨테이너라
+               헤더가 슬림해진 뒤 메뉴바가 아래로 밀려 그리드 헤더를 덮었음. 카드 내부는 그리드만 스크롤하므로 불필요. */
+            position: static;
             z-index: 100;
         }
 
@@ -2742,7 +2743,6 @@
             .excel-menubar {
                 flex-wrap: wrap;
                 font-size: 11px;
-                top: 60px; /* 헤더 높이만큼 아래로 */
             }
 
             .excel-menu-item {
@@ -2905,8 +2905,8 @@
         <a href="#" onclick="switchBoard('suggestion'); return false;" data-board="suggestion">제안활동</a>
         <a href="#" onclick="switchBoard('as-result'); return false;" data-board="as-result">A/S 처리결과</a>
         <!-- 운영관리: 인사관리(준비 중)·일정관리·자재관리·재고현황 통합 셸 -->
-        <a href="#" onclick="openOpsModal(); return false;" data-board="ops">🗂️ 운영관리</a>
-        <a href="#" onclick="switchBoard('photo-gallery'); return false;" data-board="photo-gallery">📷 활동사진첩</a>
+        <a href="#" onclick="openOpsModal(); return false;" data-board="ops">운영관리</a>
+        <a href="#" onclick="switchBoard('photo-gallery'); return false;" data-board="photo-gallery">활동사진첩</a>
         <a href="#" onclick="switchBoard('member-management'); return false;" data-board="member-management" style="background: rgba(255,215,0,0.2); display:none;">👥 회원관리</a>
     </nav>
 
