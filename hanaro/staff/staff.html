@@ -3146,6 +3146,7 @@
         const postsPerPage = 10;
         let allPosts = {
             notice: [],
+            cert: [],
             staff: [],
             'staff-data': [],
             'staff-report': [],
@@ -3467,7 +3468,8 @@
             document.querySelectorAll('.secondary-navbar a').forEach(a => {
                 a.classList.remove('active');
             });
-            const navKey = (boardType === 'staff-data' || boardType === 'staff-report') ? 'staff' : boardType;
+            const navKey = (boardType === 'staff-data' || boardType === 'staff-report') ? 'staff'
+                : (boardType === 'cert') ? 'notice' : boardType;
             const navEl = document.querySelector(`[data-board="${navKey}"]`);
             if (navEl) navEl.classList.add('active');
 
@@ -3531,6 +3533,7 @@
             // 게시판 제목 변경
             const titles = {
                 'notice': '회사운영',
+                'cert': '회사운영',
                 'staff': '직원게시판',
                 'staff-data': '직원게시판',
                 'staff-report': '직원게시판',
@@ -3545,13 +3548,13 @@
             const leaveCalView = document.getElementById('leave-calendar-view');
             if (leaveCalView && boardType !== 'staff-leave') leaveCalView.style.display = 'none';
 
-            // 회사운영 탭: 세그먼트(공지사항/주요회사운영) 토글 표시
+            // 회사운영 탭: 세그먼트(공지사항/주요회사운영/인증서) 토글 표시
             const noticeSegment = document.getElementById('notice-segment');
             const postView = document.getElementById('notice-post-view');
             const calView = document.getElementById('company-calendar-view');
-            if (boardType === 'notice') {
+            if (boardType === 'notice' || boardType === 'cert') {
                 if (noticeSegment) noticeSegment.style.display = 'flex';
-                if (typeof setNoticeSegment === 'function') setNoticeSegment('post');
+                if (typeof setNoticeSegment === 'function') setNoticeSegment(boardType === 'cert' ? 'cert' : 'post');
             } else {
                 if (noticeSegment) noticeSegment.style.display = 'none';
                 if (postView && boardType !== 'staff-leave') postView.style.display = '';
@@ -3623,6 +3626,9 @@
             // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 작성 가능
             if (currentBoard === 'notice') {
                 writeBtn.style.display = (typeof userCan === 'function' && userCan('notice')) ? 'block' : 'none';
+            } else if (currentBoard === 'cert') {
+                // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 작성 가능
+                writeBtn.style.display = (typeof userCan === 'function' && userCan('cert')) ? 'block' : 'none';
             } else if (currentBoard === 'as-result') {
                 // A/S 처리결과는 작성 권한(asResult) 보유자만
                 writeBtn.style.display = (typeof userCan === 'function' && userCan('asResult')) ? 'block' : 'none';
@@ -3724,6 +3730,13 @@
                 } else {
                     errorMessage = '공지사항 삭제 권한이 없습니다.';
                 }
+            } else if (currentBoard === 'cert') {
+                // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 삭제 가능
+                if (typeof userCan === 'function' && userCan('cert')) {
+                    canDelete = true;
+                } else {
+                    errorMessage = '인증서 삭제 권한이 없습니다.';
+                }
             } else if (currentBoard === 'staff' || currentBoard === 'staff-data' || currentBoard === 'suggestion' || currentBoard === 'as-result') {
                 // 직원게시판, 제안활동, A/S 처리결과: 작성자 또는 관리자만 삭제 가능
                 const isAuthor = post.author === userData.name || 
@@ -3823,6 +3836,11 @@
                 alert('공지사항 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
                 return;
             }
+            // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 작성 가능
+            if (currentBoard === 'cert' && !(typeof userCan === 'function' && userCan('cert'))) {
+                alert('인증서 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
+                return;
+            }
 
             const writeForm = document.getElementById('write-form');
             const overlay = document.getElementById('overlay');
@@ -3852,8 +3870,8 @@
             if (authorInput) { authorInput.value = currentAuthorLabel(); authorInput.readOnly = true; }
             if (contentInput) contentInput.innerHTML = ''; // 리치 에디터(contenteditable) 초기화
             
-            // 공지사항·A/S 처리결과·자료실 게시판일 때 파일 업로드 섹션 표시
-            if (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
+            // 공지사항·인증서·A/S 처리결과·자료실 게시판일 때 파일 업로드 섹션 표시
+            if (currentBoard === 'notice' || currentBoard === 'cert' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
                 if (fileUploadSection) fileUploadSection.style.display = 'block';
                 if (fileUpload) {
                     fileUpload.value = '';
@@ -3941,6 +3959,9 @@
             if (currentBoard === 'notice') {
                 canEdit = (typeof userCan === 'function' && userCan('notice'));
                 if (!canEdit) { alert('공지사항 수정 권한이 없습니다.'); return; }
+            } else if (currentBoard === 'cert') {
+                canEdit = (typeof userCan === 'function' && userCan('cert'));
+                if (!canEdit) { alert('인증서 수정 권한이 없습니다.'); return; }
             } else {
                 const isAuthor = post.author === userData.name ||
                                  post.author === userData.username ||
@@ -3978,7 +3999,7 @@
             const fileUploadSection = document.getElementById('file-upload-section');
             const fileUpload = document.getElementById('write-file-upload');
             const note = document.getElementById('edit-existing-files');
-            if (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
+            if (currentBoard === 'notice' || currentBoard === 'cert' || currentBoard === 'as-result' || currentBoard === 'staff-data') {
                 if (fileUploadSection) fileUploadSection.style.display = 'block';
                 if (fileUpload) { fileUpload.value = ''; fileUpload.onchange = handleFileSelect; }
                 if (note) {
@@ -4306,6 +4327,12 @@
                 return;
             }
 
+            // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 작성 가능
+            if (currentBoard === 'cert' && !(typeof userCan === 'function' && userCan('cert'))) {
+                alert('인증서 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
+                return;
+            }
+
             // A/S 처리결과는 작성 권한(asResult) 보유자만
             if (currentBoard === 'as-result' && typeof userCan === 'function' && !userCan('asResult')) {
                 alert('A/S 처리결과 작성 권한이 없습니다.\n관리자에게 권한을 요청하세요.');
@@ -4335,7 +4362,7 @@
 
             // 첨부 용량 검증은 '잠금 이전'에 수행 — 잠금 후 검증 반려되면 잠금 해제 없이 return되어
             // 등록 버튼이 영구 비활성(폼을 닫아야만 해제)되던 문제 방지. 수정 모드에도 동일 적용.
-            const isFileBoard = (currentBoard === 'notice' || currentBoard === 'as-result' || currentBoard === 'staff-data');
+            const isFileBoard = (currentBoard === 'notice' || currentBoard === 'cert' || currentBoard === 'as-result' || currentBoard === 'staff-data');
             if (isFileBoard && selectedFiles.length > 0) {
                 const oversizedFiles = selectedFiles.filter(f => f.size > 10 * 1024 * 1024);
                 if (oversizedFiles.length > 0) {
@@ -4732,6 +4759,9 @@
                 if (currentBoard === 'notice') {
                     // 공지사항: '공지사항' 권한(또는 전체/관리자) 보유자만 수정/삭제
                     canModify = (typeof userCan === 'function' && userCan('notice'));
+                } else if (currentBoard === 'cert') {
+                    // 인증서: '인증서' 권한(또는 전체/관리자) 보유자만 수정/삭제
+                    canModify = (typeof userCan === 'function' && userCan('cert'));
                 } else {
                     // 그 외 게시판: 작성자 또는 관리자만 수정/삭제 가능
                     const isAuthor = post.author === userData.name ||
@@ -4873,7 +4903,7 @@
 
             let target = null;
             const b = currentBoard;
-            if (b === 'notice') {
+            if (b === 'notice' || b === 'cert') {
                 target = (currentNoticeSegment === 'calendar') ? null : document.getElementById('notice-segment');
             } else if (b === 'staff' || b === 'staff-data' || b === 'staff-report') {
                 target = document.getElementById('staff-segment');
@@ -6644,6 +6674,7 @@
     <div id="notice-segment" class="notice-segment" style="display:flex;">
         <button class="seg-btn active" data-seg="post" onclick="setNoticeSegment('post')">공지사항</button>
         <button class="seg-btn" data-seg="calendar" onclick="setNoticeSegment('calendar')">주요회사운영</button>
+        <button class="seg-btn" data-seg="cert" onclick="setNoticeSegment('cert')">인증서</button>
     </div>
     <div id="staff-segment" class="notice-segment" style="display:none;">
         <button class="seg-btn active" data-board="staff" onclick="switchBoard('staff')">자유게시판</button>
@@ -8702,6 +8733,7 @@
         const PERM_AREAS = [
             { key: 'all',       label: '전체' },
             { key: 'notice',    label: '공지사항' },
+            { key: 'cert',      label: '인증서' },
             { key: 'company',   label: '회사운영' },
             { key: 'photos',    label: '활동사진첩' },
             { key: 'schedule',  label: '일정관리' },
@@ -10473,6 +10505,7 @@
           <div class="perm-list">
           <label class="perm-row"><span>전체 <small class="perm-desc">(아래 모든 권한 포함 — A/S·연월차 결재·회원관리 제외)</small></span><input type="checkbox" id="perm-all"></label>
           <label class="perm-row"><span>공지사항 <small class="perm-desc">(쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-notice"></label>
+          <label class="perm-row"><span>인증서 <small class="perm-desc">(인증서 게시판 쓰기·수정·삭제 / 읽기는 전 직원)</small></span><input type="checkbox" id="perm-cert"></label>
           <label class="perm-row"><span>회사운영 <small class="perm-desc">(회사운영 캘린더 일정 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-company"></label>
           <label class="perm-row"><span>활동사진첩 <small class="perm-desc">(사진 업로드·수정·삭제)</small></span><input type="checkbox" id="perm-photos"></label>
           <label class="perm-row"><span>일정관리 <small class="perm-desc">(납품 일정 쓰기·수정·삭제)</small></span><input type="checkbox" id="perm-schedule"></label>
@@ -11010,13 +11043,18 @@
             });
             if (seg === 'calendar') {
                 currentCalKind = 'company';
+                currentBoard = 'notice';   // 인증서에서 넘어온 경우 보드 복원(검색·권한 판정 기준)
                 if (postView) postView.style.display = 'none';
                 if (calView) calView.style.display = 'block';
                 if (calYear === null) { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
                 loadAndRenderCalendar();
             } else {
+                // 'post'=공지사항(notice 보드) / 'cert'=인증서(cert 보드) — 같은 게시글 목록 뷰를 보드만 바꿔 공유
+                currentBoard = (seg === 'cert') ? 'cert' : 'notice';
                 if (postView) postView.style.display = '';
                 if (calView) calView.style.display = 'none';
+                updateWriteButtonVisibility();
+                renderPosts();
             }
             if (typeof placeBoardSearch === 'function') placeBoardSearch();
         }
