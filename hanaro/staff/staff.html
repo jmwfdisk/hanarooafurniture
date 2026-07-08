@@ -10677,8 +10677,15 @@
         /* 좁은 화면: 결재란(2칸)이 ◀▶와 겹치지 않게 네비 아래 줄로 내려 전체 폭 배치 */
         @media (max-width: 480px) {
             .cal-header { flex-wrap:wrap; }
-            .asr-approval.cal-appr { position:static; transform:none; width:100%; margin:6px 0 0; }
+            /* 세로 여유: 32px 고정이면 미결재 버튼이 꽉 차 보임 → 48px로 늘려 위아래 숨통(도장 이름+날짜 2줄도 수용) */
+            .asr-approval.cal-appr { position:static; transform:none; width:100%; margin:6px 0 0; height:48px; }
             .cal-appr .asr-appr-cell { flex:1; min-width:0; }
+            .cal-appr .asr-appr-head { font-size:10px; padding:2px 6px; }
+            .cal-appr .asr-appr-body { padding:3px 6px 4px; }
+            .cal-appr .asr-appr-btn { padding:4px 14px; font-size:11px; }
+            .cal-appr .asr-appr-wait { font-size:11px; }
+            .cal-appr .asr-appr-name { font-size:11px; }
+            .cal-appr .asr-appr-date { font-size:9px; }
         }
 
         /* 날짜 일정 모달 */
