@@ -12242,6 +12242,23 @@
                 });
                 td.addEventListener('dblclick', e => { if (e.target.closest && e.target.closest('.sheet-rowgrip,.sheet-colgrip')) return; sheetEditCell(td); });
             });
+            // 헤더(항목) 드래그 → 열 범위 전체 선택 (클릭만 하면 기존처럼 이름 편집, 옆 칸으로 끌면 선택 모드)
+            if (table) table.querySelectorAll('thead th').forEach((th, c) => {
+                th.addEventListener('mousedown', e => {
+                    if (e.button !== 0) return;
+                    if (e.target.classList && e.target.classList.contains('sheet-colgrip')) return;
+                    sheetColSelStart = c; sheetColSelecting = false;   // 보류 — 드래그로 이동하면 선택 시작
+                });
+                th.addEventListener('mouseenter', () => {
+                    if (sheetColSelStart == null) return;
+                    if (!sheetColSelecting && c !== sheetColSelStart) {
+                        sheetColSelecting = true;
+                        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                        if (window.getSelection) window.getSelection().removeAllRanges();
+                    }
+                    if (sheetColSelecting) sheetSelectCols(sheetColSelStart, c);
+                });
+            });
             // 크기조절 그립 바인딩 (열: 헤더 우측 가장자리 / 행: 셀 아래 가장자리)
             if (table) table.querySelectorAll('.sheet-colgrip').forEach(g => {
                 g.addEventListener('mousedown', e => sheetGripDown(e, 'col', +g.dataset.c));
@@ -12290,6 +12307,15 @@
                 const r = +td.dataset.r, c = +td.dataset.c;
                 td.classList.toggle('sched-sel', !!b && r >= b.r1 && r <= b.r2 && c >= b.c1 && c <= b.c2);
             });
+        }
+
+        // ── 헤더(항목) 드래그로 열 범위 전체 선택 → 우클릭 '열 삭제' 등 ──
+        let sheetColSelStart = null, sheetColSelecting = false;
+        function sheetSelectCols(cA, cB) {
+            if (!sheetActive) return; const m = sheetActive.model;
+            if (!m.grid.length) return;
+            schedSel = { r1: 0, c1: cA, r2: m.grid.length - 1, c2: cB };
+            schedHighlight();
         }
 
         // ── 셀 크기 조절: 열 너비(헤더 우측 가장자리)·행 높이(셀 아래 가장자리) 드래그 ──
@@ -12537,9 +12563,16 @@
                 const tbl = sheetActive.tbody.closest('table'); if (tbl) tbl.classList.remove('selecting');
             }
             sheetDown = false; sheetDrag = false;
+            sheetColSelStart = null; sheetColSelecting = false;
         });
         document.addEventListener('contextmenu', function(e) {
             if (!sheetActive || !sheetActive.tbody) return;
+            // 헤더(항목) 위 우클릭: 현재(열) 선택을 유지한 채 메뉴 표시 → 열 삭제 등
+            const tblEl = sheetActive.tbody.closest('table');
+            const th = e.target.closest ? e.target.closest('thead th') : null;
+            if (th && tblEl && tblEl.contains(th) && sheetActive.editable) {
+                e.preventDefault(); sheetShowMenu(e.pageX, e.pageY); return;
+            }
             const td = e.target.closest ? e.target.closest('td[data-r]') : null;
             if (!td || !sheetActive.tbody.contains(td)) { sheetHideMenu(); return; }
             if (!sheetActive.editable) { sheetHideMenu(); return; }
