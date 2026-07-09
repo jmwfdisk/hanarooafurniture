@@ -4046,6 +4046,47 @@
             return rteToText(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
         }
 
+        // 본문 내 URL(https://…, www.…)을 클릭 가능한 링크로 변환 — 살균 "후" 텍스트 노드만 대상이라 안전.
+        // 저장 본문은 그대로 두고 표시 시점에만 변환(에디터 allowlist에 a 태그를 열지 않음).
+        function rteLinkify(html) {
+            try {
+                const doc = new DOMParser().parseFromString('<div id="__lk">' + String(html || '') + '</div>', 'text/html');
+                const root = doc.getElementById('__lk');
+                const urlRe = /((?:https?:\/\/|www\.)[^\s<>"']+)/g;
+                const targets = [];
+                const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+                while (walker.nextNode()) {
+                    const n = walker.currentNode;
+                    if (n.parentElement && n.parentElement.closest('a')) continue;
+                    if (urlRe.test(n.nodeValue)) targets.push(n);
+                    urlRe.lastIndex = 0;
+                }
+                targets.forEach(n => {
+                    const text = n.nodeValue;
+                    const frag = doc.createDocumentFragment();
+                    let last = 0, mch;
+                    urlRe.lastIndex = 0;
+                    while ((mch = urlRe.exec(text))) {
+                        let url = mch[0];
+                        const trail = url.match(/[).,;:!?\]]+$/);   // 문장 끝 부호는 링크에서 제외
+                        if (trail) url = url.slice(0, -trail[0].length);
+                        if (!url) continue;
+                        frag.appendChild(doc.createTextNode(text.slice(last, mch.index)));
+                        const a = doc.createElement('a');
+                        a.href = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+                        a.target = '_blank'; a.rel = 'noopener noreferrer';
+                        a.textContent = url;
+                        frag.appendChild(a);
+                        if (trail) frag.appendChild(doc.createTextNode(trail[0]));
+                        last = mch.index + mch[0].length;
+                    }
+                    frag.appendChild(doc.createTextNode(text.slice(last)));
+                    n.parentNode.replaceChild(frag, n);
+                });
+                return root.innerHTML;
+            } catch (e) { return html; }
+        }
+
         // 툴바 동작 연결(한 번만). 선택영역을 유지하기 위해 마지막 range를 추적
         let rteSavedRange = null;
         function initRteToolbar() {
@@ -4712,12 +4753,13 @@
             document.getElementById('post-meta').innerHTML = `
                 <strong>작성자:</strong> ${escMeta(post.author)} &nbsp;|&nbsp; <strong>작성일:</strong> ${escMeta(post.date)} &nbsp;|&nbsp; <strong>조회:</strong> ${post.views || 0}${post.editedDate ? ` &nbsp;|&nbsp; <span style="color:#868e96;">(수정됨: ${escMeta(post.editedDate)})</span>` : ''}
             `;
-            // 본문: 리치 에디터 HTML이면 살균 후 렌더, 레거시 평문이면 escape + 줄바꿈 보존
+            // 본문: 리치 에디터 HTML이면 살균 후 렌더, 레거시 평문이면 escape + 줄바꿈 보존.
+            // 이후 rteLinkify로 URL을 클릭 가능한 링크로 변환(표시 시점 변환 — 저장 본문 무변경)
             const _rawContent = post.content || '';
             const _looksHtml = /<[a-z!/][^>]*>/i.test(_rawContent);
-            document.getElementById('post-content').innerHTML = _looksHtml
+            document.getElementById('post-content').innerHTML = rteLinkify(_looksHtml
                 ? rteSanitize(_rawContent)
-                : escMeta(_rawContent).replace(/\n/g, '<br>');
+                : escMeta(_rawContent).replace(/\n/g, '<br>'));
             
             // 첨부파일 표시 (단일 영역) — 파일명 + 다운로드 버튼
             const postFiles = document.getElementById('post-files');
@@ -6777,6 +6819,8 @@
         /* 목록(ul/ol) 브라우저 기본 상하 마진 제거 — 일반 줄과 줄간격 동일하게(작성/보기 공통) */
         .rte-editor ul, .rte-editor ol, .post-content ul, .post-content ol { padding-left:1.5em; margin:0; }
         .post-content { text-align:left; }
+        .post-content a { color:#2563eb; text-decoration:underline; text-underline-offset:2px; word-break:break-all; }
+        .post-content a:hover { color:#1d4ed8; }
         @media (max-width:600px){ .rte-toolbar .rte-btn, .rte-toolbar .rte-select, .rte-toolbar .rte-color{ height:30px; } .rte-toolbar .rte-btn{ min-width:30px; padding:0 6px; font-size:13px; } }
     </style>
     <!-- 글쓰기 폼 -->
