@@ -1142,7 +1142,7 @@ function ensureRememberIdUI() {
         const pw = document.getElementById('password');
         const row = document.createElement('label');
         row.id = 'remember-id-row';
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:8px 2px 0;font-size:13px;color:#555;cursor:pointer;user-select:none;text-align:left;';
+        row.style.cssText = 'display:flex;align-items:center;justify-content:flex-end;gap:6px;margin:8px 2px 0;font-size:13px;color:#555;cursor:pointer;user-select:none;text-align:right;';
         row.innerHTML = '<input type="checkbox" id="remember-id" style="width:auto;margin:0;accent-color:#44aa6b;"> 아이디 저장';
         if (pw && pw.parentNode === form) form.insertBefore(row, pw.nextSibling);
         else form.appendChild(row);
