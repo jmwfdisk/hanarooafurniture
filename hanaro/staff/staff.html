@@ -10642,8 +10642,8 @@
                     merges: inventoryData.merges,
                     aligns: JSON.stringify(inventoryData.aligns || []),   // 중첩 배열 회피: 문자열로 저장
                     rowColors: inventoryData.rowColors || [],
-                    colWidths: inventoryData.colWidths || [],
-                    rowHeights: inventoryData.rowHeights || [],
+                    colWidths: (inventoryData.colWidths || []).map(v => v == null ? null : v),   // hole→null (Firestore undefined 거부)
+                    rowHeights: (inventoryData.rowHeights || []).map(v => v == null ? null : v),
                     updatedDate: dateKey,
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
@@ -11846,7 +11846,7 @@
       <button onclick="sheetMenuAction('merge')">셀 합치기(행/열)</button>
       <button onclick="sheetMenuAction('unmerge')">병합 해제</button>
       <div class="ctx-sep"></div>
-      <button onclick="sheetMenuAction('fill')">🎨 셀 배경색</button>
+      <button onclick="sheetMenuAction('fill')">셀 배경색</button>
       <div class="ctx-sep"></div>
       <button onclick="sheetMenuAction('delRows')">행 삭제</button>
       <button onclick="sheetMenuAction('delCols')">열 삭제</button>
@@ -12005,6 +12005,9 @@
             if (!Array.isArray(m.rowHeights)) m.rowHeights = [];
             m.colWidths.length = m.columns.length;
             m.rowHeights.length = m.grid.length;
+            // 빈 슬롯(hole)은 null로 채움 — Firestore는 배열 내 undefined를 거부(저장 실패 원인)
+            for (let i = 0; i < m.colWidths.length; i++) if (m.colWidths[i] == null) m.colWidths[i] = null;
+            for (let i = 0; i < m.rowHeights.length; i++) if (m.rowHeights[i] == null) m.rowHeights[i] = null;
         }
         function schedMergeAt(r, c){ return scheduleData.merges.find(m => m.r === r && m.c === c); }
         function schedCoveredSet(){
@@ -12582,8 +12585,8 @@
                     merges: scheduleData.merges,
                     aligns: JSON.stringify(scheduleData.aligns || []),    // 중첩 배열 회피 + 정렬 보존
                     fills: JSON.stringify(scheduleData.fills || []),      // 셀 배경색 (중첩 배열 회피)
-                    colWidths: scheduleData.colWidths || [],
-                    rowHeights: scheduleData.rowHeights || [],
+                    colWidths: (scheduleData.colWidths || []).map(v => v == null ? null : v),   // hole→null (Firestore undefined 거부)
+                    rowHeights: (scheduleData.rowHeights || []).map(v => v == null ? null : v),
                     images: scheduleData.images,
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
