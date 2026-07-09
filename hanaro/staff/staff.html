@@ -10318,7 +10318,7 @@
         function invMigrate(data) {
             data = data || {};
             if (Array.isArray(data.columns) && (Array.isArray(data.grid) || typeof data.grid === 'string')) {
-                return { columns: data.columns.slice(), grid: invParse2D(data.grid), merges: (data.merges || []).map(m => ({ r:m.r, c:m.c, rs:m.rs, cs:m.cs })), aligns: invParse2D(data.aligns), rowColors: Array.isArray(data.rowColors) ? data.rowColors.slice() : [], updatedDate: data.updatedDate || '' };
+                return { columns: data.columns.slice(), grid: invParse2D(data.grid), merges: (data.merges || []).map(m => ({ r:m.r, c:m.c, rs:m.rs, cs:m.cs })), aligns: invParse2D(data.aligns), rowColors: Array.isArray(data.rowColors) ? data.rowColors.slice() : [], colWidths: Array.isArray(data.colWidths) ? data.colWidths.slice() : [], rowHeights: Array.isArray(data.rowHeights) ? data.rowHeights.slice() : [], updatedDate: data.updatedDate || '' };
             }
             // 구버전(groups) → grid+merges 변환
             const grid = [], merges = [];
@@ -10510,9 +10510,10 @@
         // ===== 행 추가: 선택 셀 있으면 그 색 상속, 없으면 색상 선택 =====
         function invInsertRowWithColor(at, colorIdx) {
             const m = inventoryData;
-            sheetPushUndo(); sheetEnsureAligns(m); invEnsureRowColors();
+            sheetPushUndo(); sheetEnsureAligns(m); sheetEnsureSizes(m); invEnsureRowColors();
             m.grid.splice(at, 0, m.columns.map(() => ''));
             m.aligns.splice(at, 0, m.columns.map(() => ''));
+            m.rowHeights.splice(at, 0, null);
             m.rowColors.splice(at, 0, colorIdx);
             m.merges = sheetAdjRowIns(m.merges, at);
             schedSel = { r1: at, c1: 0, r2: at, c2: 0 };
@@ -10537,8 +10538,8 @@
             const m = inventoryData; const b = schedSelBox();
             if (!b) { alert('삭제할 행을 드래그로 선택하세요.'); return; }
             if (!(await showStaffConfirm(`${b.r2 - b.r1 + 1}개 행을 삭제할까요?`))) return;
-            sheetPushUndo(); sheetEnsureAligns(m); invEnsureRowColors();
-            for (let r = b.r2; r >= b.r1; r--) { m.grid.splice(r, 1); m.aligns.splice(r, 1); m.rowColors.splice(r, 1); }
+            sheetPushUndo(); sheetEnsureAligns(m); sheetEnsureSizes(m); invEnsureRowColors();
+            for (let r = b.r2; r >= b.r1; r--) { m.grid.splice(r, 1); m.aligns.splice(r, 1); m.rowHeights.splice(r, 1); m.rowColors.splice(r, 1); }
             m.merges = sheetAdjRowDel(m.merges, b.r1, b.r2); schedSel = null; renderInventory();
         }
         // 색상 선택 팝업 (팔레트에서 한 가지 선택)
@@ -10641,6 +10642,8 @@
                     merges: inventoryData.merges,
                     aligns: JSON.stringify(inventoryData.aligns || []),   // 중첩 배열 회피: 문자열로 저장
                     rowColors: inventoryData.rowColors || [],
+                    colWidths: inventoryData.colWidths || [],
+                    rowHeights: inventoryData.rowHeights || [],
                     updatedDate: dateKey,
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
@@ -11843,6 +11846,8 @@
       <button onclick="sheetMenuAction('merge')">셀 합치기(행/열)</button>
       <button onclick="sheetMenuAction('unmerge')">병합 해제</button>
       <div class="ctx-sep"></div>
+      <button onclick="sheetMenuAction('fill')">🎨 셀 배경색</button>
+      <div class="ctx-sep"></div>
       <button onclick="sheetMenuAction('delRows')">행 삭제</button>
       <button onclick="sheetMenuAction('delCols')">열 삭제</button>
       <button onclick="sheetMenuAction('addRow')">행 추가</button>
@@ -11851,6 +11856,9 @@
       <button onclick="sheetMenuAction('undo')">작업 이전 (Ctrl+Z)</button>
       <button onclick="sheetMenuAction('redo')">작업 다음 (Ctrl+Y)</button>
     </div>
+
+    <!-- 셀 배경색 팔레트 (일정관리, 우클릭 메뉴 위치에 열림) -->
+    <div id="sheet-fillpal" class="sheet-ctxmenu" style="display:none;"></div>
 
     <style>
         .schedule-modal { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:3000; display:flex; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
@@ -11879,8 +11887,19 @@
         .schedule-table th { position:sticky; top:0; background:#eef1f5; border:1px solid #dfe3e8; padding:6px; font-weight:600; color:#444; z-index:1; min-width:90px; letter-spacing:0.3em; }
         #schedule-modal .schedule-table thead .sched-colname { letter-spacing:0.3em; padding-left:0.3em; text-align:center; }
         .schedule-table td { border:1px solid #e8eaed; padding:2px; vertical-align:top; min-width:90px; }
-        .sched-td { cursor:cell; }
+        .sched-td { cursor:cell; position:relative; }
         td.sched-sel { background:#dbeafe !important; }
+        /* 셀 크기 조절 그립: 열=헤더 우측 가장자리, 행=셀 아래 가장자리 */
+        .sheet-colgrip { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; z-index:3; }
+        .sheet-colgrip:hover { background:rgba(59,130,246,.35); }
+        .sheet-rowgrip { position:absolute; left:0; bottom:-4px; width:100%; height:8px; cursor:row-resize; z-index:3; }
+        .sheet-rowgrip:hover { background:rgba(59,130,246,.35); }
+        /* 셀 배경색 팔레트 */
+        #sheet-fillpal .sheet-fill-grid { display:grid; grid-template-columns:repeat(8, 26px); gap:6px; padding:8px; }
+        #sheet-fillpal .sheet-fill-sw { width:26px; height:26px; min-width:0; border:1px solid #d5d9e0; border-radius:6px; cursor:pointer; padding:0; display:block; }
+        #sheet-fillpal .sheet-fill-sw:hover { transform:scale(1.15); border-color:#3b82f6; }
+        #sheet-fillpal .sheet-fill-clear { display:block; width:calc(100% - 16px); margin:0 8px 8px; padding:6px; border:1px solid #d5d9e0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; text-align:center; }
+        #sheet-fillpal .sheet-fill-clear:hover { background:#f3f4f6; }
         .schedule-table.selecting .schedule-cell { pointer-events:none; user-select:none; }
         .sched-hint { font-size:12px; color:#888; align-self:center; }
         .sheet-ctxmenu { position:absolute; z-index:4000; background:#fff; border:1px solid #d5d9e0; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:4px; min-width:150px; }
@@ -11941,7 +11960,7 @@
 
         function schedEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
         function schedEscAttr(s){ return schedEsc(s).replace(/"/g,'&quot;'); }
-        function emptyScheduleData(){ return { notice:'', columns: SCHEDULE_DEFAULT_COLS.slice(), grid: [], merges: [], aligns: [], images: [] }; }
+        function emptyScheduleData(){ return { notice:'', columns: SCHEDULE_DEFAULT_COLS.slice(), grid: [], merges: [], aligns: [], fills: [], colWidths: [], rowHeights: [], images: [] }; }
         // Firestore는 중첩 배열 미지원 → grid/aligns는 JSON 문자열로 저장/로드(문자열·배열 모두 호환)
         function schedParse2D(v){ if (typeof v === 'string'){ try { v = JSON.parse(v); } catch(e){ v = []; } } return Array.isArray(v) ? v.map(r => Array.isArray(r) ? r.slice() : []) : []; }
         function migrateSchedule(data){
@@ -11951,12 +11970,15 @@
                     grid: schedParse2D(data.grid),
                     merges: (data.merges || []).map(m => ({ r:m.r, c:m.c, rs:m.rs, cs:m.cs })),
                     aligns: schedParse2D(data.aligns),
+                    fills: schedParse2D(data.fills),
+                    colWidths: Array.isArray(data.colWidths) ? data.colWidths.slice() : [],
+                    rowHeights: Array.isArray(data.rowHeights) ? data.rowHeights.slice() : [],
                     images: data.images || [] };
             }
             // 구버전(rows of objects) → grid 변환
             const keys = ['deliveryDate','category','school','spec','address','contact','schoolPhone','note'];
             const grid = (data.rows || []).map(r => keys.map(k => (r && r[k]) || ''));
-            return { notice: data.notice || '', columns: SCHEDULE_DEFAULT_COLS.slice(), grid, merges: [], aligns: [], images: data.images || [] };
+            return { notice: data.notice || '', columns: SCHEDULE_DEFAULT_COLS.slice(), grid, merges: [], aligns: [], fills: [], colWidths: [], rowHeights: [], images: data.images || [] };
         }
         // aligns 를 grid 모양으로 정규화 (행/열 수 변동에도 안전하게 유지)
         function sheetEnsureAligns(m){
@@ -11967,6 +11989,22 @@
                 m.aligns[r].length = m.columns.length;
             }
             return m.aligns;
+        }
+        // fills(셀 배경색)를 grid 모양으로, colWidths(열 너비)/rowHeights(행 높이)를 열·행 수에 맞게 정규화
+        function sheetEnsureFills(m){
+            if (!Array.isArray(m.fills)) m.fills = [];
+            m.fills.length = m.grid.length;
+            for (let r = 0; r < m.grid.length; r++) {
+                if (!Array.isArray(m.fills[r])) m.fills[r] = [];
+                m.fills[r].length = m.columns.length;
+            }
+            return m.fills;
+        }
+        function sheetEnsureSizes(m){
+            if (!Array.isArray(m.colWidths)) m.colWidths = [];
+            if (!Array.isArray(m.rowHeights)) m.rowHeights = [];
+            m.colWidths.length = m.columns.length;
+            m.rowHeights.length = m.grid.length;
         }
         function schedMergeAt(r, c){ return scheduleData.merges.find(m => m.r === r && m.c === c); }
         function schedCoveredSet(){
@@ -12131,11 +12169,17 @@
         let sheetDown = false, sheetDrag = false, sheetStart = null;
 
         function sheetRenderTable(model, theadEl, tbodyEl, canEdit) {
+            sheetEnsureSizes(model);
             let hh = '<tr>';
             model.columns.forEach((label, c) => {
-                hh += canEdit ? `<th><input class="sched-colname" data-c="${c}" value="${schedEscAttr(label)}"></th>` : `<th>${schedEsc(label)}</th>`;
+                const w = model.colWidths[c] ? ` style="width:${model.colWidths[c]}px;min-width:${model.colWidths[c]}px"` : '';
+                const g = canEdit ? `<span class="sheet-colgrip" data-c="${c}" title="드래그로 열 너비 조절"></span>` : '';
+                hh += canEdit ? `<th${w}><input class="sched-colname" data-c="${c}" value="${schedEscAttr(label)}">${g}</th>` : `<th${w}>${schedEsc(label)}</th>`;
             });
             theadEl.innerHTML = hh + '</tr>';
+            // 열 너비를 하나라도 지정하면 고정 레이아웃으로 전환(정확한 너비 적용)
+            const tableEl = theadEl.closest('table');
+            if (tableEl) tableEl.style.tableLayout = model.colWidths.some(w => w > 0) ? 'fixed' : '';
 
             tbodyEl.innerHTML = '';
             if (!model.grid.length) {
@@ -12143,10 +12187,12 @@
                 return;
             }
             sheetEnsureAligns(model);
+            sheetEnsureFills(model);
             const covered = new Set();
             model.merges.forEach(m => { for (let dr=0; dr<m.rs; dr++) for (let dc=0; dc<m.cs; dc++){ if (dr||dc) covered.add((m.r+dr)+','+(m.c+dc)); } });
             model.grid.forEach((row, r) => {
                 const tr = document.createElement('tr');
+                if (model.rowHeights[r]) tr.style.height = model.rowHeights[r] + 'px';
                 let cells = '';
                 model.columns.forEach((label, c) => {
                     if (covered.has(r + ',' + c)) return;
@@ -12156,7 +12202,10 @@
                     const mergedCls = (rs > 1 || cs > 1) ? ' sched-merged' : '';
                     const al = (model.aligns[r] && model.aligns[r][c]) ? model.aligns[r][c] : '';
                     const alStyle = al ? ` style="text-align:${al}"` : '';
-                    cells += `<td data-r="${r}" data-c="${c}" rowspan="${rs}" colspan="${cs}" class="sched-td${canEdit ? ' editable' : ''}${mergedCls}"><div class="schedule-cell-ro"${alStyle}>${schedEsc(val).replace(/\n/g,'<br>')}</div></td>`;
+                    const fl = (model.fills[r] && model.fills[r][c]) ? model.fills[r][c] : '';
+                    const tdStyle = fl ? ` style="background:${fl}"` : '';
+                    const rg = canEdit ? `<span class="sheet-rowgrip" data-row="${r + rs - 1}" title="드래그로 행 높이 조절"></span>` : '';
+                    cells += `<td data-r="${r}" data-c="${c}" rowspan="${rs}" colspan="${cs}" class="sched-td${canEdit ? ' editable' : ''}${mergedCls}"${tdStyle}>${rg}<div class="schedule-cell-ro"${alStyle}>${schedEsc(val).replace(/\n/g,'<br>')}</div></td>`;
                 });
                 tr.innerHTML = cells;
                 tbodyEl.appendChild(tr);
@@ -12175,13 +12224,27 @@
                 td.addEventListener('mousedown', e => {
                     if (e.button !== 0) return;                    // 좌클릭만 선택 시작 (우클릭은 선택 유지)
                     if (td.querySelector('.sheet-edit')) return;   // 편집 중이면 통과
+                    if (e.target.classList && (e.target.classList.contains('sheet-rowgrip') || e.target.classList.contains('sheet-colgrip'))) return; // 크기조절 그립은 통과
                     e.preventDefault();                            // 텍스트선택 방지 → 셀 드래그 선택
+                    const r = +td.dataset.r, c = +td.dataset.c;
+                    if (e.shiftKey && schedSel) {                  // Shift+클릭: 기존 시작점 기준 범위 확장 선택
+                        schedSel.r2 = r; schedSel.c2 = c;
+                        schedHighlight();
+                        return;
+                    }
                     sheetDown = true; sheetDrag = false;
-                    sheetStart = { r:+td.dataset.r, c:+td.dataset.c };
-                    schedSel = { r1:sheetStart.r, c1:sheetStart.c, r2:sheetStart.r, c2:sheetStart.c };
+                    sheetStart = { r, c };
+                    schedSel = { r1:r, c1:c, r2:r, c2:c };
                     schedHighlight();
                 });
-                td.addEventListener('dblclick', () => sheetEditCell(td));
+                td.addEventListener('dblclick', e => { if (e.target.closest && e.target.closest('.sheet-rowgrip,.sheet-colgrip')) return; sheetEditCell(td); });
+            });
+            // 크기조절 그립 바인딩 (열: 헤더 우측 가장자리 / 행: 셀 아래 가장자리)
+            if (table) table.querySelectorAll('.sheet-colgrip').forEach(g => {
+                g.addEventListener('mousedown', e => sheetGripDown(e, 'col', +g.dataset.c));
+            });
+            tbodyEl.querySelectorAll('.sheet-rowgrip').forEach(g => {
+                g.addEventListener('mousedown', e => sheetGripDown(e, 'row', +g.dataset.row));
             });
             schedHighlight();
         }
@@ -12209,9 +12272,9 @@
 
         // 실행취소/다시실행 (활성 시트 기준)
         let sheetUndoStack = [], sheetRedoStack = [];
-        function sheetSnap(m){ return JSON.stringify({ columns: m.columns, grid: m.grid, merges: m.merges, aligns: m.aligns || [] }); }
+        function sheetSnap(m){ return JSON.stringify({ columns: m.columns, grid: m.grid, merges: m.merges, aligns: m.aligns || [], fills: m.fills || [], colWidths: m.colWidths || [], rowHeights: m.rowHeights || [] }); }
         function sheetPushUndo(){ if (!sheetActive) return; sheetUndoStack.push(sheetSnap(sheetActive.model)); if (sheetUndoStack.length > 60) sheetUndoStack.shift(); sheetRedoStack = []; }
-        function sheetApplySnap(str){ const s = JSON.parse(str), m = sheetActive.model; m.columns = s.columns; m.grid = s.grid; m.merges = s.merges; m.aligns = s.aligns || []; }
+        function sheetApplySnap(str){ const s = JSON.parse(str), m = sheetActive.model; m.columns = s.columns; m.grid = s.grid; m.merges = s.merges; m.aligns = s.aligns || []; m.fills = s.fills || []; m.colWidths = s.colWidths || []; m.rowHeights = s.rowHeights || []; }
         function sheetUndoAction(){ if (!sheetActive || !sheetUndoStack.length) return; sheetRedoStack.push(sheetSnap(sheetActive.model)); sheetApplySnap(sheetUndoStack.pop()); schedSel = null; sheetActive.rerender(); }
         function sheetRedoAction(){ if (!sheetActive || !sheetRedoStack.length) return; sheetUndoStack.push(sheetSnap(sheetActive.model)); sheetApplySnap(sheetRedoStack.pop()); schedSel = null; sheetActive.rerender(); }
         function sheetResetHistory(){ sheetUndoStack = []; sheetRedoStack = []; }
@@ -12226,13 +12289,84 @@
             });
         }
 
+        // ── 셀 크기 조절: 열 너비(헤더 우측 가장자리)·행 높이(셀 아래 가장자리) 드래그 ──
+        let sheetResize = null;   // { kind:'col'|'row', idx, start, size, el, cur }
+        function sheetGripDown(e, kind, idx) {
+            if (!sheetActive || !sheetActive.editable) return;
+            e.preventDefault(); e.stopPropagation();
+            const m = sheetActive.model; sheetEnsureSizes(m);
+            if (kind === 'col') {
+                const th = e.target.closest('th'); if (!th) return;
+                // 첫 조절 시 현재 열 너비를 전부 스냅샷 → fixed 레이아웃 전환에도 나머지 열 유지
+                if (!m.colWidths.some(w => w > 0)) {
+                    th.closest('tr').querySelectorAll('th').forEach((t, i) => { if (i < m.colWidths.length) m.colWidths[i] = t.offsetWidth; });
+                }
+                sheetResize = { kind, idx, start: e.clientX, size: m.colWidths[idx] || th.offsetWidth, el: th };
+            } else {
+                const tr = sheetActive.tbody.children[idx]; if (!tr) return;
+                sheetResize = { kind, idx, start: e.clientY, size: m.rowHeights[idx] || tr.offsetHeight, el: tr };
+            }
+        }
+        document.addEventListener('mousemove', function(e) {
+            if (!sheetResize) return;
+            e.preventDefault();
+            if (sheetResize.kind === 'col') {
+                const w = Math.max(40, sheetResize.size + e.clientX - sheetResize.start);
+                sheetResize.cur = w;
+                sheetResize.el.style.width = w + 'px'; sheetResize.el.style.minWidth = w + 'px';
+            } else {
+                const h = Math.max(24, sheetResize.size + e.clientY - sheetResize.start);
+                sheetResize.cur = h;
+                sheetResize.el.style.height = h + 'px';
+            }
+        });
+        document.addEventListener('mouseup', function() {
+            if (!sheetResize) return;
+            const rz = sheetResize; sheetResize = null;
+            if (!sheetActive) return;
+            const m = sheetActive.model;
+            if (rz.cur && Math.round(rz.cur) !== Math.round(rz.size)) {
+                sheetPushUndo(); sheetEnsureSizes(m);
+                if (rz.kind === 'col') m.colWidths[rz.idx] = Math.round(rz.cur);
+                else m.rowHeights[rz.idx] = Math.round(rz.cur);
+                sheetActive.rerender();
+            } else if (rz.kind === 'col') {
+                sheetActive.rerender();   // 이동 없이 스냅샷만 잡힌 경우도 렌더 반영
+            }
+        });
+
+        // ── 셀 배경색 팔레트 (일정관리 전용 — 재고현황은 구분 그룹 행 색상 사용) ──
+        const SHEET_FILL_COLORS = ['#fde8e8','#ffe4cc','#fff3bf','#e6f4ea','#d3f0f7','#dbeafe','#ede9fe','#fce7f3','#f8c9c9','#ffd8a8','#ffec99','#b2f2bb','#a5d8ff','#eebefa','#f1f3f5','#dee2e6'];
+        function sheetShowFillPalette() {
+            const pal = document.getElementById('sheet-fillpal');
+            if (!pal) return;
+            if (!pal.innerHTML) {
+                pal.innerHTML = '<div class="sheet-fill-grid">' +
+                    SHEET_FILL_COLORS.map(c => `<button type="button" class="sheet-fill-sw" style="background:${c}" onclick="sheetApplyFill('${c}')" title="${c}"></button>`).join('') +
+                    '</div><button type="button" class="sheet-fill-clear" onclick="sheetApplyFill(\'\')">색 지우기</button>';
+            }
+            pal.style.left = sheetMenuPos.x + 'px'; pal.style.top = sheetMenuPos.y + 'px'; pal.style.display = 'block';
+        }
+        function sheetHideFillPalette(){ const p = document.getElementById('sheet-fillpal'); if (p) p.style.display = 'none'; }
+        function sheetApplyFill(color) {
+            sheetHideFillPalette();
+            if (!sheetActive) return; const m = sheetActive.model; const b = schedSelBox();
+            if (!b) { alert('색을 칠할 셀을 드래그로 선택하세요.'); return; }
+            sheetPushUndo(); sheetEnsureFills(m);
+            for (let r = b.r1; r <= b.r2; r++) for (let c = b.c1; c <= b.c2; c++) { if (m.fills[r]) m.fills[r][c] = color; }
+            schedSel = null;
+            sheetActive.rerender();
+        }
+
         // 선택한 셀 기준으로 행 삽입 (아래쪽). 선택 없으면 맨 끝에 추가
         function sheetAddRow() {
             if (!sheetActive) return; const m = sheetActive.model; const b = schedSelBox();
             const at = b ? b.r2 + 1 : m.grid.length;
-            sheetPushUndo(); sheetEnsureAligns(m);
+            sheetPushUndo(); sheetEnsureAligns(m); sheetEnsureFills(m); sheetEnsureSizes(m);
             m.grid.splice(at, 0, m.columns.map(() => ''));
             m.aligns.splice(at, 0, m.columns.map(() => ''));
+            m.fills.splice(at, 0, m.columns.map(() => ''));
+            m.rowHeights.splice(at, 0, null);
             m.merges = sheetAdjRowIns(m.merges, at);
             sheetActive.rerender();
         }
@@ -12241,10 +12375,12 @@
             if (!sheetActive) return; const m = sheetActive.model; const b = schedSelBox();
             const at = b ? b.c2 + 1 : m.columns.length;
             const name = await showStaffPrompt('새 열(항목) 이름을 입력하세요.', ''); if (name === null) return;
-            sheetPushUndo(); sheetEnsureAligns(m);
+            sheetPushUndo(); sheetEnsureAligns(m); sheetEnsureFills(m); sheetEnsureSizes(m);
             m.columns.splice(at, 0, name.trim() || '항목');
             m.grid.forEach(row => row.splice(at, 0, ''));
             m.aligns.forEach(row => row.splice(at, 0, ''));
+            m.fills.forEach(row => row.splice(at, 0, ''));
+            m.colWidths.splice(at, 0, null);
             m.merges = sheetAdjColIns(m.merges, at);
             sheetActive.rerender();
         }
@@ -12282,8 +12418,8 @@
             if (!sheetActive) return; const m = sheetActive.model; const b = schedSelBox();
             if (!b) { alert('삭제할 행을 드래그로 선택하세요.'); return; }
             if (!(await showStaffConfirm(`${b.r2-b.r1+1}개 행을 삭제할까요?`))) return;
-            sheetPushUndo(); sheetEnsureAligns(m);
-            for (let r=b.r2; r>=b.r1; r--) { m.grid.splice(r,1); m.aligns.splice(r,1); }
+            sheetPushUndo(); sheetEnsureAligns(m); sheetEnsureFills(m); sheetEnsureSizes(m);
+            for (let r=b.r2; r>=b.r1; r--) { m.grid.splice(r,1); m.aligns.splice(r,1); m.fills.splice(r,1); m.rowHeights.splice(r,1); }
             m.merges = sheetAdjRowDel(m.merges, b.r1, b.r2); schedSel = null; sheetActive.rerender();
         }
         async function sheetDelCols() {
@@ -12291,8 +12427,8 @@
             if (!b) { alert('삭제할 열을 드래그로 선택하세요.'); return; }
             if (m.columns.length - (b.c2-b.c1+1) < 1) { alert('최소 1개 열은 남겨야 합니다.'); return; }
             if (!(await showStaffConfirm(`${b.c2-b.c1+1}개 열(항목)을 삭제할까요?`))) return;
-            sheetPushUndo(); sheetEnsureAligns(m);
-            for (let c=b.c2; c>=b.c1; c--){ m.columns.splice(c,1); m.grid.forEach(row=>row.splice(c,1)); m.aligns.forEach(row=>row.splice(c,1)); }
+            sheetPushUndo(); sheetEnsureAligns(m); sheetEnsureFills(m); sheetEnsureSizes(m);
+            for (let c=b.c2; c>=b.c1; c--){ m.columns.splice(c,1); m.grid.forEach(row=>row.splice(c,1)); m.aligns.forEach(row=>row.splice(c,1)); m.fills.forEach(row=>row.splice(c,1)); m.colWidths.splice(c,1); }
             m.merges = sheetAdjColDel(m.merges, b.c1, b.c2); schedSel = null; sheetActive.rerender();
         }
         function sheetAdjRowDel(merges, r1, r2) {
@@ -12321,6 +12457,10 @@
             else if (act === 'alignLeft') sheetSetAlign('left');
             else if (act === 'alignCenter') sheetSetAlign('center');
             else if (act === 'alignRight') sheetSetAlign('right');
+            else if (act === 'fill') {
+                if (invActive) { alert('재고현황은 구분 그룹별 행 색상을 사용합니다.\n(행 추가 시 색상을 선택하세요)'); }
+                else sheetShowFillPalette();
+            }
         }
         // 선택 영역 셀들의 가로 정렬 설정 (left/center/right)
         function sheetSetAlign(val) {
@@ -12342,29 +12482,54 @@
             if (k === 'z' && !e.shiftKey) { e.preventDefault(); sheetUndoAction(); }
             else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); sheetRedoAction(); }
         });
+        let sheetMenuPos = { x: 0, y: 0 };   // 마지막 우클릭 메뉴 위치 (색상 팔레트가 같은 자리에 열림)
         function sheetShowMenu(x, y) {
             const menu = document.getElementById('sheet-ctxmenu');
             if (!menu) return;
+            sheetMenuPos = { x, y };
             menu.style.left = x + 'px'; menu.style.top = y + 'px'; menu.style.display = 'block';
         }
         function sheetHideMenu() {
             const menu = document.getElementById('sheet-ctxmenu');
             if (menu) menu.style.display = 'none';
         }
+        // 드래그 선택 중 표 가장자리에 닿으면 스크롤 컨테이너를 자동 스크롤 (50ms 틱)
+        let sheetAutoScroll = null, sheetLastXY = null;
+        function sheetScrollTick() {
+            if (!sheetDrag || !sheetActive || !sheetActive.tbody || !sheetLastXY) return;
+            const tbl = sheetActive.tbody.closest('table');
+            const sc = tbl && tbl.parentElement; if (!sc) return;
+            const rect = sc.getBoundingClientRect(), M = 36, S = 18;
+            let moved = false;
+            if (sheetLastXY.y > rect.bottom - M) { sc.scrollTop += S; moved = true; }
+            else if (sheetLastXY.y < rect.top + M) { sc.scrollTop -= S; moved = true; }
+            if (sheetLastXY.x > rect.right - M) { sc.scrollLeft += S; moved = true; }
+            else if (sheetLastXY.x < rect.left + M) { sc.scrollLeft -= S; moved = true; }
+            if (moved) {
+                const el = document.elementFromPoint(
+                    Math.min(Math.max(sheetLastXY.x, rect.left + 2), rect.right - 2),
+                    Math.min(Math.max(sheetLastXY.y, rect.top + 2), rect.bottom - 2));
+                const td = el && el.closest ? el.closest('td[data-r]') : null;
+                if (td && sheetActive.tbody.contains(td)) { schedSel.r2 = +td.dataset.r; schedSel.c2 = +td.dataset.c; schedHighlight(); }
+            }
+        }
         document.addEventListener('mousemove', function(e) {
             if (!sheetDown || !sheetActive || !sheetActive.tbody) return;
+            sheetLastXY = { x: e.clientX, y: e.clientY };
             const el = document.elementFromPoint(e.clientX, e.clientY);
             const td = el && el.closest ? el.closest('td[data-r]') : null;
             if (!td || !sheetActive.tbody.contains(td)) return;
             const r = +td.dataset.r, c = +td.dataset.c;
             if (!sheetDrag && (r !== sheetStart.r || c !== sheetStart.c)) {
                 sheetDrag = true;
+                if (!sheetAutoScroll) sheetAutoScroll = setInterval(sheetScrollTick, 50);
                 const tbl = sheetActive.tbody.closest('table'); if (tbl) tbl.classList.add('selecting');
                 if (window.getSelection) window.getSelection().removeAllRanges();
             }
             if (sheetDrag) { schedSel.r2 = r; schedSel.c2 = c; schedHighlight(); }
         });
         document.addEventListener('mouseup', function() {
+            if (sheetAutoScroll) { clearInterval(sheetAutoScroll); sheetAutoScroll = null; }
             if (sheetDrag && sheetActive && sheetActive.tbody) {
                 const tbl = sheetActive.tbody.closest('table'); if (tbl) tbl.classList.remove('selecting');
             }
@@ -12384,6 +12549,9 @@
         document.addEventListener('click', function(e) {
             const menu = document.getElementById('sheet-ctxmenu');
             if (menu && menu.style.display === 'block' && !menu.contains(e.target)) sheetHideMenu();
+            // 색상 팔레트: 팔레트/우클릭 메뉴 밖 클릭 시 닫기
+            const pal = document.getElementById('sheet-fillpal');
+            if (pal && pal.style.display === 'block' && !(e.target.closest && e.target.closest('.sheet-ctxmenu'))) sheetHideFillPalette();
             // 표 바깥 빈 공간(버튼·메뉴 제외) 클릭 시 셀 선택 해제 (납품일정/재고현황 공용)
             // 드래그 종료 시 click 타깃이 table/tbody가 되어도 표 내부이므로 해제하지 않음
             if (sheetActive && sheetActive.tbody && schedSel && sheetModalOpen()) {
@@ -12413,6 +12581,9 @@
                     grid: JSON.stringify(scheduleData.grid || []),        // 중첩 배열 회피
                     merges: scheduleData.merges,
                     aligns: JSON.stringify(scheduleData.aligns || []),    // 중첩 배열 회피 + 정렬 보존
+                    fills: JSON.stringify(scheduleData.fills || []),      // 셀 배경색 (중첩 배열 회피)
+                    colWidths: scheduleData.colWidths || [],
+                    rowHeights: scheduleData.rowHeights || [],
                     images: scheduleData.images,
                     updatedAt: new Date().toISOString(),
                     updatedBy: user.name || user.username || ''
@@ -12479,6 +12650,10 @@
                     scheduleData.columns = parsed.columns;
                     scheduleData.grid = parsed.grid;
                     scheduleData.merges = [];
+                    scheduleData.aligns = [];
+                    scheduleData.fills = [];
+                    scheduleData.colWidths = [];
+                    scheduleData.rowHeights = [];
                     schedSel = null;
                     renderSchedule();
                     alert('엑셀을 표에 적용했습니다.\n내용 확인 후 [💾 저장]을 눌러주세요.');
