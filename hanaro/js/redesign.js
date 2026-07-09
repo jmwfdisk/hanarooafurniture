@@ -128,6 +128,55 @@
         transition:color .2s ease, background .2s ease!important; }
       .navbar > div > a:hover{ color:#fff!important; background:rgba(255,255,255,.18)!important; }
 
+      /* ── 네비 메가 드롭다운: 메뉴 호버 시 보조메뉴 패널 (데스크탑 전용, Function 스타일) ── */
+      @media (min-width:1201px){
+        /* 페이지 기존 '.navbar > div{position:relative}' 규칙이 더 특이도 높아 !important 필수 */
+        .fh-mega{ position:absolute!important; top:100%!important; left:-1px!important; right:-1px!important;
+          margin:0!important; padding:0!important; pointer-events:none; }
+        .fh-mega.open{ pointer-events:auto; }
+        /* 열림 동안: 글래스 플로팅 바가 사라지고 네비바 자체가 전폭 파란 시트로 변신(닫히면 원복).
+           left/right는 트랜지션 없이 즉시 확장 — JS가 확장 후 최종 레이아웃에서 메뉴 x좌표를 측정해 보조메뉴를 정렬.
+           !important: 서브페이지 자체 CSS의 'transition:all'이 남으면 확장이 애니메이션돼 측정이 빗나감 */
+        .navbar{ transition:background .3s ease, top .32s ease, border-radius .22s ease!important; }
+        .navbar.fh-mega-open{ background:var(--fh-paper)!important;
+          left:0!important; right:0!important; top:46px!important; border-radius:0;
+          -webkit-backdrop-filter:none; backdrop-filter:none;
+          border-color:transparent!important; box-shadow:none!important; }
+        .navbar.fh-topup.fh-mega-open{ top:0!important; }  /* 스크롤로 안내바 숨은 상태에서 열리면 최상단 부착 */
+        /* 크림 시트 위 다크 콘텐츠: 메뉴·로고·로그인 텍스트를 잉크색으로 반전 */
+        .navbar.fh-mega-open > div > a{ color:var(--fh-ink)!important; }
+        .navbar.fh-mega-open .logo img{ filter:none!important; }
+        .navbar.fh-mega-open .login .fh-authtext{ color:var(--fh-ink)!important; }
+        .navbar.fh-mega-open #mypage-link{ background:rgba(0,0,0,.05)!important;
+          color:var(--fh-ink)!important; border-color:rgba(0,0,0,.22)!important; }
+        .fh-mega-panel{ background:var(--fh-paper); border:none; border-radius:0; position:relative;
+          box-shadow:0 22px 40px rgba(0,0,0,.16); padding:14px 24px 30px;
+          opacity:0; transform:translateY(-8px); visibility:hidden;
+          transition:opacity .22s ease, transform .22s ease, visibility 0s linear .22s; }
+        .fh-mega.open .fh-mega-panel{ opacity:1; transform:translateY(0); visibility:visible; transition-delay:0s; }
+        /* 보조메뉴 열림 동안 페이지 음영(딤) — 네비바(1101) 아래, 콘텐츠 위 */
+        .fh-mega-dim{ position:fixed; inset:0; background:rgba(15,23,32,.45); z-index:1090;
+          opacity:0; visibility:hidden; transition:opacity .3s ease, visibility 0s linear .3s; }
+        .fh-mega-dim.on{ opacity:1; visibility:visible; transition-delay:0s; }
+        /* 네비 메뉴줄 ↔ 보조메뉴줄 구분선: 네비바 플로팅 좌우 여백(22px)만큼 들여 화면 끝에 안 닿게 */
+        .fh-mega-panel::before{ content:""; position:absolute; top:0; left:22px; right:22px; height:1px;
+          background:var(--fh-line); }
+        /* 보조메뉴는 호버한 메뉴 아래 세로 정렬, 시작점(x)은 JS가 호버 메뉴 좌표로 갱신 */
+        .fh-mega-links{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding-left:56px; }
+        /* 글씨 크기·굵기·자간은 네비바 메뉴(.navbar > div > a)와 동일하게 통일 */
+        .fh-mega-links a{ display:block; position:relative; padding:8px 0; font-size:15px; font-weight:500;
+          letter-spacing:-.1px; color:var(--fh-ink)!important; text-align:left; white-space:nowrap;
+          text-decoration:none!important; }
+        /* 호버 밑줄: 좌→우로 그려지는 애니메이션 */
+        .fh-mega-links a::after{ content:""; position:absolute; left:0; bottom:3px; width:100%; height:2px;
+          background:rgba(29,29,31,.85); transform:scaleX(0); transform-origin:left center;
+          transition:transform .8s cubic-bezier(.25,.8,.25,1); }
+        .fh-mega-links a:hover::after{ transform:scaleX(1); }
+        /* 열림 동안 메뉴 알약(호버 하이라이트) 제거 — 크림 시트 위에서는 플랫하게 */
+        .navbar.fh-mega-open > div > a:hover,
+        .navbar > div > a.fh-mega-on{ background:transparent!important; color:var(--fh-ink)!important; }
+      }
+
       /* 하늘색 CTA 알약 (Function의 Start testing 대응) */
       /* 데스크탑 네비바에서는 CTA 버튼 숨김(요청) — 모바일 바에서만 노출 */
       .fh-cta-wrap{ display:none; align-items:center; margin-left:6px; }
@@ -269,6 +318,52 @@
           '<a class="fh-drawer-staff" href="../staff/staff.html" onclick="return !this.querySelector(\'.employee-button\').disabled;"><button type="button" class="employee-button" disabled>임직원</button></a>'+
         '</div><p class="fh-addr">대전광역시 대덕구 오정로 41번길 12<br>(주)하나로오에이퍼니처</p></div>';
       if(drawer.parentNode!==document.body) document.body.appendChild(drawer);
+    }
+
+    // 데스크탑 메가 드롭다운: 메뉴 호버 시 보조메뉴 패널(패널 링크는 각 메뉴 a의 href 기준 상대 해석)
+    if(!navbar.querySelector('.fh-mega')){
+      var MEGA={
+        '회사소개':[['인사말','?sec=intro'],['일반현황','?sec=status'],['주요연혁','?sec=history'],['우수제품인증서','?sec=cert-excellent'],['기술(성능) / 기타 인증서','?sec=cert-tech'],['로고・CI','?sec=logo-ci']],
+        '제품소개':[['H시리즈','h.html'],['HS시리즈','hs.html'],['OA시리즈','oa.html']],
+        '제품 라인업':[['우수제품','?category=우수제품'],['일반제품','?category=일반제품'],['사물함','?category=사물함'],['색상표','?category=색상표']],
+        '고객지원':[['수리 및 서비스','repair.html'],['자주묻는 질문','faq.html'],['관리하기','manage.html']]
+      };
+      var mw=document.createElement('div'); mw.className='fh-mega';
+      mw.innerHTML='<div class="fh-mega-panel"><div class="fh-mega-links"></div></div>';
+      navbar.appendChild(mw);
+      var md=document.createElement('div'); md.className='fh-mega-dim'; document.body.appendChild(md);
+      var megaBox=mw.querySelector('.fh-mega-links'), megaCur=null;
+      function megaEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+      function megaClose(){ mw.classList.remove('open'); navbar.classList.remove('fh-mega-open'); md.classList.remove('on');
+        if(megaCur) megaCur.classList.remove('fh-mega-on'); megaCur=null; }
+      function megaOpen(a, items){
+        var base=a.getAttribute('href')||'';
+        megaBox.innerHTML=items.map(function(it){
+          var u = it[1].charAt(0)==='?' ? base.split(/[?#]/)[0]+it[1] : base.replace(/[^\/]*$/,'')+it[1];
+          return '<a href="'+megaEsc(u)+'">'+megaEsc(it[0])+'</a>';
+        }).join('');
+        if(megaCur) megaCur.classList.remove('fh-mega-on');
+        megaCur=a; a.classList.add('fh-mega-on'); mw.classList.add('open'); navbar.classList.add('fh-mega-open'); md.classList.add('on');
+        // 시트 확장(전폭) 적용 후 최종 레이아웃 기준으로 정렬:
+        // 메뉴 텍스트 시작 x(알약 패딩 12px 보정) − 보조메뉴 컨테이너 원점 x(패널 자체 패딩 24px 중복 방지)
+        var aRect=a.getBoundingClientRect(), boxRect=megaBox.getBoundingClientRect();
+        megaBox.style.paddingLeft = Math.max(0, Math.round(aRect.left + 10 - boxRect.left))+'px';
+        // 안전장치: 페이지 자체 transition이 확장을 애니메이션시키는 경우 안정화 후 한 번 더 정렬
+        setTimeout(function(){ if(megaCur===a && mw.classList.contains('open')){
+          megaBox.style.paddingLeft = Math.max(0, Math.round(a.getBoundingClientRect().left + 10 - megaBox.getBoundingClientRect().left))+'px'; } }, 350);
+      }
+      [].forEach.call(navbar.children, function(el){
+        if(el===mw) return;
+        var a=(el.tagName==='DIV' && !el.classList.contains('fh-cta-wrap') && !el.classList.contains('login'))?el.querySelector('a'):null;
+        var items=a?MEGA[a.textContent.trim()]:null;
+        // 보조메뉴 없는 메뉴(납품학교·갤러리·A/S신청 등)에 호버해도 열린 패널 유지(닫힘은 외부 클릭·스크롤·ESC만)
+        el.addEventListener('mouseenter', function(){ if(items) megaOpen(a, items); });
+      });
+      // 마우스가 떠나도 유지 — 외부 클릭·스크롤·ESC·보조메뉴 클릭 시 닫힘(원래 글래스 네비바로 복귀)
+      document.addEventListener('click', function(e){ if(!navbar.contains(e.target)) megaClose(); });
+      window.addEventListener('scroll', megaClose, {passive:true});
+      mw.addEventListener('click', function(e){ if(e.target.tagName==='A') megaClose(); });
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape') megaClose(); });
     }
 
     // 스크롤 시 안내바 숨김 + 네비 위로
