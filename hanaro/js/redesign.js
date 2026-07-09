@@ -323,7 +323,7 @@
     // 데스크탑 메가 드롭다운: 메뉴 호버 시 보조메뉴 패널(패널 링크는 각 메뉴 a의 href 기준 상대 해석)
     if(!navbar.querySelector('.fh-mega')){
       var MEGA={
-        '회사소개':[['인사말','?sec=intro'],['일반현황','?sec=status'],['주요연혁','?sec=history'],['우수제품인증서','?sec=cert-excellent'],['기술(성능) / 기타 인증서','?sec=cert-tech'],['로고・CI','?sec=logo-ci']],
+        '회사소개':[['인사말','?sec=intro'],['일반현황','?sec=status'],['주요연혁','?sec=history'],['우수제품인증서','?sec=cert-excellent'],['기술(성능) / 기타 인증서','?sec=cert-tech'],['로고 ・ CI','?sec=logo-ci']],
         '제품소개':[['H시리즈','h.html'],['HS시리즈','hs.html'],['OA시리즈','oa.html']],
         '제품 라인업':[['우수제품','?category=우수제품'],['일반제품','?category=일반제품'],['사물함','?category=사물함'],['색상표','?category=색상표']],
         '고객지원':[['수리 및 서비스','repair.html'],['자주묻는 질문','faq.html'],['관리하기','manage.html']]
