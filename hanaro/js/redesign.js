@@ -141,8 +141,8 @@
         .navbar.fh-mega-open{ background:var(--fh-paper)!important;
           left:0!important; right:0!important; top:46px!important; border-radius:0;
           /* 플로팅 인셋을 패딩에 합산 → 확장돼도 로고·메뉴·로그인 위치가 글래스 상태와 동일
-             (좌 22px, 우 22px, 위 12px: 시트 top 46px + 패딩 12px = 글래스 top 58px 라인) */
-          padding:12px 74px 0 56px!important; height:76px!important;
+             (좌 22px, 우 22px, 위 8px) */
+          padding:8px 74px 0 56px!important; height:72px!important;
           -webkit-backdrop-filter:none; backdrop-filter:none;
           border-color:transparent!important; box-shadow:none!important; }
         .navbar.fh-topup.fh-mega-open{ top:0!important; }  /* 스크롤로 안내바 숨은 상태에서 열리면 최상단 부착 */
