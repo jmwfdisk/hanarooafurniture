@@ -1127,10 +1127,33 @@ function showLogin() {
     
     const overlay = document.getElementById('overlay');
     const loginContainer = document.getElementById('login-container');
-    
+
     if (overlay) overlay.style.display = 'block';
     if (loginContainer) loginContainer.style.display = 'block';
     showAuthTab('login');
+    ensureRememberIdUI();
+}
+
+// '아이디 저장' 체크박스 — 로그인 폼은 페이지마다 정적 복제라 auth.js가 런타임에 한 곳에서 주입.
+// 체크 시 로그인 성공한 이메일을 localStorage('savedLoginId')에 저장, 다음 로그인 창에서 자동 입력.
+function ensureRememberIdUI() {
+    const form = document.getElementById('login-form');
+    if (form && !document.getElementById('remember-id')) {
+        const pw = document.getElementById('password');
+        const row = document.createElement('label');
+        row.id = 'remember-id-row';
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:8px 2px 0;font-size:13px;color:#555;cursor:pointer;user-select:none;text-align:left;';
+        row.innerHTML = '<input type="checkbox" id="remember-id" style="width:auto;margin:0;accent-color:#44aa6b;"> 아이디 저장';
+        if (pw && pw.parentNode === form) form.insertBefore(row, pw.nextSibling);
+        else form.appendChild(row);
+    }
+    try {
+        const saved = localStorage.getItem('savedLoginId') || '';
+        const chk = document.getElementById('remember-id');
+        const userEl = document.getElementById('username');
+        if (chk) chk.checked = !!saved;
+        if (saved && userEl && !userEl.value) userEl.value = saved;
+    } catch (e) { /* localStorage 접근 불가 환경은 무시 */ }
 }
 
 function hideLogin() {
@@ -1286,6 +1309,13 @@ async function login() {
         
         console.log('[LOGIN OK] UID:', user.uid);
         console.log('[로그인] Firebase Auth 로그인 성공');
+
+        // 아이디 저장: 체크 시 저장, 해제 시 삭제 (hideLogin이 입력값을 지우기 전에 처리)
+        try {
+            const rememberChk = document.getElementById('remember-id');
+            if (rememberChk && rememberChk.checked) localStorage.setItem('savedLoginId', emailOrUsername);
+            else localStorage.removeItem('savedLoginId');
+        } catch (e) { /* 무시 */ }
 
         // 사인인 성공 즉시 스피너 해제 + 모달 닫기 (체감 지연 최소화).
         // 최종 로그인 UI는 onAuthStateChanged가 처리한다.
