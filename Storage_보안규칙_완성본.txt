@@ -57,6 +57,16 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // ── 급여명세서 PDF (운영관리 인사관리) ────────────
+    // read는 차단 — 열람은 paySlips/{uid} 문서(본인만 읽기)에 저장된 토큰 다운로드 URL로만 가능
+    // (토큰 URL은 규칙과 무관하게 동작하므로, SDK 경로 접근을 막아 타인 열람을 차단)
+    match /pay-slips/{fileName} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('application/pdf');
+    }
+
     // ── 그 외 경로 전부 차단 ──────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;

@@ -6931,7 +6931,7 @@
         <div id="ops-hr-panel" class="ops-hr-panel" style="display:none;">
           <header class="ops-hr-header">
             <h2>인사관리</h2>
-            <span class="ops-hr-mock-badge">재직증명서·급여명세서 준비 중</span>
+            <span class="ops-hr-mock-badge">재직증명서 준비 중</span>
           </header>
           <div class="ops-hr-seg">
             <button type="button" class="ops-hr-seg-btn active" data-hrseg="record" onclick="opsHrSelect('record')">인사기록부</button>
@@ -6990,19 +6990,21 @@
               </div>
               <div id="ops-hr-leave-body"></div>
             </section>
-            <!-- 4) 급여지급명세서 — 임직원 개인만 열람 -->
+            <!-- 4) 급여지급명세서 — 실제 기능: 데이터관리자가 급여 엑셀 업로드 → 임직원별 PDF 생성·배포, 열람은 본인만 -->
             <section id="ops-hr-pay" class="ops-hr-sec" style="display:none;">
-              <div class="ops-hr-lock">🔒 급여지급명세서는 <b>본인 것만</b> 열람할 수 있습니다. (타인·관리자 열람 불가)</div>
-              <div class="ops-hr-card">
-                <h4>월별 명세서</h4>
-                <table class="ops-hr-table ops-hr-list">
-                  <tr><th>귀속월</th><th>지급일</th><th></th></tr>
-                  <tr><td>2026년 06월</td><td>2026. 06. 25.</td><td><button type="button" class="ops-hr-mini" onclick="opsHrMock()">보기</button></td></tr>
-                  <tr><td>2026년 05월</td><td>2026. 05. 25.</td><td><button type="button" class="ops-hr-mini" onclick="opsHrMock()">보기</button></td></tr>
-                  <tr><td>2026년 04월</td><td>2026. 04. 24.</td><td><button type="button" class="ops-hr-mini" onclick="opsHrMock()">보기</button></td></tr>
-                </table>
-                <p class="ops-hr-note">※ 목업 예시입니다. 실제 명세서 열람·PDF 다운로드가 제공될 예정입니다.</p>
+              <div class="ops-hr-lock">🔒 급여지급명세서는 <b>본인 것만</b> 열람할 수 있습니다. (데이터관리자·관리자 포함 타인 열람 불가)</div>
+              <div id="ops-hr-pay-manager" class="ops-hr-card" style="display:none;">
+                <h4>급여명세 엑셀 업로드 <span class="ops-hr-badge mgr">데이터관리자</span></h4>
+                <div class="ops-hr-form">
+                  <button type="button" class="ops-hr-mini" onclick="document.getElementById('pay-excel-input').click()">엑셀 선택 (.xlsx)</button>
+                  <label>귀속월<input type="month" id="pay-ym"></label>
+                  <label>지급일<input type="date" id="pay-date"></label>
+                </div>
+                <input type="file" id="pay-excel-input" accept=".xlsx,.xls" style="display:none" onchange="payExcelPicked(event)">
+                <div id="pay-preview"></div>
+                <p class="ops-hr-note">엑셀에서 귀속월·지급일·직위·성명을 자동 인식해 임직원별로 나눈 뒤, 명세서를 PDF로 만들어 각 임직원 계정에 넣습니다. 같은 귀속월을 다시 업로드하면 해당 월 명세서가 갱신됩니다.</p>
               </div>
+              <div id="ops-hr-pay-body"></div>
             </section>
           </div>
         </div>
@@ -7079,6 +7081,20 @@
         .hr-lv-badge.wait { background:#fff3e0; color:#b26a00; }
         .hr-lv-badge.part { background:#e8f0fe; color:#2563eb; }
         .hr-lv-badge.etc { background:#f1f3f5; color:#68707a; }
+        /* 급여명세 업로드 미리보기 + PDF 렌더 스테이지(화면 밖 고정) */
+        #pay-preview select { padding:6px 8px; border:1px solid #d5d9e0; border-radius:6px; font-size:12.5px; max-width:180px; }
+        #pay-pdf-stage { position:fixed; left:-10000px; top:0; width:640px; background:#fff; z-index:-1; }
+        .pay-slip { width:640px; background:#fff; padding:28px 32px; box-sizing:border-box; font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:#111; }
+        .pay-slip h3 { margin:0 0 6px; font-size:22px; text-align:center; letter-spacing:2px; }
+        .pay-slip .pay-meta { text-align:right; font-size:12.5px; margin-bottom:10px; }
+        .pay-slip table { width:100%; border-collapse:collapse; font-size:12.5px; }
+        .pay-slip th, .pay-slip td { border:1px solid #444; padding:6px 8px; text-align:left; }
+        .pay-slip th { background:#f0f2f5; font-weight:600; white-space:nowrap; }
+        .pay-slip td.num { text-align:right; font-variant-numeric:tabular-nums; }
+        .pay-slip .pay-head th { text-align:center; background:#e6e9ee; }
+        .pay-slip .pay-total th, .pay-slip .pay-total td { background:#f7f8fa; font-weight:700; }
+        .pay-slip .pay-net th, .pay-slip .pay-net td { background:#eef3fc; font-weight:700; font-size:14px; }
+        .pay-slip .pay-foot { text-align:center; margin-top:14px; font-size:13px; letter-spacing:4px; }
         .ops-hr-stats { display:flex; gap:12px; flex-wrap:wrap; }
         .ops-hr-stat { flex:1; min-width:120px; border:1px solid #e5e7eb; border-radius:10px; padding:14px; text-align:center; background:#f9fafb; }
         .ops-hr-stat .num { display:block; font-size:22px; font-weight:700; color:#333; }
@@ -7194,6 +7210,7 @@
             });
             if (seg === 'record') hrOpenRecord();
             if (seg === 'leave') hrOpenLeave();
+            if (seg === 'pay') hrOpenPay();
         }
         function opsHrMock() {
             alert('목업 화면입니다. 실제 기능은 준비 중입니다.');
@@ -7714,6 +7731,246 @@
         function hrGoLeaveCalendar() {
             closeOpsModal();
             try { switchBoard('staff-leave'); } catch (e) { console.error(e); }
+        }
+
+        // ===== 급여지급명세서 =====
+        // 데이터관리자가 급여 엑셀(.xlsx)을 올리면: 제목의 귀속월(YYYY年 M月)·'지급일' 행·블록별 직위/성명을
+        // 자동 인식 → 임직원 매칭(성명, 동명이인은 직위로 구분) → 명세서 PDF 생성(html2canvas+jsPDF, 지연 로드)
+        // → Storage pay-slips/ 업로드 → paySlips/{uid}.months['YYYY-MM'] set merge.
+        // 열람은 본인만(Firestore 규칙 isOwner) — 데이터관리자는 쓰기 전용(읽기 불가).
+        let payBlocks = [];   // 파싱된 임직원 블록들
+
+        async function hrOpenPay() {
+            if (!db && typeof initStaffDB === 'function') initStaffDB();
+            const isMgr = hrCanManage();
+            const mgr = document.getElementById('ops-hr-pay-manager');
+            if (mgr) mgr.style.display = isMgr ? '' : 'none';
+            if (isMgr && !hrEmployees.length) await hrReloadEmployees();
+            await payRenderMyList();
+        }
+
+        function payNorm(s) { return String(s == null ? '' : s).replace(/\s+/g, ''); }
+        function payFmtNum(v) { const n = +String(v).replace(/,/g, ''); return (v !== '' && isFinite(n)) ? n.toLocaleString() : schedEsc(String(v || '')); }
+        function payToDateKey(v) {
+            if (typeof v === 'number' && v > 20000) {   // 엑셀 시리얼 날짜
+                const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+                return d.toISOString().slice(0, 10);
+            }
+            const m = /(\d{4})[.\-\/년\s]+(\d{1,2})[.\-\/월\s]+(\d{1,2})/.exec(String(v || ''));
+            return m ? `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}` : '';
+        }
+        // 성명으로 임직원 매칭 — 동명이인이면 직위(직급/직책)로 구분
+        function payMatchUid(name, position) {
+            const n = payNorm(name);
+            if (!n) return '';
+            const cands = hrEmployees.filter(e => payNorm(e.name) === n);
+            if (cands.length === 1) return cands[0].uid;
+            if (cands.length > 1) {
+                const p = cands.find(e => payNorm(e.position) === payNorm(position));
+                if (p) return p.uid;
+            }
+            return '';
+        }
+
+        async function payExcelPicked(ev) {
+            const f = ev.target.files && ev.target.files[0];
+            ev.target.value = '';
+            if (!f) return;
+            if (typeof XLSX === 'undefined') { alert('엑셀 라이브러리(XLSX) 로드를 확인할 수 없습니다.'); return; }
+            let rows;
+            try {
+                const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+            } catch (e) {
+                console.error('급여 엑셀 파싱 실패:', e);
+                alert('엑셀 파일을 읽지 못했습니다.\n' + (e.message || ''));
+                return;
+            }
+            // 귀속월: 제목 행 'YYYY年 M月' (년/月 한글 표기 겸용)
+            let ym = '';
+            for (let i = 0; i < Math.min(rows.length, 6); i++) {
+                const m = /(\d{4})\s*[年년]\s*(\d{1,2})\s*[月월]/.exec(String(rows[i][0] || ''));
+                if (m) { ym = `${m[1]}-${String(m[2]).padStart(2, '0')}`; break; }
+            }
+            // 지급일: A열이 '지급일'로 시작하는 행의 B값
+            let payDate = '';
+            for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                if (payNorm(rows[i][0]).startsWith('지급일')) { payDate = payToDateKey(rows[i][1]); break; }
+            }
+            // 임직원 블록: A열 '소속' 행이 블록 시작
+            const starts = [];
+            rows.forEach((r, i) => { if (payNorm(r[0]) === '소속') starts.push(i); });
+            payBlocks = [];
+            starts.forEach((s, bi) => {
+                const end = (bi + 1 < starts.length) ? starts[bi + 1] : rows.length;
+                const org = String(rows[s][1] || ''), position = String(rows[s][3] || '');
+                let name = '', joinDate = '';
+                if (payNorm(rows[s + 1] && rows[s + 1][0]) === '성명') {
+                    name = String(rows[s + 1][1] || '');
+                    joinDate = String(rows[s + 1][3] || '');
+                }
+                const items = []; let totals = null, net = '';
+                for (let i = s + 2; i < end; i++) {
+                    const r = rows[i] || [];
+                    const a = String(r[0] || ''), b = r[1], c = String(r[2] || ''), d = r[3];
+                    if (!payNorm(a) && !payNorm(b) && !payNorm(c) && !payNorm(d)) continue;
+                    if (payNorm(a).startsWith('(')) continue;                    // 계산식 안내 행 제외
+                    if (payNorm(a) === '지급항목') continue;                      // 표 머리 행
+                    if (payNorm(b) === '실지급액') { net = r[2]; continue; }   // B라벨-C값 배치(현재 양식)
+                    if (payNorm(a) === '실지급액') { net = b; continue; }      // A라벨-B값 배치 겸용
+                    if (payNorm(a) === '지급총액') { totals = { pay: b, ded: d }; continue; }
+                    items.push([a, b, c, d]);
+                }
+                if (!payNorm(name)) return;
+                payBlocks.push({ name, position, org, joinDate, items, totals, net, uid: payMatchUid(name, position) });
+            });
+            if (!payBlocks.length) { alert('엑셀에서 임직원 블록(소속/성명 행)을 찾지 못했습니다.\n양식을 확인해 주세요.'); return; }
+            const ymInp = document.getElementById('pay-ym'); if (ymInp) ymInp.value = ym;
+            const pdInp = document.getElementById('pay-date'); if (pdInp) pdInp.value = payDate;
+            payRenderPreview();
+        }
+
+        function payRenderPreview() {
+            const box = document.getElementById('pay-preview');
+            if (!box) return;
+            const esc = schedEsc;
+            const opts = uid => '<option value="">— 제외 —</option>' + hrEmployees.map(e =>
+                `<option value="${schedEscAttr(e.uid)}"${e.uid === uid ? ' selected' : ''}>${esc(e.name)}${e.position ? ` (${esc(e.position)})` : ''}</option>`).join('');
+            box.innerHTML = `
+                <table class="ops-hr-table ops-hr-list" style="margin-top:12px">
+                  <tr><th>성명</th><th>직위</th><th>실지급액</th><th>대상 임직원</th><th>상태</th></tr>
+                  ${payBlocks.map((b, i) => `
+                  <tr>
+                    <td>${esc(payNorm(b.name))}</td><td>${esc(b.position)}</td><td>${payFmtNum(b.net)}</td>
+                    <td><select class="pay-target" data-i="${i}" onchange="payBlocks[+this.dataset.i].uid=this.value">${opts(b.uid)}</select></td>
+                    <td id="pay-status-${i}">${b.uid ? '매칭됨' : '<b style="color:#c62828">매칭 실패 — 직접 선택</b>'}</td>
+                  </tr>`).join('')}
+                </table>
+                <button type="button" class="ops-hr-primary" style="margin-top:12px" onclick="payGenerateAndUpload()">PDF 생성 및 업로드</button>`;
+        }
+
+        function payLoadScriptOnce(src, testFn) {
+            return new Promise((res, rej) => {
+                if (testFn()) return res();
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = () => testFn() ? res() : rej(new Error('라이브러리 초기화 실패: ' + src));
+                s.onerror = () => rej(new Error('라이브러리 로드 실패: ' + src));
+                document.head.appendChild(s);
+            });
+        }
+
+        // 명세서 PDF용 HTML (숨김 스테이지에 렌더 → html2canvas 캡처라 한글 폰트 문제 없음)
+        function paySlipHtml(b, ym, payDate) {
+            const esc = schedEsc;
+            const [y, m] = (ym || '').split('-');
+            const rowsHtml = b.items.map(r => `
+                <tr><td>${esc(r[0])}</td><td class="num">${r[1] !== '' ? payFmtNum(r[1]) : ''}</td>
+                    <td>${esc(r[2])}</td><td class="num">${r[3] !== '' ? payFmtNum(r[3]) : ''}</td></tr>`).join('');
+            return `
+              <div class="pay-slip">
+                <h3>${esc(y)}년 ${esc(String(+m))}월 급여명세서</h3>
+                <div class="pay-meta">지급일 : ${hrFmtDate(payDate)}</div>
+                <table>
+                  <tr><th>소속</th><td>${esc(b.org)}</td><th>직위</th><td>${esc(b.position)}</td></tr>
+                  <tr><th>성명</th><td>${esc(payNorm(b.name))}</td><th>입사일</th><td>${esc(b.joinDate)}</td></tr>
+                  <tr class="pay-head"><th>지급항목</th><th>금액</th><th>공제항목</th><th>금액</th></tr>
+                  ${rowsHtml}
+                  <tr class="pay-total"><th>지급총액</th><td class="num">${b.totals ? payFmtNum(b.totals.pay) : ''}</td><th>공제총액</th><td class="num">${b.totals ? payFmtNum(b.totals.ded) : ''}</td></tr>
+                  <tr class="pay-net"><th colspan="2">실지급액</th><td colspan="2" class="num">${payFmtNum(b.net)}</td></tr>
+                </table>
+                <div class="pay-foot">(주)하나로오에이퍼니처</div>
+              </div>`;
+        }
+
+        async function payGenerateAndUpload() {
+            if (!hrCanManage()) { alert('인사기록 데이터관리자 권한이 없습니다.'); return; }
+            const ym = (document.getElementById('pay-ym') || {}).value || '';
+            const payDate = (document.getElementById('pay-date') || {}).value || '';
+            if (!/^\d{4}-\d{2}$/.test(ym)) { alert('귀속월을 확인하세요.'); return; }
+            const targets = payBlocks.filter(b => b.uid);
+            if (!targets.length) { alert('업로드 대상(매칭된 임직원)이 없습니다.'); return; }
+            try {
+                await payLoadScriptOnce('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', () => window.html2canvas);
+                await payLoadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', () => window.jspdf && window.jspdf.jsPDF);
+            } catch (e) { alert(e.message); return; }
+            if (!storage && typeof firebase !== 'undefined' && firebase.storage) { try { storage = firebase.storage(); } catch (e) {} }
+            if (!storage || !db) { alert('저장소 연결을 확인할 수 없습니다.'); return; }
+            // 숨김 렌더 스테이지
+            let stage = document.getElementById('pay-pdf-stage');
+            if (!stage) {
+                stage = document.createElement('div');
+                stage.id = 'pay-pdf-stage';
+                document.body.appendChild(stage);
+            }
+            const uploadedBy = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
+            let ok = 0, fail = 0;
+            for (let i = 0; i < payBlocks.length; i++) {
+                const b = payBlocks[i];
+                const st = document.getElementById('pay-status-' + i);
+                if (!b.uid) { if (st) st.textContent = '제외됨'; continue; }
+                try {
+                    if (st) st.textContent = 'PDF 생성 중…';
+                    stage.innerHTML = paySlipHtml(b, ym, payDate);
+                    const canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: '#ffffff' });
+                    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                    const w = 190, h = Math.min(277, canvas.height * w / canvas.width);
+                    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10, 10, w, h);
+                    const blob = pdf.output('blob');
+                    if (st) st.textContent = '업로드 중…';
+                    const ref = storage.ref(`pay-slips/${ym}_${b.uid}.pdf`);
+                    const snap = await ref.put(blob, { contentType: 'application/pdf' });
+                    const url = await snap.ref.getDownloadURL();
+                    await db.collection('paySlips').doc(b.uid).set({
+                        months: { [ym]: { url, payDate, name: payNorm(b.name), position: b.position || '',
+                                          uploadedAt: new Date().toISOString(), uploadedBy } }
+                    }, { merge: true });
+                    ok++;
+                    if (st) st.innerHTML = '<span class="hr-lv-badge ok">완료</span>';
+                } catch (e) {
+                    console.error('급여명세 업로드 실패:', payNorm(b.name), e);
+                    fail++;
+                    if (st) st.innerHTML = `<span class="hr-lv-badge wait">실패</span> <small>${schedEsc(e.message || '')}</small>`;
+                }
+            }
+            stage.innerHTML = '';
+            alert(`급여명세서 처리 완료 — 성공 ${ok}건${fail ? `, 실패 ${fail}건` : ''}${fail ? '\n(실패: Storage/Firestore 보안규칙에 pay-slips·paySlips 반영·게시 여부 확인)' : ''}`);
+            await payRenderMyList();
+        }
+
+        // 본인 명세서 목록 (paySlips/{내 uid} — 규칙상 본인만 읽기 가능)
+        async function payRenderMyList() {
+            const body = document.getElementById('ops-hr-pay-body');
+            if (!body) return;
+            const uid = hrMyUid();
+            if (!uid) { body.innerHTML = hrMsgCard('로그인 정보를 확인할 수 없습니다.'); return; }
+            body.innerHTML = hrMsgCard('내 명세서를 불러오는 중…');
+            let months = {};
+            try {
+                const snap = await db.collection('paySlips').doc(uid).get();
+                if (snap.exists) months = snap.data().months || {};
+            } catch (e) {
+                console.error('급여명세 목록 로드 실패:', e);
+                body.innerHTML = hrMsgCard('명세서 목록을 불러오지 못했습니다. (보안규칙 게시 여부 확인)<br>' + schedEsc(e.message || ''));
+                return;
+            }
+            const keys = Object.keys(months).sort().reverse();
+            const esc = schedEsc;
+            const rows = keys.map(ym => {
+                const m = months[ym] || {};
+                const safeUrl = /^https:\/\//.test(String(m.url || '')) ? m.url : '';
+                const [y, mo] = ym.split('-');
+                return `<tr><td>${esc(y)}년 ${esc(mo)}월</td><td>${m.payDate ? hrFmtDate(m.payDate) : '-'}</td>
+                    <td>${safeUrl ? `<button type="button" class="ops-hr-mini" onclick="window.open('${schedEscAttr(safeUrl)}','_blank')">PDF 보기</button>` : '-'}</td></tr>`;
+            }).join('');
+            body.innerHTML = `
+                <div class="ops-hr-card">
+                  <h4>내 명세서</h4>
+                  ${rows ? `<table class="ops-hr-table ops-hr-list"><tr><th>귀속월</th><th>지급일</th><th></th></tr>${rows}</table>`
+                         : '<p class="ops-hr-note">등록된 급여명세서가 없습니다.</p>'}
+                  <p class="ops-hr-note">※ 명세서는 본인 계정에서만 열람됩니다.</p>
+                </div>`;
         }
     </script>
 
