@@ -52,18 +52,27 @@ service cloud.firestore {
         (isAuthenticated() && (userPerms().get('all', false) == true || userPerms().get(area, false) == true));
     }
 
+    // 인사기록 데이터관리자: 관리자 또는 명시적 'hr' 권한 부여자만
+    // ('전체(all)' 권한으로는 불가 — 민감 인사정보라 결재 권한과 동일 원칙)
+    function hrManager() {
+      return isAdmin() || (isAuthenticated() && userPerms().get('hr', false) == true);
+    }
+
     // ========== 사용자 정보 (users) ==========
     
     match /users/{userId} {
-      // 읽기: 본인 또는 관리자만 가능
+      // 읽기: 본인, 관리자, 또는 인사기록 데이터관리자(명시적 'hr' 권한만 — '전체' 권한 불가)
       // 순환 참조를 방지하기 위해 isAdmin() 함수를 사용하지 않고 직접 확인
-      allow read: if request.auth != null && 
+      allow read: if request.auth != null &&
         request.auth.uid != null && (
           // 본인 정보 읽기
           request.auth.uid == userId ||
           // 관리자가 다른 사용자 정보 읽기 (회원관리 기능)
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true) ||
+          // 인사기록 데이터관리자('hr' 권한)가 대상 임직원 선택을 위해 회원 목록 읽기
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', {}).get('hr', false) == true)
         );
       
       // 생성: 본인만 회원가입 시 생성 가능
@@ -321,6 +330,16 @@ service cloud.firestore {
       // 읽기: 임직원, 쓰기: 관리자 또는 '재고현황' 작성 권한 보유자
       allow read: if isEmployee();
       allow write: if permFor('inventory');
+    }
+
+    // ========== 인사기록 (hrRecords) ==========
+    // 구조: hrRecords/{uid} = { name, position, org, joinDate, phone, email, address,
+    //        history:[{date,type,desc}], updatedAt, updatedBy }
+    // 열람 = 본인 또는 인사기록 데이터관리자(관리자/명시적 'hr' 권한 — '전체' 권한 불가)
+    // 작성·수정·삭제 = 인사기록 데이터관리자만 (일반 임직원은 본인 것도 수정 불가)
+    match /hrRecords/{userId} {
+      allow read: if isOwner(userId) || hrManager();
+      allow write: if hrManager();
     }
 
     // ========== 기타 컬렉션 ==========
