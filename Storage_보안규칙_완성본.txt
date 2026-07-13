@@ -47,6 +47,16 @@ service firebase.storage {
         && request.resource.size < 10 * 1024 * 1024;
     }
 
+    // ── 인사기록 사진 (운영관리 인사관리) ─────────────
+    // 쓰기 게이트는 클라이언트(hrCanManage)·Firestore(hrRecords 규칙)가 담당 — Storage 규칙은
+    // Firestore 권한 조회가 불가해 로그인+이미지+5MB 제한까지만 가능. URL은 hrRecords 문서에만 저장.
+    match /hr-photos/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     // ── 그 외 경로 전부 차단 ──────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;
