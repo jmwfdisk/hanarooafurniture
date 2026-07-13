@@ -7381,21 +7381,29 @@
             hrLoadAndRender();
         }
 
+        // 로드 세대(epoch) — 대상을 빠르게 연속 변경하면 늦게 도착한 이전 응답이 최신 화면을 덮고
+        // hrCurrentRecord/폼까지 이전 임직원 것으로 남아 저장 시 교차 기록될 수 있음 → stale 응답 폐기
+        let hrLoadEpoch = 0;
         async function hrLoadAndRender() {
             const body = document.getElementById('ops-hr-record-body');
             if (!body) return;
+            const ep = ++hrLoadEpoch;
             if (!hrCurrentUid) { body.innerHTML = hrMsgCard(hrIsManager ? '대상 임직원을 선택하세요.' : '로그인 정보를 확인할 수 없습니다.'); return; }
             body.innerHTML = hrMsgCard('인사기록을 불러오는 중…');
             hrCurrentRecord = null;
             hrPhotoReset();
+            let rec = null;
             try {
                 const snap = await db.collection('hrRecords').doc(hrCurrentUid).get();
-                if (snap.exists) hrCurrentRecord = snap.data();
+                if (snap.exists) rec = snap.data();
             } catch (e) {
                 console.error('인사기록 로드 실패:', e);
+                if (ep !== hrLoadEpoch) return;   // stale 응답 — 이미 다른 대상 로드 중
                 body.innerHTML = hrMsgCard('인사기록을 불러오지 못했습니다. (보안규칙 게시 여부/권한 확인)<br>' + schedEsc(e.message || ''));
                 return;
             }
+            if (ep !== hrLoadEpoch) return;       // stale 응답 폐기
+            hrCurrentRecord = rec;
             hrRenderRecord();
         }
 
@@ -7523,52 +7531,64 @@
             hrRenderRecord(d);
         }
 
+        // 저장 연타 방지 + 대상 uid 스냅샷(사진 업로드 await 중 대상 변경 시 교차 기록 방지)
+        let hrSaving = false;
         async function hrSaveRecord() {
+            if (hrSaving) return;   // 연타 → 사진 이중 업로드/이중 set 방지
             if (!hrCanManage()) { alert('인사기록 관리 권한이 없습니다.'); return; }
             if (!hrCurrentUid) { alert('대상 임직원을 선택하세요.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
+            const uid = hrCurrentUid;   // await 중 select 변경돼도 이 대상에만 저장
             const data = hrCollectForm();
             if (!data.name) { alert('이름을 입력하세요.'); return; }
             data.history = data.history.filter(h => h.date || h.desc);   // 빈 행 제거
-            // 사진: 선택 파일이 있으면 Storage(hr-photos/) 업로드 후 URL만 저장, 삭제 예약이면 비움
-            let photoUrl = (hrCurrentRecord && hrCurrentRecord.photoUrl) || '';
-            if (hrPhotoRemoved) photoUrl = '';
-            if (hrPhotoFile) {
-                try { photoUrl = await hrUploadPhoto(hrPhotoFile); }
-                catch (e) {
-                    console.error('인사기록 사진 업로드 실패:', e);
-                    alert('사진 업로드에 실패했습니다. (Storage 보안규칙에 hr-photos 경로 반영·게시 여부 확인)\n' + (e.message || ''));
-                    return;
-                }
-            }
-            data.photoUrl = photoUrl;
-            data.updatedAt = new Date().toISOString();
-            data.updatedBy = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
+            hrSaving = true;
             try {
-                await db.collection('hrRecords').doc(hrCurrentUid).set(data);
-                hrCurrentRecord = data;
-                hrPhotoReset();
-                hrRecordsSet.add(hrCurrentUid);
-                hrFillEmpSelect();
-                hrRenderRecord();
-                alert('인사기록이 저장되었습니다.');
-            } catch (e) {
-                console.error('인사기록 저장 실패:', e);
-                alert('저장에 실패했습니다. (보안규칙 게시 여부/권한 확인)\n' + (e.message || ''));
-            }
+                // 사진: 선택 파일이 있으면 Storage(hr-photos/) 업로드 후 URL만 저장, 삭제 예약이면 비움
+                let photoUrl = (hrCurrentRecord && hrCurrentRecord.photoUrl) || '';
+                if (hrPhotoRemoved) photoUrl = '';
+                if (hrPhotoFile) {
+                    try { photoUrl = await hrUploadPhoto(hrPhotoFile); }
+                    catch (e) {
+                        console.error('인사기록 사진 업로드 실패:', e);
+                        alert('사진 업로드에 실패했습니다. (Storage 보안규칙에 hr-photos 경로 반영·게시 여부 확인)\n' + (e.message || ''));
+                        return;
+                    }
+                }
+                data.photoUrl = photoUrl;
+                data.updatedAt = new Date().toISOString();
+                data.updatedBy = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
+                try {
+                    await db.collection('hrRecords').doc(uid).set(data);
+                    hrRecordsSet.add(uid);
+                    hrFillEmpSelect();
+                    if (uid === hrCurrentUid) {   // 그 사이 대상이 안 바뀐 경우에만 화면 상태 갱신
+                        hrCurrentRecord = data;
+                        hrPhotoReset();
+                        hrRenderRecord();
+                    }
+                    alert('인사기록이 저장되었습니다.');
+                } catch (e) {
+                    console.error('인사기록 저장 실패:', e);
+                    alert('저장에 실패했습니다. (보안규칙 게시 여부/권한 확인)\n' + (e.message || ''));
+                }
+            } finally { hrSaving = false; }
         }
 
         async function hrDeleteRecord() {
             if (!hrCanManage()) { alert('인사기록 관리 권한이 없습니다.'); return; }
             if (!hrCurrentUid || !hrCurrentRecord) { alert('삭제할 인사기록이 없습니다.'); return; }
+            const uid = hrCurrentUid;   // confirm 대기 중 대상 변경 대비 스냅샷
             const who = hrCurrentRecord.name || '';
             if (!(await showStaffConfirm(`'${who}' 임직원의 인사기록을 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))) return;
             try {
-                await db.collection('hrRecords').doc(hrCurrentUid).delete();
-                hrCurrentRecord = null;
-                hrRecordsSet.delete(hrCurrentUid);
+                await db.collection('hrRecords').doc(uid).delete();
+                hrRecordsSet.delete(uid);
                 hrFillEmpSelect();
-                hrRenderRecord();
+                if (uid === hrCurrentUid) {
+                    hrCurrentRecord = null;
+                    hrRenderRecord();
+                }
                 alert('인사기록을 삭제했습니다.');
             } catch (e) {
                 console.error('인사기록 삭제 실패:', e);
@@ -7676,9 +7696,12 @@
         }
         function hrLeaveFmtRange(s, e) { return hrFmtDate(s) + (e && e !== s ? ' ~ ' + hrFmtDate(e) : ''); }
 
+        // 로드 세대(epoch) — 대상 연속 변경 시 늦게 도착한 이전 응답이 최신 화면을 덮는 것 방지
+        let hrLeaveEpoch = 0;
         async function hrLeaveLoadAndRender() {
             const body = document.getElementById('ops-hr-leave-body');
             if (!body) return;
+            const ep = ++hrLeaveEpoch;
             body.innerHTML = hrMsgCard('연월차 현황을 불러오는 중…');
             const t = hrLeaveTarget();
             if (!t || !t.uid) { body.innerHTML = hrMsgCard('로그인 정보를 확인할 수 없습니다.'); return; }
@@ -7689,6 +7712,7 @@
                 const snap = await db.collection('hrRecords').doc(t.uid).get();
                 if (snap.exists) joinDate = (snap.data().joinDate || '') || null;
             } catch (e) { /* 기록 없음/권한 — 아래에서 안내 */ }
+            if (ep !== hrLeaveEpoch) return;   // stale 응답 폐기
             const win = hrLeaveWindow(joinDate, today);
             // 연월차일정 + 월별 결재 도장 로드
             let evs = [], months = {};
@@ -7701,9 +7725,11 @@
                 months = (ap.exists && (ap.data().months || {})) || {};
             } catch (e) {
                 console.error('연월차 현황 로드 실패:', e);
+                if (ep !== hrLeaveEpoch) return;
                 body.innerHTML = hrMsgCard('연월차 현황을 불러오지 못했습니다.<br>' + schedEsc(e.message || ''));
                 return;
             }
+            if (ep !== hrLeaveEpoch) return;   // stale 응답 폐기
             // 문서 → 내역 행 (기간 등록은 groupId로 묶어 1행, 일수=일자 문서 수; 결재는 일자별 월 도장 판정)
             const rows = [], groups = {};
             const apprOf = dateKey => !!hrLeaveStampOf(months, dateKey.slice(0, 7), t.group);
@@ -7862,6 +7888,7 @@
         // 없으면 '없다' 안내, 있으면 확인 후 삭제. 명세서 본문(paySlips)은 여전히 본인만 읽기 가능(열람 불가 원칙 유지).
         // 인덱스 도입 전 업로드분은 인덱스에 없을 수 있어 그 경우엔 '그래도 삭제 시도' 확인으로 진행.
         async function payDeleteSlip() {
+            if (payUploading) { alert('업로드가 진행 중입니다. 완료 후 삭제하세요.'); return; }
             if (!payCanManage()) { alert('급여명세 업로드 권한이 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
             const uid = (document.getElementById('pay-del-emp') || {}).value || '';
@@ -7938,6 +7965,7 @@
             const f = ev.target.files && ev.target.files[0];
             ev.target.value = '';
             if (!f) return;
+            if (payUploading) { alert('업로드가 진행 중입니다. 완료 후 파일을 변경하세요.'); return; }   // 진행 중 payBlocks 교체 방지
             if (typeof XLSX === 'undefined') { alert('엑셀 라이브러리(XLSX) 로드를 확인할 수 없습니다.'); return; }
             let rows;
             try {
@@ -8050,7 +8078,11 @@
               </div>`;
         }
 
+        // 업로드 진행 플래그 — 연타 시 두 루프가 공유 렌더 스테이지(#pay-pdf-stage)를 번갈아 덮어써
+        // A 임직원 PDF에 B 내용이 캡처될 수 있음(교차 캡처) + PDF 이중 업로드 → 단일 실행 보장
+        let payUploading = false;
         async function payGenerateAndUpload() {
+            if (payUploading) { alert('이미 업로드가 진행 중입니다.'); return; }
             if (!payCanManage()) { alert('급여명세 업로드 권한이 없습니다.'); return; }
             const ym = (document.getElementById('pay-ym') || {}).value || '';
             const payDate = (document.getElementById('pay-date') || {}).value || '';
@@ -8073,6 +8105,8 @@
             const uploadedBy = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
             const co = payCompanyCfg();
             const coKey = (document.getElementById('pay-company') || {}).value || 'hanaro';
+            payUploading = true;
+            try {
             let ok = 0, fail = 0;
             for (let i = 0; i < payBlocks.length; i++) {
                 const b = payBlocks[i];
@@ -8118,6 +8152,7 @@
             stage.innerHTML = '';
             alert(`급여명세서 처리 완료 — 성공 ${ok}건${fail ? `, 실패 ${fail}건` : ''}${fail ? '\n(실패: Storage/Firestore 보안규칙에 pay-slips·paySlips 반영·게시 여부 확인)' : ''}`);
             await payRenderMyList();
+            } finally { payUploading = false; }
         }
 
         // 본인 명세서 목록 (paySlips/{내 uid} — 규칙상 본인만 읽기 가능)
