@@ -7070,6 +7070,11 @@
         .hr-grid label.hr-wide { grid-column:1 / -1; }
         .hr-grid input { padding:8px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; font-weight:400; }
         #hr-hist-table input, #hr-hist-table select { width:100%; box-sizing:border-box; padding:6px 8px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
+        /* 날짜 1년 이동 스테퍼 (« 날짜 ») */
+        .hr-date-step { display:flex; align-items:center; gap:4px; }
+        .hr-date-step input[type="date"] { flex:1; min-width:0; }
+        .hr-date-step .hr-yr { flex:0 0 auto; width:26px; padding:6px 0; border:1px solid #d5d9e0; border-radius:6px; background:#fff; font-size:13px; line-height:1; color:#555; cursor:pointer; }
+        .hr-date-step .hr-yr:hover { border-color:#3b82f6; color:#3b82f6; }
         #hr-hist-table td { padding:5px 6px; }
         .ops-hr-mini.danger { border-color:#f3c1c1; color:#c62828; }
         .ops-hr-mini.danger:hover { border-color:#c62828; background:#fdecec; color:#c62828; }
@@ -7365,10 +7370,25 @@
             hrRenderRecord();
         }
 
+        // 날짜 입력 1년 단위 이동 — 기본 달력이 월 단위로만 넘어가 과거 연도 입력이 번거로운 문제 보완
+        function hrYearStep(btn, delta) {
+            const inp = btn.parentElement.querySelector('input[type="date"]');
+            if (!inp) return;
+            let d = inp.value ? new Date(inp.value + 'T00:00:00') : new Date();
+            if (isNaN(d)) d = new Date();
+            d.setFullYear(d.getFullYear() + delta);
+            const p = x => String(x).padStart(2, '0');
+            inp.value = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+            inp.dispatchEvent(new Event('change'));
+        }
+        function hrDateStepHtml(inputHtml) {
+            return `<span class="hr-date-step"><button type="button" class="hr-yr" title="1년 전" onclick="hrYearStep(this,-1)">«</button>${inputHtml}<button type="button" class="hr-yr" title="1년 후" onclick="hrYearStep(this,1)">»</button></span>`;
+        }
+
         function hrHistRowHtml(h, i) {
             const opts = HR_HISTORY_TYPES.map(t => `<option${(h.type || '기타') === t ? ' selected' : ''}>${t}</option>`).join('');
             return `<tr class="hr-hist-row">
-                <td><input type="date" class="hr-h-date" value="${schedEscAttr(h.date || '')}"></td>
+                <td>${hrDateStepHtml(`<input type="date" class="hr-h-date" value="${schedEscAttr(h.date || '')}">`)}</td>
                 <td><select class="hr-h-type">${opts}</select></td>
                 <td><input type="text" class="hr-h-desc" value="${schedEscAttr(h.desc || '')}" placeholder="내용"></td>
                 <td><button type="button" class="ops-hr-mini danger" onclick="hrDelHist(${i})">✕</button></td>
@@ -7422,7 +7442,7 @@
                       <label>이름<input type="text" id="hr-f-name" value="${schedEscAttr(r.name || '')}"></label>
                       <label>직급/직책<input type="text" id="hr-f-position" value="${schedEscAttr(r.position || '')}"></label>
                       <label>소속<input type="text" id="hr-f-org" value="${schedEscAttr(r.org || '')}"></label>
-                      <label>입사일<input type="date" id="hr-f-join" value="${schedEscAttr(r.joinDate || '')}"></label>
+                      <label>입사일${hrDateStepHtml(`<input type="date" id="hr-f-join" value="${schedEscAttr(r.joinDate || '')}">`)}</label>
                       <label>연락처<input type="text" id="hr-f-phone" value="${schedEscAttr(r.phone || '')}" placeholder="010-0000-0000"></label>
                       <label>이메일<input type="text" id="hr-f-email" value="${schedEscAttr(r.email || '')}"></label>
                       <label class="hr-wide">주소<input type="text" id="hr-f-address" value="${schedEscAttr(r.address || '')}"></label>
