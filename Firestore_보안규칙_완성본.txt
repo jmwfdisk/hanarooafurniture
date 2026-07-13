@@ -58,6 +58,12 @@ service cloud.firestore {
       return isAdmin() || (isAuthenticated() && userPerms().get('hr', false) == true);
     }
 
+    // 급여명세 관리자: 인사기록 데이터관리자 + 명시적 'pay'(급여명세 업로드) 권한 부여자
+    // ('전체(all)' 권한으로는 불가 — 명세서 열람은 여전히 본인만, 이 권한은 업로드·삭제 전용)
+    function payManager() {
+      return hrManager() || (isAuthenticated() && userPerms().get('pay', false) == true);
+    }
+
     // ========== 사용자 정보 (users) ==========
     
     match /users/{userId} {
@@ -70,9 +76,10 @@ service cloud.firestore {
           // 관리자가 다른 사용자 정보 읽기 (회원관리 기능)
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true) ||
-          // 인사기록 데이터관리자('hr' 권한)가 대상 임직원 선택을 위해 회원 목록 읽기
+          // 인사기록('hr')·급여명세 업로드('pay') 권한자가 대상 임직원 선택을 위해 회원 목록 읽기
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', {}).get('hr', false) == true)
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', {}).get('hr', false) == true ||
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', {}).get('pay', false) == true))
         );
       
       // 생성: 본인만 회원가입 시 생성 가능
@@ -348,14 +355,14 @@ service cloud.firestore {
     // 작성·갱신 = 인사기록 데이터관리자(관리자/명시적 'hr' 권한)
     match /paySlips/{userId} {
       allow read: if isOwner(userId);
-      allow write: if hrManager();
+      allow write: if payManager();
     }
 
     // 급여명세 인덱스: 어떤 귀속월·회사 명세서가 등록돼 있는지 여부만(URL·금액 등 내용 없음).
-    // 데이터관리자가 삭제 전 존재 확인용으로 읽음 — 본문(paySlips)은 여전히 본인만 읽기 가능.
+    // 급여명세 관리자가 삭제 전 존재 확인용으로 읽음 — 본문(paySlips)은 여전히 본인만 읽기 가능.
     match /paySlipsIndex/{userId} {
-      allow read: if isOwner(userId) || hrManager();
-      allow write: if hrManager();
+      allow read: if isOwner(userId) || payManager();
+      allow write: if payManager();
     }
 
     // ========== 기타 컬렉션 ==========
