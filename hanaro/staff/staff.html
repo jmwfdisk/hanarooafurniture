@@ -7045,7 +7045,7 @@
         .ops-hr-photo img { width:100%; height:100%; object-fit:cover; border-radius:8px; cursor:zoom-in; display:block; }
         .hr-photo-edit { flex:0 0 96px; display:flex; flex-direction:column; gap:8px; align-items:center; }
         .hr-photo-btns { display:flex; flex-direction:column; gap:6px; width:96px; }
-        .hr-photo-btns .ops-hr-mini { width:100%; }
+        .hr-photo-btns .ops-hr-mini { width:100%; white-space:nowrap; }
         .ops-hr-table { border-collapse:collapse; width:100%; font-size:13.5px; }
         .ops-hr-table th, .ops-hr-table td { border:1px solid #e8eaed; padding:8px 10px; text-align:left; }
         .ops-hr-table th { background:#f4f6f9; color:#555; font-weight:600; white-space:nowrap; }
@@ -7390,7 +7390,7 @@
                     <div class="hr-photo-edit">
                       <div class="ops-hr-photo" id="hr-photo-box">${hrPhotoHtml(hrPhotoCurrentUrl())}</div>
                       <div class="hr-photo-btns">
-                        <button type="button" class="ops-hr-mini" onclick="hrPickPhoto()">📷 사진 ${hrPhotoCurrentUrl() ? '변경' : '등록'}</button>
+                        <button type="button" class="ops-hr-mini" onclick="hrPickPhoto()">사진 ${hrPhotoCurrentUrl() ? '변경' : '등록'}</button>
                         <button type="button" class="ops-hr-mini danger" id="hr-photo-del" onclick="hrRemovePhoto()" style="${hrPhotoCurrentUrl() ? '' : 'display:none'}">삭제</button>
                       </div>
                       <input type="file" id="hr-photo-input" accept="image/*" style="display:none" onchange="hrPhotoPicked(event)">
