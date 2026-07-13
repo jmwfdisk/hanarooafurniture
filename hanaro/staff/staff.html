@@ -6997,6 +6997,12 @@
                 <h4>급여명세 엑셀 업로드 <span class="ops-hr-badge mgr">데이터관리자</span></h4>
                 <div class="ops-hr-form">
                   <button type="button" class="ops-hr-mini" onclick="document.getElementById('pay-excel-input').click()">엑셀 선택 (.xlsx)</button>
+                  <label>회사
+                    <select id="pay-company">
+                      <option value="hanaro">하나로오에이퍼니처</option>
+                      <option value="songin">송인산업</option>
+                    </select>
+                  </label>
                   <label>귀속월<input type="month" id="pay-ym"></label>
                   <label>지급일<input type="date" id="pay-date"></label>
                 </div>
@@ -7772,6 +7778,17 @@
         // 열람은 본인만(Firestore 규칙 isOwner) — 데이터관리자는 쓰기 전용(읽기 불가).
         let payBlocks = [];   // 파싱된 임직원 블록들
 
+        // 급여명세 발행 회사 구분 — 엑셀의 소속 값으로 자동 인식(수동 변경 가능), 회사별 푸터·직인
+        // (송인산업 직인 이미지가 생기면 seal 경로만 채우면 됨)
+        const PAY_COMPANIES = {
+            hanaro: { label: '하나로오에이퍼니처', foot: '(주)하나로오에이퍼니처', seal: '../image/company-seal.png' },
+            songin: { label: '송인산업', foot: '(주)송인산업', seal: '' }
+        };
+        function payCompanyCfg() {
+            const sel = document.getElementById('pay-company');
+            return PAY_COMPANIES[(sel && sel.value) || 'hanaro'] || PAY_COMPANIES.hanaro;
+        }
+
         async function hrOpenPay() {
             if (!db && typeof initStaffDB === 'function') initStaffDB();
             const isMgr = hrCanManage();
@@ -7860,6 +7877,9 @@
             if (!payBlocks.length) { alert('엑셀에서 임직원 블록(소속/성명 행)을 찾지 못했습니다.\n양식을 확인해 주세요.'); return; }
             const ymInp = document.getElementById('pay-ym'); if (ymInp) ymInp.value = ym;
             const pdInp = document.getElementById('pay-date'); if (pdInp) pdInp.value = payDate;
+            // 회사 자동 인식: 블록 소속에 '송인'이 있으면 송인산업, 아니면 하나로 (수동 변경 가능)
+            const coSel = document.getElementById('pay-company');
+            if (coSel) coSel.value = payBlocks.some(b => payNorm(b.org).includes('송인')) ? 'songin' : 'hanaro';
             payRenderPreview();
         }
 
@@ -7894,7 +7914,8 @@
         }
 
         // 명세서 PDF용 HTML (숨김 스테이지에 렌더 → html2canvas 캡처라 한글 폰트 문제 없음)
-        function paySlipHtml(b, ym, payDate) {
+        function paySlipHtml(b, ym, payDate, co) {
+            co = co || payCompanyCfg();
             const esc = schedEsc;
             const [y, m] = (ym || '').split('-');
             const rowsHtml = b.items.map(r => `
@@ -7912,7 +7933,7 @@
                   <tr class="pay-total"><th>지급총액</th><td class="num">${b.totals ? payFmtNum(b.totals.pay) : ''}</td><th>공제총액</th><td class="num">${b.totals ? payFmtNum(b.totals.ded) : ''}</td></tr>
                   <tr class="pay-net"><th colspan="2">실지급액</th><td colspan="2" class="num">${payFmtNum(b.net)}</td></tr>
                 </table>
-                <div class="pay-foot"><span class="pay-foot-name">(주)하나로오에이퍼니처<img class="pay-seal" src="../image/company-seal.png" alt="직인"></span></div>
+                <div class="pay-foot"><span class="pay-foot-name">${esc(b.org || co.foot)}${co.seal ? `<img class="pay-seal" src="${schedEscAttr(co.seal)}" alt="직인">` : ''}</span></div>
               </div>`;
         }
 
@@ -7937,6 +7958,8 @@
                 document.body.appendChild(stage);
             }
             const uploadedBy = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
+            const co = payCompanyCfg();
+            const coKey = (document.getElementById('pay-company') || {}).value || 'hanaro';
             let ok = 0, fail = 0;
             for (let i = 0; i < payBlocks.length; i++) {
                 const b = payBlocks[i];
@@ -7944,7 +7967,7 @@
                 if (!b.uid) { if (st) st.textContent = '제외됨'; continue; }
                 try {
                     if (st) st.textContent = 'PDF 생성 중…';
-                    stage.innerHTML = paySlipHtml(b, ym, payDate);
+                    stage.innerHTML = paySlipHtml(b, ym, payDate, co);
                     // 직인 이미지 로드 완료 후 캡처 (미로드 상태로 캡처되면 도장이 빠짐)
                     await Promise.all(Array.from(stage.querySelectorAll('img')).map(im =>
                         im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; })));
@@ -7956,12 +7979,14 @@
                     if (st) st.textContent = '업로드 중…';
                     // 파일명에 무작위 토큰 — 경로 추측으로 타인 명세서 접근 불가(경로는 본인만 읽는 paySlips 문서에만 저장)
                     const rand = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
-                    const ref = storage.ref(`pay-slips/${ym}_${rand}.pdf`);
+                    const ref = storage.ref(`pay-slips/${ym}_${coKey}_${rand}.pdf`);
                     const snap = await ref.put(blob, { contentType: 'application/pdf' });
                     const url = await snap.ref.getDownloadURL();
+                    // 월 키는 '귀속월_회사' — 두 회사가 같은 달에 각각 발행해도 서로 덮어쓰지 않음
+                    // (구버전 키 'YYYY-MM'(회사 구분 없음)은 목록에서 하나로 발행분으로 표시)
                     await db.collection('paySlips').doc(b.uid).set({
-                        months: { [ym]: { url, payDate, name: payNorm(b.name), position: b.position || '',
-                                          uploadedAt: new Date().toISOString(), uploadedBy } }
+                        months: { [`${ym}_${coKey}`]: { url, payDate, name: payNorm(b.name), position: b.position || '',
+                                          company: co.label, uploadedAt: new Date().toISOString(), uploadedBy } }
                     }, { merge: true });
                     ok++;
                     if (st) st.innerHTML = '<span class="hr-lv-badge ok">완료</span>';
@@ -7994,17 +8019,19 @@
             }
             const keys = Object.keys(months).sort().reverse();
             const esc = schedEsc;
-            const rows = keys.map(ym => {
-                const m = months[ym] || {};
+            const rows = keys.map(key => {
+                const m = months[key] || {};
                 const safeUrl = /^https:\/\//.test(String(m.url || '')) ? m.url : '';
+                const ym = key.slice(0, 7);                       // 키 형식: 'YYYY-MM' (구버전) 또는 'YYYY-MM_회사키'
                 const [y, mo] = ym.split('-');
-                return `<tr><td>${esc(y)}년 ${esc(mo)}월</td><td>${m.payDate ? hrFmtDate(m.payDate) : '-'}</td>
+                const coLabel = m.company || (key.includes('_songin') ? '송인산업' : '하나로오에이퍼니처');
+                return `<tr><td>${esc(y)}년 ${esc(mo)}월</td><td>${esc(coLabel)}</td><td>${m.payDate ? hrFmtDate(m.payDate) : '-'}</td>
                     <td>${safeUrl ? `<button type="button" class="ops-hr-mini" onclick="window.open('${schedEscAttr(safeUrl)}','_blank')">PDF 보기</button>` : '-'}</td></tr>`;
             }).join('');
             body.innerHTML = `
                 <div class="ops-hr-card">
                   <h4>내 명세서</h4>
-                  ${rows ? `<table class="ops-hr-table ops-hr-list"><tr><th>귀속월</th><th>지급일</th><th></th></tr>${rows}</table>`
+                  ${rows ? `<table class="ops-hr-table ops-hr-list"><tr><th>귀속월</th><th>회사</th><th>지급일</th><th></th></tr>${rows}</table>`
                          : '<p class="ops-hr-note">등록된 급여명세서가 없습니다.</p>'}
                   <p class="ops-hr-note">※ 명세서는 본인 계정에서만 열람됩니다.</p>
                 </div>`;
