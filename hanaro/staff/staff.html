@@ -7083,6 +7083,9 @@
         .hr-lv-badge.etc { background:#f1f3f5; color:#68707a; }
         /* 급여명세 업로드 미리보기 + PDF 렌더 스테이지(화면 밖 고정) */
         #pay-preview select { padding:6px 8px; border:1px solid #d5d9e0; border-radius:6px; font-size:12.5px; max-width:180px; }
+        /* 성명·직위·실지급액 열은 줄바꿈 금지(상태 열만 줄바꿈 허용) */
+        #pay-preview td:nth-child(1), #pay-preview td:nth-child(2), #pay-preview td:nth-child(3),
+        #pay-preview th:nth-child(1), #pay-preview th:nth-child(2), #pay-preview th:nth-child(3) { white-space:nowrap; }
         #pay-pdf-stage { position:fixed; left:-10000px; top:0; width:640px; background:#fff; z-index:-1; }
         .pay-slip { width:640px; background:#fff; padding:28px 32px; box-sizing:border-box; font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:#111; }
         .pay-slip h3 { margin:0 0 6px; font-size:22px; text-align:center; letter-spacing:2px; }
