@@ -7102,7 +7102,10 @@
         .pay-slip .pay-head th { text-align:center; background:#e6e9ee; }
         .pay-slip .pay-total th, .pay-slip .pay-total td { background:#f7f8fa; font-weight:700; }
         .pay-slip .pay-net th, .pay-slip .pay-net td { background:#eef3fc; font-weight:700; font-size:14px; }
-        .pay-slip .pay-foot { text-align:center; margin-top:14px; font-size:13px; letter-spacing:4px; }
+        .pay-slip .pay-foot { text-align:center; margin-top:18px; margin-bottom:16px; font-size:13px; letter-spacing:4px; }
+        /* 회사명 끝 글자('처') 위에 겹치는 직인 */
+        .pay-slip .pay-foot-name { position:relative; display:inline-block; }
+        .pay-slip .pay-seal { position:absolute; width:52px; height:52px; right:-18px; top:50%; transform:translateY(-50%); mix-blend-mode:multiply; opacity:.92; }
         .ops-hr-stats { display:flex; gap:12px; flex-wrap:wrap; }
         .ops-hr-stat { flex:1; min-width:120px; border:1px solid #e5e7eb; border-radius:10px; padding:14px; text-align:center; background:#f9fafb; }
         .ops-hr-stat .num { display:block; font-size:22px; font-weight:700; color:#333; }
@@ -7909,7 +7912,7 @@
                   <tr class="pay-total"><th>지급총액</th><td class="num">${b.totals ? payFmtNum(b.totals.pay) : ''}</td><th>공제총액</th><td class="num">${b.totals ? payFmtNum(b.totals.ded) : ''}</td></tr>
                   <tr class="pay-net"><th colspan="2">실지급액</th><td colspan="2" class="num">${payFmtNum(b.net)}</td></tr>
                 </table>
-                <div class="pay-foot">(주)하나로오에이퍼니처</div>
+                <div class="pay-foot"><span class="pay-foot-name">(주)하나로오에이퍼니처<img class="pay-seal" src="../image/company-seal.png" alt="직인"></span></div>
               </div>`;
         }
 
@@ -7942,6 +7945,9 @@
                 try {
                     if (st) st.textContent = 'PDF 생성 중…';
                     stage.innerHTML = paySlipHtml(b, ym, payDate);
+                    // 직인 이미지 로드 완료 후 캡처 (미로드 상태로 캡처되면 도장이 빠짐)
+                    await Promise.all(Array.from(stage.querySelectorAll('img')).map(im =>
+                        im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; })));
                     const canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: '#ffffff' });
                     const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
                     const w = 190, h = Math.min(277, canvas.height * w / canvas.width);
