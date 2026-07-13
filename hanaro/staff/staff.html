@@ -7661,7 +7661,6 @@
                 if (snap.exists) joinDate = (snap.data().joinDate || '') || null;
             } catch (e) { /* 기록 없음/권한 — 아래에서 안내 */ }
             const win = hrLeaveWindow(joinDate, today);
-            const ent = hrLeaveEntitlement(joinDate, today);
             // 연월차일정 + 월별 결재 도장 로드
             let evs = [], months = {};
             try {
@@ -7708,6 +7707,13 @@
                 if (DEDUCT.includes(r.type)) { used += r.apprDays; pending += (r.days - r.apprDays); }
                 else etcDays += r.days;
             });
+            // 발생 연차 기준일: 오늘, 단 미래 등록 일정이 있으면 그 마지막 날짜 기준(산정 기간 내로 한정)
+            // — 사용 내역엔 미래 일정까지 차감되므로 발생도 같은 시점으로 맞춰야 잔여가 일관됨
+            //   (예: 15일 발생 직후 16일 반차 등록 시, 오늘 기준으론 발생 전이라 잔여가 음수처럼 보이는 문제)
+            let entRef = today;
+            evs.forEach(ev => { if (ev.date > entRef) entRef = ev.date; });
+            if (entRef > win.end) entRef = win.end;
+            const ent = hrLeaveEntitlement(joinDate, entRef);
             const esc = schedEsc;
             const fmtN = n => (Math.round(n * 10) / 10).toLocaleString();
             const apprBadge = r => {
@@ -7740,7 +7746,7 @@
                   ${histRows ? `<table class="ops-hr-table ops-hr-list"><tr><th>기간</th><th>종류</th><th>일수</th><th>결재 상태</th></tr>${histRows}</table>` : '<p class="ops-hr-note">산정 기간 내 등록된 연월차 일정이 없습니다.</p>'}
                   <button type="button" class="ops-hr-mini" style="margin-top:10px" onclick="hrGoLeaveCalendar()">📅 연월차일정 캘린더 열기</button>
                   <p class="ops-hr-note">
-                    ※ 발생 연차: ${ent ? esc(ent.rule) : '입사일 미등록으로 산정 불가 — 인사기록부에 입사일 등록 필요'}<br>
+                    ※ 발생 연차: ${ent ? esc(ent.rule) : '입사일 미등록으로 산정 불가 — 인사기록부에 입사일 등록 필요'}${ent && entRef > today ? ` — 미래 등록 일정이 있어 ${hrFmtDate(entRef)} 기준으로 산정` : ''}<br>
                     ※ 사용 일수는 해당 월의 관리자(본사/공장) 결재 서명 완료 후에만 반영되며, 미서명 달은 '결재 대기'로 표시됩니다.<br>
                     ※ 연차·휴가는 연차에서 차감, 병가·경조사·기타는 차감하지 않습니다. 반차는 0.5일로 계산합니다.<br>
                     ※ 근로기준법에 따라 연차는 소정근로일에만 사용되므로, 기간에 포함된 주말(토·일)·공휴일은 사용일수에서 제외합니다(주5일제 기준).<br>
