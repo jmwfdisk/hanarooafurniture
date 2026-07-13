@@ -7064,6 +7064,11 @@
         .ops-hr-form { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
         .ops-hr-form label { display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:#666; font-weight:600; }
         .ops-hr-form select { padding:8px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; min-width:150px; }
+        /* 폼 컨트롤(버튼·셀렉트·월/날짜 입력) 세로 크기 통일 */
+        .ops-hr-form select, .ops-hr-form input, .ops-hr-form .ops-hr-mini, .ops-hr-form .ops-hr-primary {
+            height:36px; box-sizing:border-box; padding-top:0; padding-bottom:0;
+        }
+        .ops-hr-form input { padding:0 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; background:#fff; }
         .ops-hr-primary { padding:9px 18px; border:none; border-radius:6px; background:#3b82f6; color:#fff; font-size:13.5px; font-weight:600; cursor:pointer; }
         .ops-hr-primary:hover { background:#2563eb; }
         .ops-hr-mini { padding:5px 14px; border:1px solid #d5d9e0; border-radius:6px; background:#fff; font-size:12.5px; cursor:pointer; }
