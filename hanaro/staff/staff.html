@@ -13435,11 +13435,14 @@
             const imgWrap = document.getElementById('schedule-images');
             imgWrap.innerHTML = '';
             (scheduleData.images || []).forEach((img, i) => {
+                // URL 검증(https만) + 속성 이스케이프 — 문서 조작으로 속성 탈출(XSS)·javascript: 스킴 차단
+                const safeUrl = /^https:\/\//.test(String(img.url || '')) ? img.url : '';
+                if (!safeUrl) return;
                 const div = document.createElement('div');
                 div.className = 'schedule-img-item';
-                div.innerHTML = `<img src="${img.url}" alt="" title="${(img.name||'').replace(/"/g,'')}">` +
+                div.innerHTML = `<img src="${schedEscAttr(safeUrl)}" alt="" title="${schedEscAttr(img.name || '')}">` +
                     (canEdit ? `<button class="schedule-img-del" onclick="deleteScheduleImage(${i})">&times;</button>` : '');
-                div.querySelector('img').onclick = () => window.open(img.url, '_blank');
+                div.querySelector('img').onclick = () => window.open(safeUrl, '_blank');
                 imgWrap.appendChild(div);
             });
 
@@ -13450,18 +13453,25 @@
         let sheetActive = null;             // { model:{columns,grid,merges}, tbody, rerender }
         let sheetDown = false, sheetDrag = false, sheetStart = null;
 
+        // style 속성 삽입값 검증 — Firestore 문서를 직접 조작해 style 탈출(XSS)하는 경로 차단.
+        // UI(팔레트·그립)는 항상 안전한 값을 쓰므로 정상 사용에는 영향 없음.
+        function sheetSafeSize(v) { const n = Math.round(+v); return (isFinite(n) && n > 0 && n <= 4000) ? n : 0; }
+        function sheetSafeAlign(a) { return (a === 'left' || a === 'center' || a === 'right') ? a : ''; }
+        function sheetSafeFill(c) { return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(c || '')) ? c : ''; }
+
         function sheetRenderTable(model, theadEl, tbodyEl, canEdit) {
             sheetEnsureSizes(model);
             let hh = '<tr>';
             model.columns.forEach((label, c) => {
-                const w = model.colWidths[c] ? ` style="width:${model.colWidths[c]}px;min-width:${model.colWidths[c]}px"` : '';
+                const cw = sheetSafeSize(model.colWidths[c]);
+                const w = cw ? ` style="width:${cw}px;min-width:${cw}px"` : '';
                 const g = canEdit ? `<span class="sheet-colgrip" data-c="${c}" title="드래그로 열 너비 조절"></span>` : '';
                 hh += canEdit ? `<th${w}><input class="sched-colname" data-c="${c}" value="${schedEscAttr(label)}">${g}</th>` : `<th${w}>${schedEsc(label)}</th>`;
             });
             theadEl.innerHTML = hh + '</tr>';
             // 열 너비를 하나라도 지정하면 고정 레이아웃으로 전환(정확한 너비 적용)
             const tableEl = theadEl.closest('table');
-            if (tableEl) tableEl.style.tableLayout = model.colWidths.some(w => w > 0) ? 'fixed' : '';
+            if (tableEl) tableEl.style.tableLayout = model.colWidths.some(w => sheetSafeSize(w) > 0) ? 'fixed' : '';
 
             tbodyEl.innerHTML = '';
             if (!model.grid.length) {
@@ -13474,7 +13484,8 @@
             model.merges.forEach(m => { for (let dr=0; dr<m.rs; dr++) for (let dc=0; dc<m.cs; dc++){ if (dr||dc) covered.add((m.r+dr)+','+(m.c+dc)); } });
             model.grid.forEach((row, r) => {
                 const tr = document.createElement('tr');
-                if (model.rowHeights[r]) tr.style.height = model.rowHeights[r] + 'px';
+                const rh = sheetSafeSize(model.rowHeights[r]);
+                if (rh) tr.style.height = rh + 'px';
                 let cells = '';
                 model.columns.forEach((label, c) => {
                     if (covered.has(r + ',' + c)) return;
@@ -13482,9 +13493,9 @@
                     const rs = mm ? mm.rs : 1, cs = mm ? mm.cs : 1;
                     const val = (row[c] != null ? row[c] : '');
                     const mergedCls = (rs > 1 || cs > 1) ? ' sched-merged' : '';
-                    const al = (model.aligns[r] && model.aligns[r][c]) ? model.aligns[r][c] : '';
+                    const al = sheetSafeAlign((model.aligns[r] && model.aligns[r][c]) || '');
                     const alStyle = al ? ` style="text-align:${al}"` : '';
-                    const fl = (model.fills[r] && model.fills[r][c]) ? model.fills[r][c] : '';
+                    const fl = sheetSafeFill((model.fills[r] && model.fills[r][c]) || '');
                     const tdStyle = fl ? ` style="background:${fl}"` : '';
                     const rg = canEdit ? `<span class="sheet-rowgrip" data-row="${r + rs - 1}" title="드래그로 행 높이 조절"></span>` : '';
                     cells += `<td data-r="${r}" data-c="${c}" rowspan="${rs}" colspan="${cs}" class="sched-td${canEdit ? ' editable' : ''}${mergedCls}"${tdStyle}>${rg}<div class="schedule-cell-ro"${alStyle}>${schedEsc(val).replace(/\n/g,'<br>')}</div></td>`;
