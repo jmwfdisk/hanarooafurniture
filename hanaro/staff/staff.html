@@ -7919,7 +7919,9 @@
                     pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10, 10, w, h);
                     const blob = pdf.output('blob');
                     if (st) st.textContent = '업로드 중…';
-                    const ref = storage.ref(`pay-slips/${ym}_${b.uid}.pdf`);
+                    // 파일명에 무작위 토큰 — 경로 추측으로 타인 명세서 접근 불가(경로는 본인만 읽는 paySlips 문서에만 저장)
+                    const rand = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+                    const ref = storage.ref(`pay-slips/${ym}_${rand}.pdf`);
                     const snap = await ref.put(blob, { contentType: 'application/pdf' });
                     const url = await snap.ref.getDownloadURL();
                     await db.collection('paySlips').doc(b.uid).set({
