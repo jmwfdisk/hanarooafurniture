@@ -7050,6 +7050,8 @@
         .ops-hr-table th, .ops-hr-table td { border:1px solid #e8eaed; padding:8px 10px; text-align:left; }
         .ops-hr-table th { background:#f4f6f9; color:#555; font-weight:600; white-space:nowrap; }
         .ops-hr-note { margin:10px 0 0; font-size:12px; color:#8a929c; }
+        .ops-hr-note a { color:#2563eb; text-decoration:underline; }
+        .ops-hr-note a:hover { color:#1d4ed8; }
         .ops-hr-form { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
         .ops-hr-form label { display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:#666; font-weight:600; }
         .ops-hr-form select { padding:8px 10px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; min-width:150px; }
@@ -7691,7 +7693,11 @@
                     ※ 발생 연차: ${ent ? esc(ent.rule) : '입사일 미등록으로 산정 불가 — 인사기록부에 입사일 등록 필요'}<br>
                     ※ 사용 일수는 해당 월의 관리자(본사/공장) 결재 서명 완료 후에만 반영되며, 미서명 달은 '결재 대기'로 표시됩니다.<br>
                     ※ 연차·휴가는 연차에서 차감, 병가·경조사·기타는 차감하지 않습니다. 반차는 0.5일로 계산합니다.<br>
-                    ※ 근로기준법에 따라 연차는 소정근로일에만 사용되므로, 기간에 포함된 주말(토·일)·공휴일은 사용일수에서 제외합니다(주5일제 기준).
+                    ※ 근로기준법에 따라 연차는 소정근로일에만 사용되므로, 기간에 포함된 주말(토·일)·공휴일은 사용일수에서 제외합니다(주5일제 기준).<br>
+                    ※ 관련 규정 원문(국가법령정보센터):
+                    <a href="https://www.law.go.kr/법령/근로기준법/제60조" target="_blank" rel="noopener">근로기준법 제60조(연차 유급휴가)</a> ·
+                    <a href="https://www.law.go.kr/법령/근로기준법/제61조" target="_blank" rel="noopener">제61조(연차 사용 촉진)</a> ·
+                    <a href="https://www.law.go.kr/법령/근로기준법/제62조" target="_blank" rel="noopener">제62조(유급휴가의 대체)</a>
                   </p>
                 </div>`;
         }
