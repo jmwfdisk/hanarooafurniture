@@ -11527,6 +11527,9 @@
         .cal-cell.today { background:#fff9db; }
         .cal-daynum { font-size:13px; font-weight:600; color:#444; margin-bottom:3px; }
         .cal-daynum.sun { color:#e03131; } .cal-daynum.sat { color:#1c7ed6; }
+        /* 대한민국 공휴일: 날짜 빨강 + 이름 라벨 (연월차·회사운영 달력 공용) */
+        .cal-holiday { font-size:10.5px; color:#e03131; font-weight:600; line-height:1.25; margin:-2px 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        @media (max-width:768px) { .cal-holiday { font-size:9px; } }
         .cal-chips { display:flex; flex-direction:column; gap:2px; }
         .cal-chip { font-size:11px; line-height:1.3; background:#e7f5ff; color:#1c7ed6; border-radius:4px; padding:1px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .cal-chip b { font-weight:700; }
@@ -12013,6 +12016,25 @@
             }
         }
 
+        // 대한민국 공휴일 (관공서의 공휴일에 관한 규정 기준, 대체공휴일 포함 — 연도 추가 시 아래에 이어서 등록)
+        // 2026: 설날 2/17(연휴 2/16~18), 삼일절 3/1(일)→3/2 대체, 부처님오신날 5/24(일)→5/25 대체,
+        //        6/3 전국동시지방선거, 광복절 8/15(토)→8/17 대체, 추석 9/25(연휴 9/24~26, 토 겹침은 대체 없음),
+        //        개천절 10/3(토)→10/5 대체. 제헌절(7/17)은 2008년부터 공휴일 아님, 근로자의날(5/1)은 관공서 공휴일 아님이라 미포함.
+        const CAL_KR_HOLIDAYS = {
+            '2026-01-01': '신정',
+            '2026-02-16': '설날 연휴', '2026-02-17': '설날', '2026-02-18': '설날 연휴',
+            '2026-03-01': '삼일절', '2026-03-02': '대체공휴일(삼일절)',
+            '2026-05-05': '어린이날',
+            '2026-05-24': '부처님오신날', '2026-05-25': '대체공휴일(부처님오신날)',
+            '2026-06-03': '전국동시지방선거', '2026-06-06': '현충일',
+            '2026-08-15': '광복절', '2026-08-17': '대체공휴일(광복절)',
+            '2026-09-24': '추석 연휴', '2026-09-25': '추석', '2026-09-26': '추석 연휴',
+            '2026-10-03': '개천절', '2026-10-05': '대체공휴일(개천절)',
+            '2026-10-09': '한글날',
+            '2026-12-25': '성탄절'
+        };
+        function calHolidayOf(dateKey) { return CAL_KR_HOLIDAYS[dateKey] || ''; }
+
         function renderCalendar() {
             const view = document.getElementById(calCfg().viewId);
             if (!view) return;
@@ -12044,8 +12066,10 @@
                 let chips = evs.slice(0, 3).map(ev =>
                     `<div class="cal-chip">${escapeCal(ev.title)}</div>`).join('');
                 if (evs.length > 3) chips += `<div class="cal-more">+${evs.length - 3}건</div>`;
+                const hol = calHolidayOf(dateKey);
                 html += `<div class="cal-cell ${dateKey === todayKey ? 'today' : ''}" onclick="openDayModal('${dateKey}')">
-                    <div class="cal-daynum ${dow === 0 ? 'sun' : ''} ${dow === 6 ? 'sat' : ''}">${day}</div>
+                    <div class="cal-daynum ${(dow === 0 || hol) ? 'sun' : ''} ${(dow === 6 && !hol) ? 'sat' : ''}">${day}</div>
+                    ${hol ? `<div class="cal-holiday" title="${escapeCal(hol)}">${escapeCal(hol)}</div>` : ''}
                     <div class="cal-chips">${chips}</div>
                 </div>`;
             }
@@ -12072,7 +12096,8 @@
             const canAdd = calCfg().canAdd(dayModalDate);          // 추가
             const evs = companyEvents.filter(e => e.date === dayModalDate)
                 .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-            document.getElementById('day-modal-title').textContent = `${dayModalDate} 일정`;
+            const dayHol = calHolidayOf(dayModalDate);
+            document.getElementById('day-modal-title').textContent = `${dayModalDate} 일정${dayHol ? ` · ${dayHol}` : ''}`;
             const list = document.getElementById('day-event-list');
             if (!evs.length) {
                 list.innerHTML = `<div class="day-empty">등록된 ${currentCalKind === 'leave' ? '연월차가' : '일정이'} 없습니다.</div>`;
