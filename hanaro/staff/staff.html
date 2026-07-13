@@ -2949,9 +2949,6 @@
             overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100000;';
             const box = document.createElement('div');
             box.style.cssText = 'background:#fff;border-radius:16px;padding:28px 32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
-            const icon = document.createElement('div');
-            icon.style.cssText = 'font-size:40px;line-height:1;margin-bottom:12px;';
-            icon.textContent = '✅';
             const msg = document.createElement('div');
             msg.style.cssText = 'font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:20px;';
             msg.textContent = message;
@@ -2963,7 +2960,7 @@
             btn.addEventListener('click', close);
             overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
             document.addEventListener('keydown', function esc(e){ if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
-            box.appendChild(icon); box.appendChild(msg); box.appendChild(btn);
+            box.appendChild(msg); box.appendChild(btn);
             overlay.appendChild(box);
             document.body.appendChild(overlay);
             btn.focus();
@@ -2979,10 +2976,7 @@
             overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100000;';
             const box = document.createElement('div');
             box.style.cssText = 'background:#fff;border-radius:16px;padding:28px 32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
-            const iconCh = opts.icon === '' ? '' : (opts.icon || '🗑️'); // icon:'' → 아이콘 없는 확인창(결재 등)
-            const icon = document.createElement('div');
-            icon.style.cssText = 'font-size:40px;line-height:1;margin-bottom:12px;';
-            icon.textContent = iconCh;
+            // 아이콘 표시 제거(사이트 공통 방침) — opts.icon은 하위 호환용으로 받기만 하고 무시
             const msg = document.createElement('div');
             msg.style.cssText = 'font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:22px;white-space:pre-line;';
             msg.textContent = message;
@@ -3009,7 +3003,6 @@
             overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(false); });
             document.addEventListener('keydown', onKey);
             btnRow.appendChild(cancelBtn); btnRow.appendChild(okBtn);
-            if (iconCh) box.appendChild(icon);
             box.appendChild(msg); box.appendChild(btnRow);
             overlay.appendChild(box);
             document.body.appendChild(overlay);
@@ -3034,9 +3027,6 @@
         // 화면 정중앙 알림 팝업 — 네이티브 alert 대체(전역 오버라이드). 내용에 따라 아이콘 자동 선택.
         function showStaffAlertPopup(message) {
             message = String(message == null ? '' : message);
-            let iconCh = 'ℹ️';
-            if (/완료|성공|되었습니다|저장됨|승인되었|복구되었|변경되었|등록되었|삭제되었/.test(message)) iconCh = '✅';
-            else if (/실패|오류|에러|error|권한|없습니다|불가|초과|주세요|않았|되지\s*않|선택해|입력해/i.test(message)) iconCh = '⚠️';
             const old = document.getElementById('staff-alert-popup');
             if (old) old.remove();
             const overlay = document.createElement('div');
@@ -3044,9 +3034,6 @@
             overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:100001;';
             const box = document.createElement('div');
             box.style.cssText = 'background:#fff;border-radius:16px;padding:28px 32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.25);';
-            const ic = document.createElement('div');
-            ic.style.cssText = 'font-size:40px;line-height:1;margin-bottom:12px;';
-            ic.textContent = iconCh;
             const msg = document.createElement('div');
             msg.style.cssText = 'font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:20px;white-space:pre-line;word-break:break-word;';
             msg.textContent = message;
@@ -3060,7 +3047,7 @@
             btn.addEventListener('click', close);
             overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
             document.addEventListener('keydown', onKey);
-            box.appendChild(ic); box.appendChild(msg); box.appendChild(btn);
+            box.appendChild(msg); box.appendChild(btn);
             overlay.appendChild(box);
             document.body.appendChild(overlay);
             btn.focus();
@@ -7860,9 +7847,9 @@
             }).join('');
         }
 
-        // 등록된 명세서 삭제 — 열람 불가 원칙 유지: 목록을 읽지 않고 대상+귀속월+회사 키만 update로 제거
-        // (Firestore update는 읽기 권한 불필요 → paySlips read=본인만 규칙 그대로. PDF 원본은 Storage에
-        //  남지만 링크가 제거되고 파일명이 무작위라 사실상 접근 불가; 필요 시 콘솔에서 정리)
+        // 등록된 명세서 삭제 — 먼저 인덱스(paySlipsIndex: 존재 여부만, 내용 없음)로 있는지 확인:
+        // 없으면 '없다' 안내, 있으면 확인 후 삭제. 명세서 본문(paySlips)은 여전히 본인만 읽기 가능(열람 불가 원칙 유지).
+        // 인덱스 도입 전 업로드분은 인덱스에 없을 수 있어 그 경우엔 '그래도 삭제 시도' 확인으로 진행.
         async function payDeleteSlip() {
             if (!hrCanManage()) { alert('인사기록 데이터관리자 권한이 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
@@ -7873,12 +7860,37 @@
             if (!/^\d{4}-\d{2}$/.test(ym)) { alert('귀속월을 선택하세요.'); return; }
             const emp = hrEmployees.find(e => e.uid === uid);
             const coLabel = (PAY_COMPANIES[coKey] || PAY_COMPANIES.hanaro).label;
-            if (!(await showStaffConfirm(`'${(emp && emp.name) || ''}' 임직원의 ${ym.replace('-', '년 ')}월 ${coLabel} 명세서를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))) return;
+            const who = (emp && emp.name) || '';
+            const key = ym + '_' + coKey;
+            const legacyKey = coKey === 'hanaro' ? ym : null;   // 회사 구분 도입 전 키
+            // 1) 존재 확인 (인덱스 조회 — 규칙 미게시/이전 업로드분이면 unknown으로 폴백)
+            let exists = null;   // true | false | null(확인 불가)
+            try {
+                const snap = await db.collection('paySlipsIndex').doc(uid).get();
+                if (snap.exists) {
+                    const m = snap.data().months || {};
+                    exists = !!(m[key] || (legacyKey && m[legacyKey]));
+                } else exists = false;
+            } catch (e) { console.warn('paySlipsIndex 조회 실패(확인 불가로 진행):', e); }
+            const label = `'${who}' 임직원의 ${ym.replace('-', '년 ')}월 ${coLabel} 명세서`;
+            if (exists === false) {
+                // 인덱스상 없음 — 다만 인덱스 도입 전 업로드분일 수 있어 하나로 구버전 키만 예외 확인
+                if (!(legacyKey && await showStaffConfirm(`${label}가 등록되어 있지 않습니다.\n(회사 구분 도입 전 업로드분일 수 있습니다 — 그래도 삭제를 시도할까요?)`, { confirmText: '삭제 시도' }))) {
+                    if (!legacyKey) alert(`${label}가 등록되어 있지 않습니다.`);
+                    return;
+                }
+            } else if (exists === true) {
+                if (!(await showStaffConfirm(`${label}가 등록되어 있습니다. 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))) return;
+            } else {
+                if (!(await showStaffConfirm(`등록 여부를 확인할 수 없습니다(인덱스 조회 실패).\n${label} 삭제를 시도할까요?`, { confirmText: '삭제 시도' }))) return;
+            }
+            // 2) 삭제 (본문 + 인덱스)
             const del = firebase.firestore.FieldValue.delete();
-            const updates = { ['months.' + ym + '_' + coKey]: del };
-            if (coKey === 'hanaro') updates['months.' + ym] = del;   // 구버전 키(회사 구분 없음)도 함께 제거
+            const updates = { ['months.' + key]: del };
+            if (legacyKey) updates['months.' + legacyKey] = del;
             try {
                 await db.collection('paySlips').doc(uid).update(updates);
+                try { await db.collection('paySlipsIndex').doc(uid).update(updates); } catch (ie) { /* 인덱스 없음 등은 무시 */ }
                 alert('명세서를 삭제했습니다.');
                 if (uid === hrMyUid()) await payRenderMyList();
             } catch (e) {
@@ -8078,6 +8090,12 @@
                         months: { [`${ym}_${coKey}`]: { url, payDate, name: payNorm(b.name), position: b.position || '',
                                           company: co.label, uploadedAt: new Date().toISOString(), uploadedBy } }
                     }, { merge: true });
+                    // 존재 확인용 인덱스(내용 없음) — 규칙 미게시 등으로 실패해도 명세서 업로드 자체는 유효
+                    try {
+                        await db.collection('paySlipsIndex').doc(b.uid).set({
+                            months: { [`${ym}_${coKey}`]: { company: co.label, payDate } }
+                        }, { merge: true });
+                    } catch (ie) { console.warn('paySlipsIndex 기록 실패(무시):', ie); }
                     ok++;
                     if (st) st.innerHTML = '<span class="hr-lv-badge ok">완료</span>';
                 } catch (e) {

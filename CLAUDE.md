@@ -101,7 +101,8 @@ New registrations are created with `status: 'pending'` and require admin approva
 | `inventory/{main\|YYYY-MM-DD\|_index}` | staff 재고현황: `main`=최신본, `YYYY-MM-DD`=날짜별 스냅샷, `_index.dates[]`=저장된 날짜 목록 | `permFor('inventory')` |
 | `deliverySchedule/{YYYY-MM-DD}` | staff 일정관리 | `permFor('schedule')` |
 | `hrRecords/{uid}` | staff 운영관리 인사관리(인사기록부) | read=본인(`isOwner`) or `hrManager()`; write=`hrManager()` = admin or **명시적 `hr` 권한만('all' 미포함**, 결재 권한과 동일 원칙; client는 `hrCanManage()`) — 'hr' 권한자는 `users` 컬렉션 read도 규칙에서 허용(대상 임직원 선택용) |
-| `paySlips/{uid}` | staff 운영관리 인사관리(급여지급명세서) | read=**본인만**(`isOwner` — 데이터관리자·관리자도 타인 열람 불가, 쓰기 전용 업로드); write=`hrManager()`. `months['YYYY-MM']={url,payDate,...}` — PDF는 Storage `pay-slips/`(read=false, 토큰 URL로만 열람) |
+| `paySlips/{uid}` | staff 운영관리 인사관리(급여지급명세서) | read=**본인만**(`isOwner` — 데이터관리자·관리자도 타인 열람 불가, 쓰기 전용 업로드); write=`hrManager()`. `months['YYYY-MM_회사키']={url,payDate,company,...}`(구버전 키 `YYYY-MM`=하나로) — PDF는 Storage `pay-slips/`(read=로그인, 파일명 무작위 토큰이라 경로 추측 불가) |
+| `paySlipsIndex/{uid}` | staff 급여명세 존재 인덱스 | read=본인 or `hrManager()`; write=`hrManager()`. 내용 없이 `months[key]={company,payDate}`만 — 데이터관리자의 삭제 전 존재 확인용(`payDeleteSlip`: 없으면 없다 안내, 있으면 확인 후 본문+인덱스 동시 삭제; 인덱스 도입 전 업로드분은 '삭제 시도' 확인 폴백) |
 | `companyCalendar/{id}` | staff 회사운영 캘린더(주요회사운영) | `permFor('company')` |
 | `leaveSchedule/{id}` | staff 직원게시판 **연월차일정** 캘린더 | read/create=`isEmployee()`; update/delete=`permFor('leaveSchedule')` or `permFor('leaveApprove')` |
 | `appConfig/{memberOrder\|asAssignees\|leaveApprovals}` | staff | `memberOrder`=admin; `asAssignees`(A/S 출동담당자 목록)=`permFor('asAssignee')`; `leaveApprovals`(연월차 월별 결재 `{months:{'YYYY-MM':{hq:{title,name,date},factory:{…}}}}`)=`permFor('leaveApprove')` or `permFor('leaveApproveFactory')` |
