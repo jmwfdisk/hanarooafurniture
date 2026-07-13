@@ -7003,7 +7003,7 @@
                       <option value="songin">송인산업</option>
                     </select>
                   </label>
-                  <label>귀속월<input type="month" id="pay-ym"></label>
+                  <label>귀속월<select id="pay-ym"></select></label>
                   <label>지급일<input type="date" id="pay-date"></label>
                 </div>
                 <input type="file" id="pay-excel-input" accept=".xlsx,.xls" style="display:none" onchange="payExcelPicked(event)">
@@ -7015,7 +7015,7 @@
                   <label>대상 임직원
                     <select id="pay-del-emp"><option value="">— 선택 —</option></select>
                   </label>
-                  <label>귀속월<input type="month" id="pay-del-ym"></label>
+                  <label>귀속월<select id="pay-del-ym"></select></label>
                   <label>회사
                     <select id="pay-del-company">
                       <option value="hanaro">하나로오에이퍼니처</option>
@@ -7819,9 +7819,37 @@
             if (isMgr) {
                 if (!hrEmployees.length) await hrReloadEmployees();
                 payFillDelSelect();
+                payFillYmSelects();
             }
             await payRenderMyList();
         }
+        // 귀속월 셀렉트 — <input type="month">는 Safari 미지원(일반 텍스트로 표시)이라 셀렉트로 대체.
+        // 범위: 다음 달 ~ 과거 36개월. 엑셀에서 인식한 귀속월이 범위 밖이면 옵션을 동적 추가.
+        function payFillYmSelects() {
+            const n = new Date();
+            const opts = ['<option value="">— 선택 —</option>'];
+            for (let i = 1; i >= -36; i--) {
+                const d = new Date(n.getFullYear(), n.getMonth() + i, 1);
+                const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                opts.push(`<option value="${ym}">${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월</option>`);
+            }
+            ['pay-ym', 'pay-del-ym'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                const cur = sel.value;
+                sel.innerHTML = opts.join('');
+                if (cur) paySetYm(sel, cur);
+            });
+        }
+        function paySetYm(sel, ym) {
+            if (!sel || !/^\d{4}-\d{2}$/.test(ym)) return;
+            if (![...sel.options].some(o => o.value === ym)) {
+                const [y, m] = ym.split('-');
+                sel.insertAdjacentHTML('beforeend', `<option value="${ym}">${y}년 ${m}월</option>`);
+            }
+            sel.value = ym;
+        }
+
         function payFillDelSelect() {
             const sel = document.getElementById('pay-del-emp');
             if (!sel) return;
@@ -7937,7 +7965,7 @@
                 payBlocks.push({ name, position, org, joinDate, items, totals, net, uid: payMatchUid(name, position) });
             });
             if (!payBlocks.length) { alert('엑셀에서 임직원 블록(소속/성명 행)을 찾지 못했습니다.\n양식을 확인해 주세요.'); return; }
-            const ymInp = document.getElementById('pay-ym'); if (ymInp) ymInp.value = ym;
+            const ymInp = document.getElementById('pay-ym'); if (ymInp) paySetYm(ymInp, ym);
             const pdInp = document.getElementById('pay-date'); if (pdInp) pdInp.value = payDate;
             // 회사 자동 인식: 블록 소속에 '송인'이 있으면 송인산업, 아니면 하나로 (수동 변경 가능)
             const coSel = document.getElementById('pay-company');
