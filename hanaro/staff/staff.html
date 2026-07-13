@@ -7142,7 +7142,8 @@
         .ops-hr-stat .num.blue { color:#3b82f6; }
         .ops-hr-stat .lbl { display:block; margin-top:4px; font-size:12.5px; color:#8a929c; }
         .ops-hr-lock { border:1px solid #fde2b3; background:#fff8ec; color:#8a5a00; border-radius:10px; padding:12px 14px; font-size:13px; }
-        .ops-hr-body > .ops-hr-lock { max-width:820px; margin-bottom:18px; }
+        /* box-sizing 통일 — 섹션(.ops-hr-sec max-width:820px) 안의 알림박스와 총폭이 같아지도록 (content-box면 패딩·테두리만큼 더 넓어짐) */
+        .ops-hr-body > .ops-hr-lock { max-width:820px; box-sizing:border-box; margin-bottom:18px; }
         @media (max-width: 768px) {
             .ops-hr-seg { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding:12px 14px 0; }
             .ops-hr-seg::-webkit-scrollbar { display:none; }
