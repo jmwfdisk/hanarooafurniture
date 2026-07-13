@@ -13,12 +13,17 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // 임직원 확인 함수
+    // 임직원 확인 함수 — 관리자 승인(approved) 완료된 임직원만 (2026-07-13 보안 강화)
+    // 이전에는 status 미확인이라 가입 직후 'pending' 계정도 임직원 데이터
+    // (직원게시판·납품일정 PII·자재·재고 등)를 SDK로 읽을 수 있었음.
+    // status 필드가 아예 없는 구버전 문서는 승인된 것으로 간주(grandfathering) —
+    // 가입(create) 규칙이 신규 문서에 status='pending'을 강제하므로 이 예외는 공격 경로가 아님.
     function isEmployee() {
-      return request.auth != null && 
+      return request.auth != null &&
         request.auth.uid != null &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'employee' ||
+        ((get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'employee' &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', 'approved') == 'approved') ||
          isAdmin());
     }
     
@@ -47,21 +52,23 @@ service cloud.firestore {
     }
 
     // 특정 영역 작성·관리 권한 (관리자/전체 포함)
+    // 승인된 임직원이어야 권한이 유효 (2026-07-13: 이전엔 인증만 확인 — 미승인 계정이
+    // 자기 문서에 permissions를 넣어 가입하면 권한 영역 쓰기가 뚫리던 경로의 이중 방어)
     function permFor(area) {
       return isAdmin() ||
-        (isAuthenticated() && (userPerms().get('all', false) == true || userPerms().get(area, false) == true));
+        (isEmployee() && (userPerms().get('all', false) == true || userPerms().get(area, false) == true));
     }
 
-    // 인사기록 데이터관리자: 관리자 또는 명시적 'hr' 권한 부여자만
+    // 인사기록 데이터관리자: 관리자 또는 명시적 'hr' 권한 부여자만 — 승인된 임직원이어야 유효
     // ('전체(all)' 권한으로는 불가 — 민감 인사정보라 결재 권한과 동일 원칙)
     function hrManager() {
-      return isAdmin() || (isAuthenticated() && userPerms().get('hr', false) == true);
+      return isAdmin() || (isEmployee() && userPerms().get('hr', false) == true);
     }
 
     // 급여명세 관리자: 인사기록 데이터관리자 + 명시적 'pay'(급여명세 업로드) 권한 부여자
     // ('전체(all)' 권한으로는 불가 — 명세서 열람은 여전히 본인만, 이 권한은 업로드·삭제 전용)
     function payManager() {
-      return hrManager() || (isAuthenticated() && userPerms().get('pay', false) == true);
+      return hrManager() || (isEmployee() && userPerms().get('pay', false) == true);
     }
 
     // ========== 사용자 정보 (users) ==========
@@ -104,7 +111,14 @@ service cloud.firestore {
         request.resource.data.status is string &&
         // 선택적 필드 검증
         (!('phone' in request.resource.data) || request.resource.data.phone is string) &&
-        (!('userType' in request.resource.data) || request.resource.data.userType is string);
+        // userType은 general/employee만 허용 (임의 문자열 차단 — 2026-07-13 보안 강화)
+        (!('userType' in request.resource.data) || request.resource.data.userType in ['general', 'employee']) &&
+        // 가입 시 자기 부여 금지 필드 (2026-07-13 보안 강화):
+        // permissions(권한 맵 자기 부여 → permFor 권한상승 차단), scheduleEditor(레거시 일정 권한),
+        // empGroup(본사 구분 — 빈 값만 허용, 'hq' 승격은 관리자 전용)
+        !('permissions' in request.resource.data) &&
+        !('scheduleEditor' in request.resource.data) &&
+        (!('empGroup' in request.resource.data) || request.resource.data.empGroup == '');
       
       // 수정: 본인 또는 관리자만 가능
       // 주의: uid/username 보호는 affectedKeys() 방식으로 검사한다.
