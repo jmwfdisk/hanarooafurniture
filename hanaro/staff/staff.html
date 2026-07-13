@@ -11855,7 +11855,7 @@
             <input type="date" id="schedule-date" class="schedule-date" onchange="scheduleDatePicked()" title="기준일 선택">
             <button class="schedule-nav-btn" onclick="scheduleGoNext()" title="다음에 저장된 일정">다음 ▶</button>
             <button id="schedule-date-del" class="schedule-nav-btn schedule-date-del" onclick="deleteScheduleDate()" title="현재 보고 있는 저장된 일정 삭제" style="display:none;">🗑 삭제</button>
-            <span id="schedule-date-label" class="schedule-date-label"></span>
+            <span id="schedule-date-label" class="schedule-date-label" onclick="toggleSchedDateMenu(event)" title="저장된 일정 날짜 목록 보기"></span>
           </div>
           <button class="schedule-close" onclick="closeScheduleModal()">닫기</button>
         </header>
@@ -11915,7 +11915,15 @@
         .schedule-date-del { background:rgba(229,72,77,.85); border-color:rgba(229,72,77,.6); }
         .schedule-date-del:hover { background:rgba(229,72,77,1); }
         .schedule-date { padding:5px 8px; border:1px solid #d5d9e0; border-radius:6px; font-size:13px; }
-        .schedule-date-label { font-size:12px; opacity:.85; white-space:nowrap; }
+        .schedule-date-label { font-size:12px; white-space:nowrap; cursor:pointer; user-select:none; display:inline-flex; align-items:center; gap:5px; padding:6px 10px; border:1px solid rgba(255,255,255,.35); border-radius:6px; background:rgba(255,255,255,.15); }
+        .schedule-date-label::after { content:'▾'; font-size:10px; opacity:.8; }
+        .schedule-date-label:hover { background:rgba(255,255,255,.3); }
+        /* 저장된 일정 날짜 드롭다운 — 모바일 헤더가 가로 스크롤 스트립이라 body 포털 + fixed 좌표(footer-bar 패턴) */
+        .sched-date-menu { position:fixed; z-index:4100; background:#fff; border:1px solid #d5d9e0; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:4px; min-width:190px; max-height:min(420px, 60vh); overflow:auto; }
+        .sched-date-menu-head { font-size:12px; color:#888; padding:6px 12px 4px; white-space:nowrap; }
+        .sched-date-item { display:block; width:100%; text-align:left; border:none; background:transparent; padding:8px 12px; font-size:13px; cursor:pointer; border-radius:6px; color:#333; white-space:nowrap; }
+        .sched-date-item:hover { background:#f0f4ff; color:#2563eb; }
+        .sched-date-item.current { font-weight:700; color:#2563eb; background:#f0f4ff; }
         .schedule-close { background:rgba(255,255,255,.2); border:none; color:#fff; width:auto; height:auto; border-radius:999px; font-size:14px; font-weight:600; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; padding:8px 18px; white-space:nowrap; }
         .schedule-close:hover { background:rgba(255,255,255,.35); }
         .schedule-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px 16px; border-bottom:1px solid #e5e7eb; background:#f7f8fa; }
@@ -12086,6 +12094,7 @@
         }
 
         function closeScheduleModal() {
+            if (typeof closeSchedDateMenu === 'function') closeSchedDateMenu();
             document.getElementById('schedule-modal').style.display = 'none';
             document.body.style.overflow = '';
         }
@@ -12164,6 +12173,53 @@
         function scheduleDatePicked() {
             const v = document.getElementById('schedule-date').value;
             if (v) loadScheduleForDate(v);
+        }
+
+        // ===== 저장된 일정 날짜 드롭다운 =====
+        // 헤더 라벨 클릭 → 저장된 날짜 목록(최신순)을 body 포털 fixed 메뉴로 표시, 선택 시 해당 일정 로드
+        let schedDateMenuEl = null;
+        function schedWeekday(d){ try { return ['일','월','화','수','목','금','토'][new Date(d + 'T00:00:00').getDay()] || ''; } catch(e){ return ''; } }
+        function toggleSchedDateMenu(e) {
+            e.stopPropagation();
+            if (schedDateMenuEl) { closeSchedDateMenu(); return; }
+            if (!scheduleDates.length) { alert('저장된 일정이 없습니다.'); return; }
+            const menu = document.createElement('div');
+            menu.className = 'sched-date-menu';
+            // 날짜 키는 loadScheduleDates에서 YYYY-MM-DD 정규식 검증됨 → onclick 문자열 삽입 안전
+            menu.innerHTML = `<div class="sched-date-menu-head">저장된 일정 ${scheduleDates.length}건</div>` +
+                scheduleDates.slice().reverse().map(d => {
+                    const cur = d === scheduleCurrentDate;
+                    const wd = schedWeekday(d);
+                    return `<button type="button" class="sched-date-item${cur ? ' current' : ''}" onclick="schedDateMenuPick('${d}')">${d.replace(/-/g, '. ')}.${wd ? ` (${wd})` : ''}${cur ? ' ✓' : ''}</button>`;
+                }).join('');
+            document.body.appendChild(menu);
+            // 라벨 아래 기준으로 위치 계산(뷰포트 클램프, 아래 공간 없으면 위로)
+            const r = e.currentTarget.getBoundingClientRect();
+            const mw = menu.offsetWidth, mh = menu.offsetHeight;
+            let left = Math.min(Math.max(8, r.left), window.innerWidth - mw - 8);
+            let top = r.bottom + 6;
+            if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+            schedDateMenuEl = menu;
+            const curItem = menu.querySelector('.sched-date-item.current');
+            if (curItem) curItem.scrollIntoView({ block: 'nearest' });
+            setTimeout(() => document.addEventListener('click', schedDateMenuOutside), 0);
+            window.addEventListener('scroll', closeSchedDateMenu, true);
+        }
+        function schedDateMenuOutside(e) {
+            if (schedDateMenuEl && !schedDateMenuEl.contains(e.target)) closeSchedDateMenu();
+        }
+        function closeSchedDateMenu() {
+            if (!schedDateMenuEl) return;
+            schedDateMenuEl.remove();
+            schedDateMenuEl = null;
+            document.removeEventListener('click', schedDateMenuOutside);
+            window.removeEventListener('scroll', closeSchedDateMenu, true);
+        }
+        function schedDateMenuPick(dateKey) {
+            closeSchedDateMenu();
+            if (dateKey && dateKey !== scheduleCurrentDate) loadScheduleForDate(dateKey);
         }
         // 현재 보고 있는 저장된 일정(날짜 문서) 삭제
         async function deleteScheduleDate() {
