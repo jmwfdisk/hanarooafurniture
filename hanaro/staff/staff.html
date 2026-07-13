@@ -7537,15 +7537,15 @@
             hrLeaveUid = (sel && sel.value) || null;
             hrLeaveLoadAndRender();
         }
-        // 조회 대상 (이름은 연월차 문서 author/createdBy 매칭에, group은 결재 도장 판정에 사용)
+        // 조회 대상 (직책+이름은 연월차 문서 author/createdBy 매칭에, group은 결재 도장 판정에 사용)
         function hrLeaveTarget() {
             if (hrLeaveUid) {
                 const e = hrEmployees.find(x => x.uid === hrLeaveUid);
-                return e ? { uid: e.uid, name: (e.name || '').trim(), group: e.empGroup === 'hq' ? 'hq' : 'factory' } : null;
+                return e ? { uid: e.uid, name: (e.name || '').trim(), position: (e.position || '').trim(), group: e.empGroup === 'hq' ? 'hq' : 'factory' } : null;
             }
             let u = {};
             try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
-            return { uid: hrMyUid(), name: (u.name || u.username || '').trim(), group: u.empGroup === 'hq' ? 'hq' : 'factory' };
+            return { uid: hrMyUid(), name: (u.name || u.username || '').trim(), position: (u.position || '').trim(), group: u.empGroup === 'hq' ? 'hq' : 'factory' };
         }
         // 근로기준법 제60조: 1년 미만=개근 월 1일(최대 11일), 1년 이상=15일, 3년 이상=최초 1년 초과 2년마다 +1일(총 25일 한도)
         function hrLeaveEntitlement(joinDate, todayKey) {
@@ -7589,12 +7589,21 @@
             if (group === 'hq' && e.name) return e;   // legacy flat = hq
             return null;
         }
-        // 연월차 문서가 대상 임직원 것인지 — author('직급 이름') 또는 createdBy(이름) 매칭
-        function hrLeaveIsOwn(ev, name) {
-            if (!name) return false;
-            if ((ev.createdBy || '').trim() === name) return true;
-            const a = (typeof leaveInfoOf === 'function') ? (leaveInfoOf(ev).author || '') : (ev.author || '');
-            return a === name || a.endsWith(' ' + name);
+        // 연월차 문서가 대상 임직원 것인지 — 관리자가 대리 등록한 '과장 강연미' 같은 작성자 표기(직책+이름)를 보고 매칭.
+        // 우선순위: ① '직책 이름' 정확 일치(공백 차이 흡수: '과장강연미'도 인정) ② 이름 단독 일치
+        //           ③ 작성자 마지막 어절 = 이름(직책 표기가 승진 전 것이어도 매칭) ④ 등록자(createdBy) = 이름(본인 직접 등록)
+        function hrLeaveIsOwn(ev, name, position) {
+            const norm = s => String(s || '').replace(/\s+/g, ' ').trim();
+            const n = norm(name);
+            if (!n) return false;
+            if (norm(ev.createdBy) === n) return true;
+            const a = norm((typeof leaveInfoOf === 'function') ? leaveInfoOf(ev).author : ev.author);
+            if (!a) return false;
+            if (a === n) return true;
+            const pos = norm(position);
+            if (pos && (a === pos + ' ' + n || a.replace(/\s/g, '') === (pos + n).replace(/\s/g, ''))) return true;
+            const toks = a.split(' ');
+            return toks[toks.length - 1] === n;
         }
         function hrLeaveFmtRange(s, e) { return hrFmtDate(s) + (e && e !== s ? ' ~ ' + hrFmtDate(e) : ''); }
 
@@ -7620,7 +7629,7 @@
                     db.collection('leaveSchedule').where('date', '>=', win.start).where('date', '<=', win.end).get(),
                     db.collection('appConfig').doc('leaveApprovals').get()
                 ]);
-                ls.forEach(d => { const ev = d.data(); if (hrLeaveIsOwn(ev, t.name)) evs.push(ev); });
+                ls.forEach(d => { const ev = d.data(); if (hrLeaveIsOwn(ev, t.name, t.position)) evs.push(ev); });
                 months = (ap.exists && (ap.data().months || {})) || {};
             } catch (e) {
                 console.error('연월차 현황 로드 실패:', e);
