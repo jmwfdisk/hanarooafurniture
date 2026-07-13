@@ -6931,7 +6931,7 @@
         <div id="ops-hr-panel" class="ops-hr-panel" style="display:none;">
           <header class="ops-hr-header">
             <h2>인사관리</h2>
-            <span class="ops-hr-mock-badge">목업 · 준비 중</span>
+            <span class="ops-hr-mock-badge">재직증명서·급여명세서 준비 중</span>
           </header>
           <div class="ops-hr-seg">
             <button type="button" class="ops-hr-seg-btn active" data-hrseg="record" onclick="opsHrSelect('record')">인사기록부</button>
@@ -6978,23 +6978,17 @@
                 </table>
               </div>
             </section>
-            <!-- 3) 연월차일정관리 -->
+            <!-- 3) 연월차일정관리 — 실제 기능: 직원게시판 연월차일정(leaveSchedule) 실시간 집계 + 근로기준법 제60조 연차 산정 -->
             <section id="ops-hr-leave" class="ops-hr-sec" style="display:none;">
-              <div class="ops-hr-stats">
-                <div class="ops-hr-stat"><span class="num">15일</span><span class="lbl">총 연차</span></div>
-                <div class="ops-hr-stat"><span class="num">3.5일</span><span class="lbl">사용</span></div>
-                <div class="ops-hr-stat"><span class="num blue">11.5일</span><span class="lbl">잔여</span></div>
+              <div id="ops-hr-leave-manager" class="ops-hr-card" style="display:none;">
+                <h4>연월차 현황 조회 <span class="ops-hr-badge mgr">데이터관리자</span></h4>
+                <div class="ops-hr-form">
+                  <label>대상 임직원
+                    <select id="hr-leave-emp-select" onchange="hrLeaveManagerPick()"><option value="">본인</option></select>
+                  </label>
+                </div>
               </div>
-              <div class="ops-hr-card">
-                <h4>사용 내역</h4>
-                <table class="ops-hr-table ops-hr-list">
-                  <tr><th>기간</th><th>종류</th><th>일수</th><th>비고</th></tr>
-                  <tr><td>2026. 05. 07.</td><td>연차</td><td>1일</td><td>-</td></tr>
-                  <tr><td>2026. 06. 19.</td><td>반차</td><td>0.5일</td><td>오후</td></tr>
-                  <tr><td>2026. 07. 08. ~ 07. 09.</td><td>연차</td><td>2일</td><td>-</td></tr>
-                </table>
-                <p class="ops-hr-note">※ 직원게시판 연월차일정 캘린더와 연동될 예정입니다.</p>
-              </div>
+              <div id="ops-hr-leave-body"></div>
             </section>
             <!-- 4) 급여지급명세서 — 임직원 개인만 열람 -->
             <section id="ops-hr-pay" class="ops-hr-sec" style="display:none;">
@@ -7071,6 +7065,11 @@
         .ops-hr-danger { padding:9px 18px; border:1px solid #f3c1c1; border-radius:6px; background:#fdecec; color:#c62828; font-size:13.5px; font-weight:600; cursor:pointer; }
         .ops-hr-danger:hover { background:#f9d4d4; }
         .hr-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; max-width:820px; }
+        .hr-lv-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap; }
+        .hr-lv-badge.ok { background:#e8f5ec; color:#2e9e54; }
+        .hr-lv-badge.wait { background:#fff3e0; color:#b26a00; }
+        .hr-lv-badge.part { background:#e8f0fe; color:#2563eb; }
+        .hr-lv-badge.etc { background:#f1f3f5; color:#68707a; }
         .ops-hr-stats { display:flex; gap:12px; flex-wrap:wrap; }
         .ops-hr-stat { flex:1; min-width:120px; border:1px solid #e5e7eb; border-radius:10px; padding:14px; text-align:center; background:#f9fafb; }
         .ops-hr-stat .num { display:block; font-size:22px; font-weight:700; color:#333; }
@@ -7185,6 +7184,7 @@
                 if (el) el.style.display = (k === seg) ? 'flex' : 'none';
             });
             if (seg === 'record') hrOpenRecord();
+            if (seg === 'leave') hrOpenLeave();
         }
         function opsHrMock() {
             alert('목업 화면입니다. 실제 기능은 준비 중입니다.');
@@ -7241,7 +7241,7 @@
                 hrEmployees = [];
                 snap.forEach(d => {
                     const x = d.data() || {};
-                    if ((x.status || '') === 'approved') hrEmployees.push({ uid: d.id, name: x.name || '', position: x.position || '', org: x.org || '' });
+                    if ((x.status || '') === 'approved') hrEmployees.push({ uid: d.id, name: x.name || '', position: x.position || '', org: x.org || '', empGroup: x.empGroup || '' });
                 });
                 hrEmployees.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
                 const rs = await db.collection('hrRecords').get();
@@ -7423,6 +7423,192 @@
                 console.error('인사기록 삭제 실패:', e);
                 alert('삭제에 실패했습니다.\n' + (e.message || ''));
             }
+        }
+
+        // ===== 연월차일정관리 =====
+        // 직원게시판 연월차일정(leaveSchedule) 캘린더와 실시간 연동, 발생 연차는 근로기준법 제60조 기준 산정.
+        // 사용 일수 반영은 해당 월의 관리자 결재 서명(appConfig/leaveApprovals — 본사 hq / 공장 factory 도장) 이후에만.
+        // 열람: 임직원=본인 것만, 데이터관리자(hrCanManage)=대상 임직원 선택 조회.
+        let hrLeaveUid = null;   // null = 본인
+
+        async function hrOpenLeave() {
+            if (!db && typeof initStaffDB === 'function') initStaffDB();
+            const mgrCard = document.getElementById('ops-hr-leave-manager');
+            const isMgr = hrCanManage();
+            if (mgrCard) mgrCard.style.display = isMgr ? '' : 'none';
+            if (isMgr) {
+                if (!hrEmployees.length) await hrReloadEmployees();
+                hrLeaveFillSelect();
+            } else hrLeaveUid = null;
+            await hrLeaveLoadAndRender();
+        }
+        function hrLeaveFillSelect() {
+            const sel = document.getElementById('hr-leave-emp-select');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">본인</option>' + hrEmployees.map(e => {
+                const extra = [e.position, e.org].filter(Boolean).join(' · ');
+                return `<option value="${schedEscAttr(e.uid)}"${e.uid === hrLeaveUid ? ' selected' : ''}>${schedEsc(e.name || '(이름없음)')}${extra ? ` (${schedEsc(extra)})` : ''}</option>`;
+            }).join('');
+        }
+        function hrLeaveManagerPick() {
+            const sel = document.getElementById('hr-leave-emp-select');
+            hrLeaveUid = (sel && sel.value) || null;
+            hrLeaveLoadAndRender();
+        }
+        // 조회 대상 (이름은 연월차 문서 author/createdBy 매칭에, group은 결재 도장 판정에 사용)
+        function hrLeaveTarget() {
+            if (hrLeaveUid) {
+                const e = hrEmployees.find(x => x.uid === hrLeaveUid);
+                return e ? { uid: e.uid, name: (e.name || '').trim(), group: e.empGroup === 'hq' ? 'hq' : 'factory' } : null;
+            }
+            let u = {};
+            try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+            return { uid: hrMyUid(), name: (u.name || u.username || '').trim(), group: u.empGroup === 'hq' ? 'hq' : 'factory' };
+        }
+        // 근로기준법 제60조: 1년 미만=개근 월 1일(최대 11일), 1년 이상=15일, 3년 이상=최초 1년 초과 2년마다 +1일(총 25일 한도)
+        function hrLeaveEntitlement(joinDate, todayKey) {
+            if (!joinDate) return null;
+            const jd = new Date(joinDate + 'T00:00:00'), td = new Date(todayKey + 'T00:00:00');
+            if (isNaN(jd) || jd > td) return null;
+            let years = td.getFullYear() - jd.getFullYear();
+            const annivThisYear = new Date(td.getFullYear(), jd.getMonth(), jd.getDate());
+            if (annivThisYear > td) years--;
+            if (years < 1) {
+                let months = (td.getFullYear() - jd.getFullYear()) * 12 + (td.getMonth() - jd.getMonth());
+                if (td.getDate() < jd.getDate()) months--;
+                months = Math.max(0, months);
+                return { days: Math.min(months, 11), years: 0, months,
+                         rule: `근속 1년 미만: 1개월 개근 시 1일씩 발생, 최대 11일 (제60조 제2항 — 개근 가정, 현재 ${months}개월 경과)` };
+            }
+            const days = Math.min(15 + Math.floor((years - 1) / 2), 25);
+            return { days, years,
+                     rule: `근속 만 ${years}년: 기본 15일${days > 15 ? ` + 가산 ${days - 15}일(3년 이상 매 2년당 1일, 총 25일 한도 — 제60조 제4항)` : ' (제60조 제1항)'} — 출근율 80% 이상 가정` };
+        }
+        // 연차 산정 기간: 입사기념일 기준 1년 (1년 미만은 입사일부터, 입사일 미등록은 당해 회계연도)
+        function hrLeaveWindow(joinDate, todayKey) {
+            const p = x => String(x).padStart(2, '0');
+            const fmt = d => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+            if (!joinDate) {
+                const y = todayKey.slice(0, 4);
+                return { start: y + '-01-01', end: y + '-12-31', label: '당해 연도 (입사일 미등록)' };
+            }
+            const jd = new Date(joinDate + 'T00:00:00'), td = new Date(todayKey + 'T00:00:00');
+            let anniv = new Date(td.getFullYear(), jd.getMonth(), jd.getDate());
+            if (anniv > td) anniv = new Date(td.getFullYear() - 1, jd.getMonth(), jd.getDate());
+            if (anniv < jd) anniv = jd;   // 근속 1년 미만
+            const end = new Date(anniv.getFullYear() + 1, anniv.getMonth(), anniv.getDate() - 1);
+            return { start: fmt(anniv), end: fmt(end), label: '입사기념일 기준' };
+        }
+        // 해당 월(YYYY-MM)에 대상 그룹의 결재 도장이 있는지 (구버전 flat 도장은 본사(hq)로 해석 — leaveStampsOf와 동일 규칙)
+        function hrLeaveStampOf(months, ym, group) {
+            const e = months && months[ym];
+            if (!e) return null;
+            if (e[group]) return e[group];
+            if (group === 'hq' && e.name) return e;   // legacy flat = hq
+            return null;
+        }
+        // 연월차 문서가 대상 임직원 것인지 — author('직급 이름') 또는 createdBy(이름) 매칭
+        function hrLeaveIsOwn(ev, name) {
+            if (!name) return false;
+            if ((ev.createdBy || '').trim() === name) return true;
+            const a = (typeof leaveInfoOf === 'function') ? (leaveInfoOf(ev).author || '') : (ev.author || '');
+            return a === name || a.endsWith(' ' + name);
+        }
+        function hrLeaveFmtRange(s, e) { return hrFmtDate(s) + (e && e !== s ? ' ~ ' + hrFmtDate(e) : ''); }
+
+        async function hrLeaveLoadAndRender() {
+            const body = document.getElementById('ops-hr-leave-body');
+            if (!body) return;
+            body.innerHTML = hrMsgCard('연월차 현황을 불러오는 중…');
+            const t = hrLeaveTarget();
+            if (!t || !t.uid) { body.innerHTML = hrMsgCard('로그인 정보를 확인할 수 없습니다.'); return; }
+            const today = scheduleTodayKey();
+            // 입사일: 인사기록부(hrRecords)에서 — 본인/데이터관리자 읽기 허용 범위 내
+            let joinDate = null;
+            try {
+                const snap = await db.collection('hrRecords').doc(t.uid).get();
+                if (snap.exists) joinDate = (snap.data().joinDate || '') || null;
+            } catch (e) { /* 기록 없음/권한 — 아래에서 안내 */ }
+            const win = hrLeaveWindow(joinDate, today);
+            const ent = hrLeaveEntitlement(joinDate, today);
+            // 연월차일정 + 월별 결재 도장 로드
+            let evs = [], months = {};
+            try {
+                const [ls, ap] = await Promise.all([
+                    db.collection('leaveSchedule').where('date', '>=', win.start).where('date', '<=', win.end).get(),
+                    db.collection('appConfig').doc('leaveApprovals').get()
+                ]);
+                ls.forEach(d => { const ev = d.data(); if (hrLeaveIsOwn(ev, t.name)) evs.push(ev); });
+                months = (ap.exists && (ap.data().months || {})) || {};
+            } catch (e) {
+                console.error('연월차 현황 로드 실패:', e);
+                body.innerHTML = hrMsgCard('연월차 현황을 불러오지 못했습니다.<br>' + schedEsc(e.message || ''));
+                return;
+            }
+            // 문서 → 내역 행 (기간 등록은 groupId로 묶어 1행, 일수=일자 문서 수; 결재는 일자별 월 도장 판정)
+            const rows = [], groups = {};
+            const apprOf = dateKey => !!hrLeaveStampOf(months, dateKey.slice(0, 7), t.group);
+            evs.forEach(ev => {
+                const info = leaveInfoOf(ev);
+                if (ev.periodStart && ev.periodEnd && ev.periodStart !== ev.periodEnd) {
+                    const k = ev.groupId || (ev.periodStart + '|' + ev.periodEnd + '|' + info.author);
+                    const g = groups[k] = groups[k] || { start: ev.periodStart, end: ev.periodEnd, type: info.type, days: 0, apprDays: 0 };
+                    g.days++;
+                    if (apprOf(ev.date)) g.apprDays++;
+                } else {
+                    const d = parseFloat(info.days) || 1;
+                    rows.push({ start: ev.date, end: null, type: info.type, days: d, apprDays: apprOf(ev.date) ? d : 0 });
+                }
+            });
+            Object.values(groups).forEach(g => rows.push(g));
+            rows.sort((a, b) => (a.start < b.start ? -1 : 1));
+            // 집계: 연차·휴가만 연차 사용으로 차감, 병가·경조사·기타는 별도(비차감)
+            const DEDUCT = ['연차', '휴가'];
+            let used = 0, pending = 0, etcDays = 0;
+            rows.forEach(r => {
+                if (DEDUCT.includes(r.type)) { used += r.apprDays; pending += (r.days - r.apprDays); }
+                else etcDays += r.days;
+            });
+            const esc = schedEsc;
+            const fmtN = n => (Math.round(n * 10) / 10).toLocaleString();
+            const apprBadge = r => {
+                if (!DEDUCT.includes(r.type)) return '<span class="hr-lv-badge etc">비차감</span>';
+                if (r.apprDays >= r.days) return '<span class="hr-lv-badge ok">반영됨</span>';
+                if (r.apprDays > 0) return `<span class="hr-lv-badge part">일부 반영(${fmtN(r.apprDays)}일)</span>`;
+                return '<span class="hr-lv-badge wait">결재 대기</span>';
+            };
+            const histRows = rows.map(r =>
+                `<tr><td>${hrLeaveFmtRange(r.start, r.end)}</td><td>${esc(r.type)}</td><td>${fmtN(r.days)}일</td><td>${apprBadge(r)}</td></tr>`).join('');
+            body.innerHTML = `
+                <div class="ops-hr-card">
+                  <h4>기준 정보${t.uid !== hrMyUid() ? ` — ${esc(t.name)}` : ''}</h4>
+                  <table class="ops-hr-table">
+                    <tr><th>입사일</th><td>${joinDate ? hrFmtDate(joinDate) : '<b style="color:#c62828">미등록</b> (인사기록부에 입사일을 등록하세요)'}</td>
+                        <th>산정 기간</th><td>${hrFmtDate(win.start)} ~ ${hrFmtDate(win.end)}${win.label ? ` <small>(${esc(win.label)})</small>` : ''}</td></tr>
+                    <tr><th>결재 그룹</th><td>${t.group === 'hq' ? '본사관리자' : '공장관리자'} 서명 기준</td>
+                        <th>근속</th><td>${ent ? (ent.years >= 1 ? `만 ${ent.years}년` : `${ent.months}개월`) : '-'}</td></tr>
+                  </table>
+                </div>
+                <div class="ops-hr-stats">
+                  <div class="ops-hr-stat"><span class="num">${ent ? fmtN(ent.days) + '일' : '-'}</span><span class="lbl">발생 연차 (근로기준법)</span></div>
+                  <div class="ops-hr-stat"><span class="num">${fmtN(used)}일</span><span class="lbl">사용 (결재 반영)</span></div>
+                  <div class="ops-hr-stat"><span class="num" style="color:#b26a00">${fmtN(pending)}일</span><span class="lbl">결재 대기 (미반영)</span></div>
+                  <div class="ops-hr-stat"><span class="num blue">${ent ? fmtN(ent.days - used) + '일' : '-'}</span><span class="lbl">잔여 연차</span></div>
+                </div>
+                <div class="ops-hr-card">
+                  <h4>사용 내역 <small style="font-weight:400;color:#8a929c">(연월차일정 캘린더 실시간 연동)</small></h4>
+                  ${histRows ? `<table class="ops-hr-table ops-hr-list"><tr><th>기간</th><th>종류</th><th>일수</th><th>결재 상태</th></tr>${histRows}</table>` : '<p class="ops-hr-note">산정 기간 내 등록된 연월차 일정이 없습니다.</p>'}
+                  <button type="button" class="ops-hr-mini" style="margin-top:10px" onclick="hrGoLeaveCalendar()">📅 연월차일정 캘린더 열기</button>
+                  <p class="ops-hr-note">
+                    ※ 발생 연차: ${ent ? esc(ent.rule) : '입사일 미등록으로 산정 불가 — 인사기록부에 입사일 등록 필요'}<br>
+                    ※ 사용 일수는 해당 월의 관리자(본사/공장) 결재 서명 완료 후에만 반영되며, 미서명 달은 '결재 대기'로 표시됩니다.<br>
+                    ※ 연차·휴가는 연차에서 차감, 병가·경조사·기타는 차감하지 않습니다. 반차는 0.5일로 계산합니다.
+                  </p>
+                </div>`;
+        }
+        function hrGoLeaveCalendar() {
+            closeOpsModal();
+            try { switchBoard('staff-leave'); } catch (e) { console.error(e); }
         }
     </script>
 
