@@ -352,7 +352,7 @@ service cloud.firestore {
     // ========== 급여지급명세서 (paySlips) ==========
     // 구조: paySlips/{uid} = { months: { 'YYYY-MM': { url, payDate, name, position, uploadedAt, uploadedBy } } }
     // 열람 = 본인만 (데이터관리자·관리자 포함 타인 열람 불가 — 쓰기 전용 업로드)
-    // 작성·갱신 = 인사기록 데이터관리자(관리자/명시적 'hr' 권한)
+    // 작성·갱신 = 급여명세 관리자 payManager() = 관리자 / 명시적 'hr' / 명시적 'pay'(급여명세 업로드)
     match /paySlips/{userId} {
       allow read: if isOwner(userId);
       allow write: if payManager();
