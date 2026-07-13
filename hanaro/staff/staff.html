@@ -7627,16 +7627,24 @@
             // 문서 → 내역 행 (기간 등록은 groupId로 묶어 1행, 일수=일자 문서 수; 결재는 일자별 월 도장 판정)
             const rows = [], groups = {};
             const apprOf = dateKey => !!hrLeaveStampOf(months, dateKey.slice(0, 7), t.group);
+            // 근로기준법: 연차는 소정근로일에만 사용 — 주말(토·일)·공휴일(CAL_KR_HOLIDAYS)은 사용일수에서 제외(주5일제 기준)
+            const isWorkday = dk => {
+                const w = new Date(dk + 'T00:00:00').getDay();
+                return w !== 0 && w !== 6 && !(typeof calHolidayOf === 'function' && calHolidayOf(dk));
+            };
             evs.forEach(ev => {
                 const info = leaveInfoOf(ev);
                 if (ev.periodStart && ev.periodEnd && ev.periodStart !== ev.periodEnd) {
                     const k = ev.groupId || (ev.periodStart + '|' + ev.periodEnd + '|' + info.author);
-                    const g = groups[k] = groups[k] || { start: ev.periodStart, end: ev.periodEnd, type: info.type, days: 0, apprDays: 0 };
-                    g.days++;
-                    if (apprOf(ev.date)) g.apprDays++;
+                    const g = groups[k] = groups[k] || { start: ev.periodStart, end: ev.periodEnd, type: info.type, days: 0, apprDays: 0, skip: 0 };
+                    if (isWorkday(ev.date)) { g.days++; if (apprOf(ev.date)) g.apprDays++; }
+                    else g.skip++;
                 } else {
-                    const d = parseFloat(info.days) || 1;
-                    rows.push({ start: ev.date, end: null, type: info.type, days: d, apprDays: apprOf(ev.date) ? d : 0 });
+                    const raw = parseFloat(info.days) || 1;
+                    const work = isWorkday(ev.date);
+                    rows.push({ start: ev.date, end: null, type: info.type,
+                                days: work ? raw : 0, skip: work ? 0 : raw,
+                                apprDays: (work && apprOf(ev.date)) ? raw : 0 });
                 }
             });
             Object.values(groups).forEach(g => rows.push(g));
@@ -7652,12 +7660,13 @@
             const fmtN = n => (Math.round(n * 10) / 10).toLocaleString();
             const apprBadge = r => {
                 if (!DEDUCT.includes(r.type)) return '<span class="hr-lv-badge etc">비차감</span>';
+                if (r.days === 0 && r.skip > 0) return '<span class="hr-lv-badge etc">휴일(비차감)</span>';
                 if (r.apprDays >= r.days) return '<span class="hr-lv-badge ok">반영됨</span>';
                 if (r.apprDays > 0) return `<span class="hr-lv-badge part">일부 반영(${fmtN(r.apprDays)}일)</span>`;
                 return '<span class="hr-lv-badge wait">결재 대기</span>';
             };
             const histRows = rows.map(r =>
-                `<tr><td>${hrLeaveFmtRange(r.start, r.end)}</td><td>${esc(r.type)}</td><td>${fmtN(r.days)}일</td><td>${apprBadge(r)}</td></tr>`).join('');
+                `<tr><td>${hrLeaveFmtRange(r.start, r.end)}</td><td>${esc(r.type)}</td><td>${fmtN(r.days)}일${r.skip ? ` <small style="color:#8a929c">(주말·공휴일 ${fmtN(r.skip)}일 제외)</small>` : ''}</td><td>${apprBadge(r)}</td></tr>`).join('');
             body.innerHTML = `
                 <div class="ops-hr-card">
                   <h4>기준 정보${t.uid !== hrMyUid() ? ` — ${esc(t.name)}` : ''}</h4>
@@ -7681,7 +7690,8 @@
                   <p class="ops-hr-note">
                     ※ 발생 연차: ${ent ? esc(ent.rule) : '입사일 미등록으로 산정 불가 — 인사기록부에 입사일 등록 필요'}<br>
                     ※ 사용 일수는 해당 월의 관리자(본사/공장) 결재 서명 완료 후에만 반영되며, 미서명 달은 '결재 대기'로 표시됩니다.<br>
-                    ※ 연차·휴가는 연차에서 차감, 병가·경조사·기타는 차감하지 않습니다. 반차는 0.5일로 계산합니다.
+                    ※ 연차·휴가는 연차에서 차감, 병가·경조사·기타는 차감하지 않습니다. 반차는 0.5일로 계산합니다.<br>
+                    ※ 근로기준법에 따라 연차는 소정근로일에만 사용되므로, 기간에 포함된 주말(토·일)·공휴일은 사용일수에서 제외합니다(주5일제 기준).
                   </p>
                 </div>`;
         }
