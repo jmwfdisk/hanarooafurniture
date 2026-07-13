@@ -7040,9 +7040,10 @@
         .ops-hr-card { border:1px solid #e5e7eb; border-radius:10px; padding:16px; background:#fff; }
         .ops-hr-card h4 { margin:0 0 10px; font-size:15px; color:#333; }
         .ops-hr-profile { display:flex; gap:16px; align-items:flex-start; }
-        .ops-hr-photo { flex:0 0 96px; width:96px; height:120px; border:1px dashed #c9cfd8; border-radius:8px; background:#f7f8fa; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:30px; color:#9aa3af; overflow:hidden; }
+        /* 증명사진 표준 비율(3:4) 박스 — 비율이 달라도 잘리지 않게 contain으로 전체 표시 */
+        .ops-hr-photo { flex:0 0 96px; width:96px; height:128px; border:1px dashed #c9cfd8; border-radius:8px; background:#f7f8fa; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:30px; color:#9aa3af; overflow:hidden; }
         .ops-hr-photo span { font-size:12px; }
-        .ops-hr-photo img { width:100%; height:100%; object-fit:cover; border-radius:8px; cursor:zoom-in; display:block; }
+        .ops-hr-photo img { width:100%; height:100%; object-fit:contain; background:#eef1f4; border-radius:8px; cursor:zoom-in; display:block; }
         .hr-photo-edit { flex:0 0 96px; display:flex; flex-direction:column; gap:8px; align-items:center; }
         .hr-photo-btns { display:flex; flex-direction:column; gap:6px; width:96px; }
         .hr-photo-btns .ops-hr-mini { width:100%; white-space:nowrap; }
