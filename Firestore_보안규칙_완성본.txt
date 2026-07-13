@@ -379,6 +379,22 @@ service cloud.firestore {
       allow write: if payManager();
     }
 
+    // 급여명세서 이의제기 문의: payInquiries/{autoId} =
+    //   { uid(문의자), author, slipKey, ym, company, text, createdAt, status('open'|'answered'), reply:{text,by,date} }
+    // 문의 내용에 급여 금액이 들어갈 수 있어 열람 범위는 급여명세와 동일 원칙(본인 + 급여명세 관리자만).
+    // 읽기 = 본인 문의(where uid==나 쿼리) 또는 payManager / 접수 = 승인 임직원 본인 명의, status는 'open'으로만
+    // (reply를 미리 넣어 답변 위조 못 하게 차단) / 답변(update) = payManager만 / 삭제 = payManager 또는 본인의 미답변 문의 취소
+    match /payInquiries/{inquiryId} {
+      allow read: if payManager() || (isEmployee() && resource.data.uid == request.auth.uid);
+      allow create: if isEmployee() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status == 'open' &&
+        !('reply' in request.resource.data);
+      allow update: if payManager();
+      allow delete: if payManager() ||
+        (isEmployee() && resource.data.uid == request.auth.uid && resource.data.status == 'open');
+    }
+
     // ========== 기타 컬렉션 ==========
     // 위에 명시되지 않은 모든 컬렉션은 접근 불가
     match /{document=**} {
