@@ -12579,23 +12579,49 @@
         function leaveLockedFor(dateStr) {
             return !leaveApprPerm() && leaveMonthLockedForGroup(dateStr, leaveUserGroup());
         }
-        // 기간(시작~종료)이 '내 그룹' 결재 완료된 달에 걸리고 결재자가 아니면 걸린 첫 달('YYYY-MM') 반환
-        function leaveLockedInRange(startVal, endVal) {
+        // 그 달이 group 기준으로 잠겼는지 — group이 null(일정 소유 그룹 미상: ownerGroup 없는
+        // 구버전·관리자 대리 등록 문서)이면 어느 한쪽 결재라도 완료된 달을 잠금(보수적 — 결재 확정 달 보호 우선)
+        function leaveMonthLockedBy(ym, group) {
+            if (group === 'hq' || group === 'factory') return leaveMonthLockedForGroup(ym, group);
+            const st = leaveStampsOf(String(ym || '').slice(0, 7));
+            return !!((st.hq && st.hq.date) || (st.factory && st.factory.date));
+        }
+        // 기간(시작~종료)이 group 기준 잠긴 달에 걸리고 결재자가 아니면 걸린 첫 달('YYYY-MM') 반환
+        function leaveLockedInRangeBy(startVal, endVal, group) {
             if (leaveApprPerm() || !leaveApprovals) return null;
-            const g = leaveUserGroup();
             let y = +String(startVal).slice(0, 4), m = +String(startVal).slice(5, 7);
             const ey = +String(endVal).slice(0, 4), em = +String(endVal).slice(5, 7);
             let guard = 0;
             while ((y < ey || (y === ey && m <= em)) && guard++ < 60) {
                 const ym = y + '-' + String(m).padStart(2, '0');
-                if (leaveMonthLockedForGroup(ym, g)) return ym;
+                if (leaveMonthLockedBy(ym, group)) return ym;
                 m++; if (m > 12) { m = 1; y++; }
             }
             return null;
         }
-        function leaveLockMsg(ym) {
+        // (기존 시그니처 유지) 조작하는 사람 본인 그룹 기준
+        function leaveLockedInRange(startVal, endVal) {
+            return leaveLockedInRangeBy(startVal, endVal, leaveUserGroup());
+        }
+        // 일정 소유자(작성자) 그룹 기준 — 그 그룹의 결재가 완료된 달의 일정은 타 그룹 권한자도 수정·삭제 불가.
+        // ownerGroup 없는 문서(구버전·관리자 대리 등록)는 미상(null)으로 보수 판정(어느 결재든 있으면 잠금)
+        function leaveDocLockedInRange(ev, startVal, endVal) {
+            return leaveLockedInRangeBy(startVal, endVal, (ev && ev.ownerGroup) || null);
+        }
+        // 날짜 모달의 개별 일정이 소유자 그룹 기준으로 잠겼는지(수정·삭제 버튼 숨김용)
+        function calEvLocked(ev) {
+            if (currentCalKind !== 'leave' || !ev) return false;
+            return !!leaveDocLockedInRange(ev, ev.periodStart || ev.date || dayModalDate, ev.periodEnd || ev.date || dayModalDate);
+        }
+        // group: 'hq'|'factory'=해당 결재 명시 / null=미상 문서(실제 찍힌 도장 나열) / 생략=내 그룹 기준
+        function leaveLockMsg(ym, group) {
             ym = String(ym || '').slice(0, 7);
-            const who = leaveUserGroup() === 'hq' ? '본사관리자' : '공장관리자';
+            let who;
+            if (group === 'hq' || group === 'factory') who = group === 'hq' ? '본사관리자' : '공장관리자';
+            else if (group === null) {
+                const st = leaveStampsOf(ym);
+                who = [st.hq && st.hq.date && '본사관리자', st.factory && st.factory.date && '공장관리자'].filter(Boolean).join('·') || '관리자';
+            } else who = leaveUserGroup() === 'hq' ? '본사관리자' : '공장관리자';
             return `${ym.slice(0, 4)}년 ${+ym.slice(5, 7)}월은 ${who} 결재가 완료된 달입니다.\n연월차 추가·수정·삭제는 연월차 결재자만 가능합니다.`;
         }
         function loadLeaveApprovals() {
@@ -12899,7 +12925,7 @@
                             <span class="day-event-title">${escapeCal(ev.title)}</span>
                         </div>
                         ${ev.memo ? `<div class="day-event-memo">${escapeCal(ev.memo)}</div>` : ''}
-                        ${canManage ? `<div class="day-event-btns"><button class="day-event-edit" onclick="editCompanyEvent('${ev.id}')">수정</button><button class="day-event-del" onclick="deleteCompanyEvent('${ev.id}')">삭제</button></div>` : ''}
+                        ${(canManage && !calEvLocked(ev)) ? `<div class="day-event-btns"><button class="day-event-edit" onclick="editCompanyEvent('${ev.id}')">수정</button><button class="day-event-del" onclick="deleteCompanyEvent('${ev.id}')">삭제</button></div>` : ''}
                     </div>`;
                 }).join('');
                 // 편집 중이면 입력값 채우기
@@ -13025,7 +13051,7 @@
             const isLeave = currentCalKind === 'leave';
             const startVal = document.getElementById('day-ev-start').value || dayModalDate;
             const endVal = document.getElementById('day-ev-end').value || startVal;
-            let title, time, memo, leaveDays = null, leaveType = null, author = '';
+            let title, time, memo, leaveDays = null, leaveType = null, author = '', ownerGroup = null;
             if (isLeave) {
                 // 연월차: 작성자(직급/직책 이름) 자동 기입 + 연차일수·종류만 선택
                 // 휴가기간 1일 초과면 연차일수 미적용 → 제목에 기간 표시
@@ -13034,6 +13060,7 @@
                 leaveDays = (startVal !== endVal) ? null : ((dSel && dSel.value) || '1');
                 leaveType = (tSel && tSel.value) || '연차';
                 author = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
+                const myLabel = author;
                 if (calIsAdmin()) {
                     // 관리자는 작성자 입력란 값을 사용(다른 직원 연월차 대리 등록 가능)
                     const aIn = document.getElementById('day-ev-leave-author-input');
@@ -13041,6 +13068,9 @@
                     if (!author) { alert('작성자를 입력하세요.'); return; }
                 }
                 if (!author) { alert('로그인 정보(이름)를 확인할 수 없습니다.\n다시 로그인해 주세요.'); return; }
+                // 소유 그룹(월잠금 판정용): 본인 명의 등록이면 내 그룹, 관리자 대리 등록(작성자 변경)은
+                // 대상자 그룹을 알 수 없어 미상(null → 어느 결재든 있으면 잠기는 보수 판정)
+                ownerGroup = (myLabel && author === myLabel) ? leaveUserGroup() : null;
                 title = buildLeaveTitle(author, leaveDays, leaveType, startVal, endVal);
                 time = ''; memo = '';
             } else {
@@ -13076,7 +13106,7 @@
                 dates.forEach(dk => batch.set(coll.doc(), Object.assign({
                     date: dk, time: time || '', title: title, memo: memo,
                     createdBy: createdBy, createdAt: createdAt
-                }, isLeave ? { author: author, leaveDays: leaveDays, leaveType: leaveType } : {},
+                }, isLeave ? { author: author, leaveDays: leaveDays, leaveType: leaveType, ownerGroup: ownerGroup } : {},
                    hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {})));
                 await batch.commit();
                 document.getElementById('day-ev-title').value = '';
@@ -13101,6 +13131,11 @@
                 alert(currentCalKind === 'leave' && leaveLockedFor(d) ? leaveLockMsg(d) : '일정 수정 권한이 없습니다.');
                 return;
             }
+            // 일정 소유자(작성자) 그룹 기준 잠금 — 그 그룹 결재 완료 달의 일정은 타 그룹 권한자도 수정 불가
+            if (currentCalKind === 'leave') {
+                const ym = leaveDocLockedInRange(ev, ev.periodStart || ev.date || d, ev.periodEnd || ev.date || d);
+                if (ym) { alert(leaveLockMsg(ym, ev.ownerGroup || null)); return; }
+            }
             editingCompanyEventId = id;
             renderDayModal();
         }
@@ -13119,7 +13154,7 @@
             const endEl = document.getElementById('day-edit-end');
             const startVal = (startEl && startEl.value) ? startEl.value : dayModalDate;
             const endVal = (endEl && endEl.value) ? endEl.value : startVal;
-            let title, time, memo, leaveDays = null, leaveType = null, author = '';
+            let title, time, memo, leaveDays = null, leaveType = null, author = '', ownerGroup = null;
             if (isLeave) {
                 // 연월차: 작성자는 원본 유지(관리자만 입력란으로 변경 가능), 연차일수·종류 변경
                 // 휴가기간 1일 초과면 연차일수 미적용 → 제목에 기간 표시
@@ -13133,6 +13168,11 @@
                 }
                 leaveDays = (startVal !== endVal) ? null : ((dSel && dSel.value) || info.days || '1');
                 leaveType = (tSel && tSel.value) || info.type || '연차';
+                // 소유 그룹 유지: 작성자 그대로면 원본 ownerGroup(없으면 본인 명의일 때 내 그룹으로 보정),
+                // 관리자가 작성자를 바꿨으면 미상(null → 보수 잠금 판정)
+                const myLabel = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
+                if (author === info.author) ownerGroup = orig.ownerGroup || null;
+                if (!ownerGroup && myLabel && author === myLabel) ownerGroup = leaveUserGroup();
                 title = buildLeaveTitle(author, leaveDays, leaveType, startVal, endVal);
                 time = ''; memo = '';
             } else {
@@ -13147,9 +13187,12 @@
             if (endVal < startVal) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
             if (isLeave) {
                 // 원본 기간 또는 새 기간이 결재 완료된 달에 걸치면 결재자만 수정 가능
-                const lockedYm = leaveLockedInRange(orig.periodStart || orig.date || startVal, orig.periodEnd || orig.date || endVal)
-                              || leaveLockedInRange(startVal, endVal);
+                const oS = orig.periodStart || orig.date || startVal, oE = orig.periodEnd || orig.date || endVal;
+                const lockedYm = leaveLockedInRange(oS, oE) || leaveLockedInRange(startVal, endVal);
                 if (lockedYm) { alert(leaveLockMsg(lockedYm)); return; }
+                // 일정 소유자(작성자) 그룹 기준 — 그 그룹 결재 완료 달의 일정은 타 그룹 권한자도 수정 불가
+                const docYm = leaveDocLockedInRange(orig, oS, oE) || leaveDocLockedInRange(orig, startVal, endVal);
+                if (docYm) { alert(leaveLockMsg(docYm, orig.ownerGroup || null)); return; }
             }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
             const dates = calBuildDates(startVal, endVal);
@@ -13169,7 +13212,7 @@
                 const newDoc = (dk) => Object.assign({
                     date: dk, time: time || '', title: title, memo: memo,
                     createdBy: createdBy, createdAt: createdAt
-                }, isLeave ? { author: author, leaveDays: leaveDays, leaveType: leaveType } : {},
+                }, isLeave ? { author: author, leaveDays: leaveDays, leaveType: leaveType, ownerGroup: ownerGroup } : {},
                    hasPeriod ? { periodStart: startVal, periodEnd: endVal, groupId: groupId } : {});
 
                 // 삭제+재생성을 가능하면 '한 batch'로 원자 커밋 — 기존 코드는 삭제 성공 후 재생성이
@@ -13211,8 +13254,12 @@
             }
             if (currentCalKind === 'leave') {
                 // 기간(그룹) 삭제가 결재 완료된 달에 걸치면 결재자만 가능
-                const lockedYm = leaveLockedInRange(orig.periodStart || orig.date || dayModalDate, orig.periodEnd || orig.date || dayModalDate);
+                const oS = orig.periodStart || orig.date || dayModalDate, oE = orig.periodEnd || orig.date || dayModalDate;
+                const lockedYm = leaveLockedInRange(oS, oE);
                 if (lockedYm) { alert(leaveLockMsg(lockedYm)); return; }
+                // 일정 소유자(작성자) 그룹 기준 — 그 그룹 결재 완료 달의 일정은 타 그룹 권한자도 삭제 불가
+                const docYm = leaveDocLockedInRange(orig, oS, oE);
+                if (docYm) { alert(leaveLockMsg(docYm, orig.ownerGroup || null)); return; }
             }
             const coll = db.collection(calCfg().collection);
             const isGroup = !!(orig.groupId || orig.periodStart);   // 기간(여러 날) 일정 여부
