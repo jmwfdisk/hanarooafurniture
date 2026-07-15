@@ -7915,6 +7915,13 @@
             return { date: fmt(nx), add: ne ? ne.days : 15, reset: true, note: '입사기념일' };
         }
         function hrLeaveAnswer(q) {
+            // 관리자·데이터관리자 계정은 어시스턴트 이용 불가 — 어떤 질문이든 안내만 (임직원 본인용 기능)
+            if (hrCanManage()) {
+                let u = {};
+                try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+                const role = (u.isAdmin === true || u.username === 'admin') ? '관리자' : '데이터관리자';
+                return `죄송합니다. <b>${role}</b> 계정은 연월차 어시스턴트를 이용할 수 없습니다. 어시스턴트는 임직원 본인의 연월차 현황 답변용 기능입니다 — 임직원별 현황은 위 “연월차 현황 조회”에서 대상 임직원을 선택해 직접 확인해 주세요.`;
+            }
             const c = hrLeaveCtx, esc = schedEsc;
             const has = (...ws) => ws.some(w => q.indexOf(w) !== -1);
             const fmtN = n => (Math.round(n * 10) / 10).toLocaleString();
