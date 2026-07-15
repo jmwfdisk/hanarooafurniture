@@ -6920,6 +6920,8 @@
             <h2>인사관리</h2>
             <span class="ops-hr-mock-badge">재직증명서 준비 중</span>
           </header>
+          <!-- 연월차 어시스턴트 오버레이 아이콘 — 연월차일정현황 세그먼트에서만 표시(opsHrSelect가 토글), 클릭=별도 챗 모달 -->
+          <button type="button" id="hr-lv-fab" class="hr-lv-fab" style="display:none;" title="연월차 어시스턴트" onclick="hrLeaveChatOpen()">💬</button>
           <div class="ops-hr-seg">
             <button type="button" class="ops-hr-seg-btn active" data-hrseg="record" onclick="opsHrSelect('record')">인사기록부</button>
             <button type="button" class="ops-hr-seg-btn" data-hrseg="cert" onclick="opsHrSelect('cert')">재직증명서 발급</button>
@@ -6976,21 +6978,6 @@
                 </div>
               </div>
               <div id="ops-hr-leave-body"></div>
-              <!-- 연월차 어시스턴트 — 규칙 기반 Q&A(외부 API 없음): 위 현황 산정 결과(hrLeaveCtx)로 잔여·발생·다음 발생일·규정 질문에 즉답 -->
-              <div class="ops-hr-card">
-                <h4>💬 연월차 어시스턴트 <small style="font-weight:400;color:#8a929c">연차 규정 · 내 연월차 현황 질문 답변</small></h4>
-                <div id="hr-lv-chat" class="hr-lv-chat"></div>
-                <div class="hr-lv-chips">
-                  <button type="button" onclick="hrLeaveAsk(this.textContent)">잔여 연차 며칠이야?</button>
-                  <button type="button" onclick="hrLeaveAsk(this.textContent)">다음 연차는 언제 추가돼?</button>
-                  <button type="button" onclick="hrLeaveAsk(this.textContent)">표시된 잔여일이 내 계산과 달라</button>
-                  <button type="button" onclick="hrLeaveAsk(this.textContent)">연차 규정 알려줘</button>
-                </div>
-                <div class="hr-lv-ask">
-                  <input id="hr-lv-q" type="text" maxlength="200" placeholder="예: 잔여 연차가 5일인데 표시는 4일이야" onkeydown="if(event.key==='Enter'){event.preventDefault();hrLeaveAsk();}">
-                  <button type="button" onclick="hrLeaveAsk()">질문</button>
-                </div>
-              </div>
             </section>
             <!-- 4) 급여명세서 — 실제 기능: 데이터관리자가 급여 엑셀 업로드 → 임직원별 PDF 생성·배포, 열람은 본인만 -->
             <section id="ops-hr-pay" class="ops-hr-sec" style="display:none;">
@@ -7038,6 +7025,27 @@
       </main>
     </div>
 
+    <!-- 연월차 어시스턴트 챗 모달 — 우측 상단 💬 아이콘으로 여는 별도 시트(z 3000, 운영관리 셸 z2600 위) -->
+    <div id="hr-lv-modal" class="hr-lv-modal" style="display:none;" onclick="if(event.target===this)hrLeaveChatClose()">
+      <div class="hr-lv-sheet">
+        <div class="hr-lv-sheet-head">
+          <span>💬 연월차 어시스턴트</span>
+          <button type="button" class="hr-lv-close-pill" onclick="hrLeaveChatClose()">닫기</button>
+        </div>
+        <div id="hr-lv-chat" class="hr-lv-chat"></div>
+        <div class="hr-lv-chips">
+          <button type="button" onclick="hrLeaveAsk(this.textContent)">잔여 연차 며칠이야?</button>
+          <button type="button" onclick="hrLeaveAsk(this.textContent)">다음 연차는 언제 추가돼?</button>
+          <button type="button" onclick="hrLeaveAsk(this.textContent)">표시된 잔여일이 내 계산과 달라</button>
+          <button type="button" onclick="hrLeaveAsk(this.textContent)">연차 규정 알려줘</button>
+        </div>
+        <div class="hr-lv-ask">
+          <input id="hr-lv-q" type="text" maxlength="200" placeholder="예: 잔여 연차가 5일인데 표시는 4일이야" onkeydown="if(event.key==='Enter'){event.preventDefault();hrLeaveAsk();}">
+          <button type="button" onclick="hrLeaveAsk()">질문</button>
+        </div>
+      </div>
+    </div>
+
     <style>
         /* ===== 운영관리 통합 셸 ===== */
         .ops-modal { position:fixed; inset:0; z-index:2600; background:#f2f4f7; display:flex; }
@@ -7053,7 +7061,7 @@
         .ops-content { flex:1; min-width:0; display:flex; }
         .ops-tool-host { flex:1; min-width:0; display:flex; }
         /* 인사관리 목업 패널 — 헤더는 일정관리와 동일 다크 슬레이트, 세그먼트는 공용 seg-btn 룩 */
-        .ops-hr-panel { flex:1; min-width:0; display:flex; flex-direction:column; background:#fff; }
+        .ops-hr-panel { flex:1; min-width:0; display:flex; flex-direction:column; background:#fff; position:relative; }
         .ops-hr-header { display:flex; align-items:center; gap:12px; padding:14px 20px; background:#3b4453; color:#fff; }
         .ops-hr-header h2 { margin:0; font-size:18px; }
         .ops-hr-mock-badge { font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.35); white-space:nowrap; }
@@ -7130,16 +7138,23 @@
         .hr-lv-badge.wait { background:#fff3e0; color:#b26a00; }
         .hr-lv-badge.part { background:#e8f0fe; color:#2563eb; }
         .hr-lv-badge.etc { background:#f1f3f5; color:#68707a; }
-        /* 연월차 어시스턴트 — 챗 버블·예시 질문 칩·입력줄 */
-        .hr-lv-chat { max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:12px; background:#f7f8fa; border:1px solid #e5e7eb; border-radius:10px; }
+        /* 연월차 어시스턴트 — 우측 상단 오버레이 아이콘(패널 헤더 위) + 별도 챗 모달 시트 */
+        .hr-lv-fab { position:absolute; top:8px; right:16px; z-index:20; width:40px; height:40px; border-radius:50%; border:none; background:#fff; font-size:19px; line-height:1; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.28); transition:transform .15s ease, box-shadow .15s ease; }
+        .hr-lv-fab:hover { transform:scale(1.08); box-shadow:0 4px 14px rgba(0,0,0,.35); }
+        .hr-lv-modal { position:fixed; inset:0; z-index:3000; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px; }
+        .hr-lv-sheet { width:min(480px, 100%); height:min(640px, 100%); background:#fff; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,.3); display:flex; flex-direction:column; overflow:hidden; }
+        .hr-lv-sheet-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 16px; background:#3b4453; color:#fff; font-size:15px; font-weight:700; }
+        .hr-lv-close-pill { border:1px solid rgba(255,255,255,.35); background:rgba(255,255,255,.12); color:#fff; padding:6px 14px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer; }
+        .hr-lv-close-pill:hover { background:rgba(255,255,255,.25); }
+        .hr-lv-chat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:12px; margin:12px 14px 0; background:#f7f8fa; border:1px solid #e5e7eb; border-radius:10px; }
         .hr-lv-msg { max-width:88%; padding:9px 13px; border-radius:14px; font-size:13.5px; line-height:1.6; word-break:break-word; }
         .hr-lv-msg.bot { align-self:flex-start; background:#fff; border:1px solid #e5e7eb; border-bottom-left-radius:4px; color:#333; }
         .hr-lv-msg.user { align-self:flex-end; background:#3b82f6; color:#fff; border-bottom-right-radius:4px; }
         .hr-lv-msg.bot a { color:#2563eb; text-decoration:underline; }
-        .hr-lv-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+        .hr-lv-chips { display:flex; flex-wrap:wrap; gap:6px; margin:10px 14px 0; }
         .hr-lv-chips button { padding:5px 12px; border:1px solid #d5d9e0; border-radius:999px; background:#fff; font-size:12.5px; color:#555; cursor:pointer; transition:all .15s ease; }
         .hr-lv-chips button:hover { border-color:#3b82f6; color:#3b82f6; }
-        .hr-lv-ask { display:flex; gap:8px; margin-top:10px; }
+        .hr-lv-ask { display:flex; gap:8px; margin:10px 14px 14px; }
         .hr-lv-ask input { flex:1; min-width:0; padding:9px 12px; border:1px solid #d5d9e0; border-radius:8px; font-size:14px; }
         .hr-lv-ask button { padding:9px 18px; border:none; border-radius:8px; background:#3b82f6; color:#fff; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
         .hr-lv-ask button:hover { background:#2563eb; }
@@ -7261,6 +7276,7 @@
 
         function closeOpsModal() {
             if (opsCurrent && OPS_TOOLS[opsCurrent]) { try { OPS_TOOLS[opsCurrent].close(); } catch (e) { /* 무시 */ } }
+            hrLeaveChatClose();   // 어시스턴트 챗 모달이 셸 위에 떠 있으면 함께 닫음
             const shell = document.getElementById('ops-modal');
             if (shell) shell.style.display = 'none';
             document.body.style.overflow = '';
@@ -7278,6 +7294,10 @@
                 const el = document.getElementById('ops-hr-' + k);
                 if (el) el.style.display = (k === seg) ? 'flex' : 'none';
             });
+            // 어시스턴트 오버레이 아이콘은 연월차일정현황에서만 (세그먼트 이탈 시 챗 모달도 닫음)
+            const fab = document.getElementById('hr-lv-fab');
+            if (fab) fab.style.display = (seg === 'leave') ? '' : 'none';
+            if (seg !== 'leave') hrLeaveChatClose();
             if (seg === 'record') hrOpenRecord();
             if (seg === 'leave') hrOpenLeave();
             if (seg === 'pay') hrOpenPay();
@@ -7871,6 +7891,20 @@
         // 화면 표시 수치와 동일)로 잔여·발생·사용·결재·다음 발생일과 근로기준법 규정 질문에 답한다.
         // 데이터관리자가 대상을 바꾸면 ctx가 교체되어 답변도 그 대상 기준이 된다(답변에 이름 명시).
         let hrLeaveCtx = null;
+        function hrLeaveChatOpen() {
+            const m = document.getElementById('hr-lv-modal');
+            if (!m) return;
+            m.style.display = 'flex';
+            hrLeaveChatSeed();
+            const box = document.getElementById('hr-lv-chat');
+            if (box) box.scrollTop = box.scrollHeight;
+            const inp = document.getElementById('hr-lv-q');
+            if (inp) inp.focus();
+        }
+        function hrLeaveChatClose() {
+            const m = document.getElementById('hr-lv-modal');
+            if (m) m.style.display = 'none';
+        }
         function hrLeaveChatSeed() {
             const box = document.getElementById('hr-lv-chat');
             if (!box || box.children.length) return;
