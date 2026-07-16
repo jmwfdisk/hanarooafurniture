@@ -3563,7 +3563,8 @@
                 if (calView) calView.style.display = 'none';
                 if (leaveCalView) leaveCalView.style.display = 'block';
                 currentCalKind = 'leave';
-                if (calYear === null) { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
+                // 캘린더를 열 때마다 오늘이 속한 달로 초기화 (이전에 다른 달을 보다 나가도 재진입 시 오늘로 복귀)
+                { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
                 if (typeof loadAndRenderCalendar === 'function') loadAndRenderCalendar();
                 if (typeof placeBoardSearch === 'function') placeBoardSearch();
                 return; // 게시글 렌더 안 함
@@ -12933,7 +12934,8 @@
                 currentBoard = 'notice';   // 규격서/인증서에서 넘어온 경우 보드 복원(검색·권한 판정 기준)
                 if (postView) postView.style.display = 'none';
                 if (calView) calView.style.display = 'block';
-                if (calYear === null) { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
+                // 캘린더를 열 때마다 오늘이 속한 달로 초기화 (이전에 다른 달을 보다 나가도 재진입 시 오늘로 복귀)
+                { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
                 loadAndRenderCalendar();
             } else {
                 // 'post'=공지사항(notice 보드) / 'cert'=규격서/인증서(cert 보드) — 같은 게시글 목록 뷰를 보드만 바꿔 공유
