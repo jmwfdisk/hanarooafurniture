@@ -4026,12 +4026,63 @@
             const s = String(html || '').replace(/​/g, ''); // 크기지정용 폭 0 공백 제거
             if (window.DOMPurify && typeof DOMPurify.sanitize === 'function') {
                 return DOMPurify.sanitize(s, {
-                    ALLOWED_TAGS: ['p','div','span','br','b','strong','i','em','u','s','strike','font','ul','ol','li','h3','blockquote'],
-                    ALLOWED_ATTR: ['style','color','size','face'],
-                    ALLOWED_URI_REGEXP: /^$/   // 링크/이미지 미허용
+                    ALLOWED_TAGS: ['p','div','span','br','b','strong','i','em','u','s','strike','font','ul','ol','li','h3','blockquote','img'],
+                    ALLOWED_ATTR: ['style','color','size','face','src','alt','width','height'],
+                    ALLOWED_URI_REGEXP: /^https:\/\//i   // 링크 태그 미허용, 이미지는 https URL만(Storage 업로드분 — data:/blob: 차단)
                 });
             }
             return rteToText(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        }
+
+        // 이미지 파일들을 에디터 커서 위치에 삽입(작성 중에는 data: URL 미리보기, 저장 시 Storage URL로 교체)
+        // 붙여넣기/드롭을 직접 처리하는 이유: Safari는 붙여넣은 이미지를 읽을 수 없는
+        // webkit-fake-url로 넣어 저장이 불가능하므로, 모든 브라우저에서 data: URL로 통일한다.
+        function rteInsertImageFiles(fileList) {
+            const editor = document.getElementById('write-content');
+            if (!editor) return;
+            // svg는 Storage 규칙이 차단(스크립트 실행 가능)하므로 삽입 단계에서 제외
+            const imgs = Array.from(fileList || []).filter(f => /^image\/(?!svg)/i.test(f.type));
+            imgs.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    editor.focus();
+                    const sel = window.getSelection();
+                    if (rteSavedRange) { sel.removeAllRanges(); sel.addRange(rteSavedRange); }
+                    let range = sel.rangeCount ? sel.getRangeAt(0) : null;
+                    if (!range || !editor.contains(range.commonAncestorContainer)) {
+                        range = document.createRange();
+                        range.selectNodeContents(editor);
+                        range.collapse(false);
+                    }
+                    const img = document.createElement('img');
+                    img.src = reader.result;
+                    img.alt = file.name || '이미지';
+                    range.deleteContents();
+                    range.insertNode(img);
+                    range.setStartAfter(img);
+                    range.collapse(true);
+                    sel.removeAllRanges(); sel.addRange(range);
+                    rteSavedRange = range.cloneRange();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 본문에 삽입된 이미지(data:/blob:)를 Storage에 올리고 src를 다운로드 URL로 교체.
+        // base64를 문서에 그대로 저장하면 Firestore 1MB 제한 초과로 글이 저장 실패/유실되므로 필수.
+        async function rteUploadBodyImages(editor) {
+            const pending = Array.from(editor.querySelectorAll('img'))
+                .filter(im => /^(data:|blob:)/i.test(im.getAttribute('src') || ''));
+            if (!pending.length) return;
+            const files = await Promise.all(pending.map(async (im, i) => {
+                const blob = await (await fetch(im.getAttribute('src'))).blob();
+                const ext = ((blob.type.split('/')[1] || 'png').match(/^[a-z0-9]+/i) || ['png'])[0];
+                return new File([blob], `본문이미지_${Date.now()}_${i + 1}.${ext}`, { type: blob.type || 'image/png' });
+            }));
+            const over = files.filter(f => f.size > 10 * 1024 * 1024);
+            if (over.length) throw new Error('본문 이미지가 너무 큽니다. (이미지당 최대 10MB)');
+            const uploaded = await uploadFilesToStorage(files);
+            pending.forEach((im, i) => { im.src = uploaded[i].url; });
         }
 
         // 본문 내 URL(https://…, www.…)을 클릭 가능한 링크로 변환 — 살균 "후" 텍스트 노드만 대상이라 안전.
@@ -4103,6 +4154,31 @@
             tb.addEventListener('click', e => {
                 const btn = e.target.closest('button[data-cmd]');
                 if (btn) applyCmd(btn.dataset.cmd);
+            });
+            // 이미지: 툴바 버튼(파일 선택) + 붙여넣기 + 드래그&드롭 → data: URL로 삽입(저장 시 Storage 업로드)
+            const imgBtn = document.getElementById('rte-img-btn');
+            const imgInput = document.getElementById('rte-img-input');
+            if (imgBtn && imgInput) {
+                imgBtn.addEventListener('click', () => imgInput.click());
+                imgInput.addEventListener('change', () => { rteInsertImageFiles(imgInput.files); imgInput.value = ''; });
+            }
+            editor.addEventListener('paste', e => {
+                const items = (e.clipboardData && e.clipboardData.items) || [];
+                const files = [];
+                for (const it of items) {
+                    if (it.kind === 'file' && /^image\//i.test(it.type)) {
+                        const f = it.getAsFile();
+                        if (f) files.push(f);
+                    }
+                }
+                if (files.length) { e.preventDefault(); rteInsertImageFiles(files); }
+            });
+            editor.addEventListener('dragover', e => {
+                if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) e.preventDefault();
+            });
+            editor.addEventListener('drop', e => {
+                const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => /^image\//i.test(f.type));
+                if (files.length) { e.preventDefault(); rteInsertImageFiles(files); }
             });
             const fs = document.getElementById('rte-fontsize');
             if (fs) fs.addEventListener('change', () => {
@@ -4349,7 +4425,7 @@
             fileUpload.files = dataTransfer.files;
         }
 
-        function submitPost() {
+        async function submitPost() {
             // 등록 버튼 연타로 인한 중복 저장 방지
             if (isSubmittingPost) return;
 
@@ -4383,11 +4459,11 @@
             
             const title = titleInput.value.trim();
             const author = authorInput.value.trim();
-            // 리치 에디터: 표시 텍스트로 빈값 검사, 저장은 살균된 HTML
+            // 리치 에디터: 표시 텍스트로 빈값 검사(이미지만 있는 본문도 유효), 저장은 살균된 HTML
             const contentText = (contentInput.innerText || contentInput.textContent || '').trim();
-            const content = contentText ? rteSanitize(contentInput.innerHTML) : '';
+            const hasBodyImage = !!contentInput.querySelector('img');
 
-            if (!title || !author || !contentText) {
+            if (!title || !author || (!contentText && !hasBodyImage)) {
                 alert('모든 항목을 입력하세요.');
                 return;
             }
@@ -4411,6 +4487,17 @@
                 submitBtn.disabled = true; submitBtn.style.opacity = '0.8';
                 submitBtn.innerHTML = '<span class="btn-spinner"></span>' + (editingPostIndex >= 0 ? '수정 중…' : '등록 중…');
             }
+
+            // 본문에 삽입된 이미지(data:/blob:)를 먼저 Storage에 업로드해 URL로 교체한 뒤 살균·저장
+            // (base64를 그대로 저장하면 Firestore 1MB 제한 초과로 유실 — 실패 시 저장 중단)
+            try {
+                await rteUploadBodyImages(contentInput);
+            } catch (e) {
+                alert('본문 이미지 업로드에 실패했습니다. 다시 시도해주세요.\n' + (e && e.message ? e.message : e));
+                resetSubmitLock();
+                return;
+            }
+            const content = rteSanitize(contentInput.innerHTML);
 
             // 현재 사용자 정보 가져오기 (작성자 확인용)
             const loggedInUser = sessionStorage.getItem('loggedInUser');
@@ -6806,6 +6893,7 @@
         .rte-editor:focus { border-color:#44aa6b; }
         /* 목록(ul/ol) 브라우저 기본 상하 마진 제거 — 일반 줄과 줄간격 동일하게(작성/보기 공통) */
         .rte-editor ul, .rte-editor ol, .post-content ul, .post-content ol { padding-left:1.5em; margin:0; }
+        .rte-editor img, .post-content img { max-width:100%; height:auto; border-radius:6px; }
         .post-content { text-align:left; }
         .post-content a { color:#2563eb; text-decoration:underline; text-underline-offset:2px; word-break:break-all; }
         .post-content a:hover { color:#1d4ed8; }
@@ -6857,6 +6945,9 @@
                 <option value="2">2.0</option>
                 <option value="2.5">2.5</option>
             </select>
+            <span class="rte-sep"></span>
+            <button type="button" class="rte-btn" id="rte-img-btn" title="이미지 삽입 (붙여넣기·드래그도 가능)">🖼️</button>
+            <input type="file" id="rte-img-input" accept="image/*" multiple style="display:none">
             <span class="rte-sep"></span>
             <button type="button" class="rte-btn" data-cmd="removeFormat" title="서식 지우기">서식↺</button>
         </div>
