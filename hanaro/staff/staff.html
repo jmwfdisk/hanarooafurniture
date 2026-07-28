@@ -1459,7 +1459,10 @@
         }
 
         .post-modal .post-content {
-            white-space: pre-wrap;
+            /* HTML 본문은 에디터(.rte-editor)와 동일하게 일반 white-space —
+               pre-wrap이면 붙여넣은 HTML 소스의 개행이 저장 후에만 줄바꿈으로 나타나
+               작성 화면과 결과가 달라진다. 레거시 평문만 .post-content-plain으로 pre-wrap 유지 */
+            white-space: normal;
             line-height: 1.8;
             font-size: 15px;
             color: #495057;
@@ -1468,6 +1471,11 @@
             border-radius: 12px;
             border: 1px solid #e9ecef;
             margin-bottom: 20px;
+        }
+
+        /* 레거시 평문 게시글(HTML 아님): 연속 공백 정렬 보존 */
+        .post-modal .post-content.post-content-plain {
+            white-space: pre-wrap;
         }
 
         .post-modal .close-btn {
@@ -4832,7 +4840,10 @@
             // 이후 rteLinkify로 URL을 클릭 가능한 링크로 변환(표시 시점 변환 — 저장 본문 무변경)
             const _rawContent = post.content || '';
             const _looksHtml = /<[a-z!/][^>]*>/i.test(_rawContent);
-            document.getElementById('post-content').innerHTML = rteLinkify(_looksHtml
+            const _contentEl = document.getElementById('post-content');
+            // 평문만 pre-wrap(연속 공백 보존), HTML은 에디터와 동일한 일반 white-space
+            _contentEl.classList.toggle('post-content-plain', !_looksHtml);
+            _contentEl.innerHTML = rteLinkify(_looksHtml
                 ? rteSanitize(_rawContent)
                 : escMeta(_rawContent).replace(/\n/g, '<br>'));
             
