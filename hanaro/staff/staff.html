@@ -9346,7 +9346,7 @@
 
         .photo-viewer-content {
             max-width: 90%;
-            max-height: 85%;
+            max-height: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -9354,7 +9354,8 @@
 
         .photo-viewer-content img {
             max-width: 100%;
-            max-height: calc(100vh - 150px);
+            /* 하단 정보 2줄(제목·날짜·업로더 + 순서 버튼·삭제)이 잘리지 않도록 여유 확보 */
+            max-height: calc(100vh - 260px);
             object-fit: contain;
             border-radius: 8px;
         }
