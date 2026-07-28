@@ -9023,6 +9023,22 @@
             border-radius: 8px;
         }
 
+        /* 같은 제목 그룹 카드의 사진 장수 배지 (우상단) */
+        .photo-count-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(33, 37, 41, 0.82);
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+            z-index: 3;
+            pointer-events: none;
+        }
+
         /* 제목: 사진 하단 알약형 배너 */
         .photo-title-pill {
             position: absolute;
@@ -9514,16 +9530,33 @@
             }
             const COLS = 5, MIN_ROWS = 2;
 
-            let html = allPhotos.map((photo, index) => {
-                // 제목 수정은 본인 사진 또는 관리자만 (Firestore 규칙과 일치)
-                const canEditTitle = canEditPhotoTitle(photo);
+            // 같은 제목의 사진들은 카드 1장으로 묶는다 (대표 = 그리드 순서상 첫 사진, 장수 배지 표시)
+            // 제목 없는 사진은 각각 단독 카드 (뷰어 그룹 규칙과 동일)
+            const seenTitles = new Set();
+            const cards = [];   // [{ repIndex, count }]
+            allPhotos.forEach((photo, index) => {
+                const t = (photo.title || '').trim();
+                if (!t) { cards.push({ repIndex: index, count: 1 }); return; }
+                if (seenTitles.has(t)) return;
+                seenTitles.add(t);
+                const count = allPhotos.reduce((n, p) => n + (((p.title || '').trim()) === t ? 1 : 0), 0);
+                cards.push({ repIndex: index, count });
+            });
+
+            let html = cards.map(card => {
+                const index = card.repIndex;
+                const photo = allPhotos[index];
+                // 제목 수정은 그룹 내 모든 사진이 본인 사진이거나 관리자일 때만 (Firestore 규칙과 일치)
+                const canEditTitle = photoGroupOf(photo).every(canEditPhotoTitle);
                 const titleHtml = photo.title
                     ? photoEsc(photo.title)
                     : '<span class="photo-title-empty">제목 없음</span>';
                 const dblAttr = canEditTitle ? ` ondblclick="startEditPhotoTitle(${index}, this)" title="더블클릭하여 제목 수정"` : '';
+                const badge = card.count > 1 ? `<div class="photo-count-badge">${card.count}장</div>` : '';
                 return `
                 <div class="photo-item" onclick="openPhotoViewer(${index})">
                     <img src="${photo.url}" alt="${photoEsc(photo.title || photo.filename)}" loading="lazy">
+                    ${badge}
                     <div class="photo-overlay">
                         <span>${new Date(photo.createdAt).toLocaleDateString('ko-KR')}</span>
                     </div>
@@ -9531,9 +9564,9 @@
                 </div>`;
             }).join('');
 
-            // 사진이 있어도 5열 격자를 채우도록 빈 칸(점선)을 추가 — 최소 5×2 = 10칸
-            const totalCells = Math.max(COLS * MIN_ROWS, Math.ceil(allPhotos.length / COLS) * COLS);
-            for (let i = allPhotos.length; i < totalCells; i++) {
+            // 카드가 있어도 5열 격자를 채우도록 빈 칸(점선)을 추가 — 최소 5×2 = 10칸
+            const totalCells = Math.max(COLS * MIN_ROWS, Math.ceil(cards.length / COLS) * COLS);
+            for (let i = cards.length; i < totalCells; i++) {
                 html += `
                 <div class="photo-empty-slot">
                     <span>🖼️</span>
@@ -9541,6 +9574,13 @@
                 </div>`;
             }
             grid.innerHTML = html;
+        }
+
+        // 같은 제목(트림 기준)의 사진 그룹 — 제목 없는 사진은 단독 그룹
+        function photoGroupOf(photo) {
+            const t = ((photo && photo.title) || '').trim();
+            if (!t) return photo ? [photo] : [];
+            return allPhotos.filter(p => ((p.title || '').trim()) === t);
         }
 
         // 제목 수정 권한: 활동사진첩 권한 + (본인 업로드 사진 또는 관리자) — Firestore 규칙과 일치
@@ -9554,10 +9594,12 @@
             return !!owner && (owner === u.uid || owner === u.email || owner === u.username);
         }
 
-        // 제목 더블클릭 → 인라인 편집 (본인 사진/관리자만)
+        // 제목 더블클릭 → 인라인 편집 (그룹 내 전부 본인 사진이거나 관리자만)
+        // 그룹 카드의 제목을 바꾸면 같은 제목 사진 전체에 반영 (대표만 바꾸면 그룹이 쪼개짐)
         function startEditPhotoTitle(index, el) {
             const photo = allPhotos[index];
-            if (!canEditPhotoTitle(photo)) return;
+            const group = photoGroupOf(photo);
+            if (!group.length || !group.every(canEditPhotoTitle)) return;
             const cur = photo.title || '';
             el.innerHTML = `<input class="photo-title-input" type="text" maxlength="60" value="${photoEsc(cur)}" placeholder="제목 입력">`;
             const inp = el.querySelector('input');
@@ -9565,9 +9607,9 @@
             let finished = false;
             const finish = async (save) => {
                 if (finished) return; finished = true;
-                // 편집 시작 시점의 photo 객체(id)를 넘긴다 — 편집 중 loadPhotos로 배열이
+                // 편집 시작 시점의 photo 객체(id)들을 넘긴다 — 편집 중 loadPhotos로 배열이
                 // 교체·재정렬되면 index가 다른 사진을 가리켜 엉뚱한 제목을 덮던 문제 방지
-                if (save) await savePhotoTitle(photo, inp.value.trim());
+                if (save) await savePhotoTitle(group, inp.value.trim());
                 renderPhotoGrid();
             };
             inp.addEventListener('blur', () => finish(true));
@@ -9576,17 +9618,22 @@
                 else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
             });
         }
-        async function savePhotoTitle(photoRef, title) {
-            // photoRef: 편집 시작 시 캡처한 photo 객체 — 현재 배열에서 id로 재탐색해 반영
-            const photo = (photoRef && photoRef.id) ? (allPhotos.find(p => p.id === photoRef.id) || photoRef) : photoRef;
-            if (!photo) return;
-            photo.title = title;
-            try {
-                if (db && photo.id) await db.collection('activityPhotos').doc(photo.id).update({ title: title });
-            } catch (e) {
-                console.error('제목 저장 오류:', e);
-                alert('제목 저장에 실패했습니다: ' + e.message);
+        async function savePhotoTitle(photoRefs, title) {
+            // photoRefs: 편집 시작 시 캡처한 photo 객체(단건 또는 그룹 배열) — 현재 배열에서 id로 재탐색해 반영
+            const refs = Array.isArray(photoRefs) ? photoRefs : [photoRefs];
+            const failed = [];
+            for (const ref of refs) {
+                const photo = (ref && ref.id) ? (allPhotos.find(p => p.id === ref.id) || ref) : ref;
+                if (!photo) continue;
+                photo.title = title;
+                try {
+                    if (db && photo.id) await db.collection('activityPhotos').doc(photo.id).update({ title: title });
+                } catch (e) {
+                    console.error('제목 저장 오류:', e);
+                    failed.push(e);
+                }
             }
+            if (failed.length) alert('제목 저장에 실패한 사진이 있습니다: ' + failed[0].message);
         }
 
         // 사진 업로드 모달 열기
