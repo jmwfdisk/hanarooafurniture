@@ -12883,11 +12883,15 @@
                 type: ev.leaveType || (m && m[3] ? m[3].trim() : '연차')
             };
         }
-        // 관리자 여부 — 연월차 작성자 변경은 관리자만 가능
+        // 관리자 여부
         function calIsAdmin() {
             try { const u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}');
                 return u.isAdmin === true || u.username === 'admin'; }
             catch (e) { return false; }
+        }
+        // 연월차 작성자 변경 가능 여부 — 관리자 또는 연월차 결재권자(본사·공장, 대리 등록/정정용)
+        function calCanEditLeaveAuthor() {
+            return calIsAdmin() || (typeof leaveApprPerm === 'function' && leaveApprPerm());
         }
         // 추가 폼 미리보기 배지 + 연차일수 활성/비활성 동기화
         // 휴가기간이 1일 초과(시작≠종료)면 연차일수 지정 불가 → 제목에는 기간을 표시
@@ -12980,7 +12984,8 @@
                 canManage: function (date) {
                     const d = date || dayModalDate || calYmKey();
                     if (leaveMonthLockedForGroup(d, leaveUserGroup())) return leaveApprPerm();   // 내 그룹 결재 후: 결재자만
-                    return (typeof userCan === 'function') && userCan('leaveSchedule');           // 결재 전: 수정·삭제 권한자
+                    // 결재 전: 수정·삭제 권한자 + 결재권자(작성자 정정 등 — Firestore 규칙도 결재 권한 허용)
+                    return ((typeof userCan === 'function') && userCan('leaveSchedule')) || leaveApprPerm();
                 }
             }
         };
@@ -13354,7 +13359,7 @@
                                     <option value="기타">기타</option>
                                 </select>
                             </div>
-                            <div class="day-leave-author">작성자&nbsp; ${calIsAdmin()
+                            <div class="day-leave-author">작성자&nbsp; ${calCanEditLeaveAuthor()
                                 ? '<input type="text" id="day-edit-leave-author-input" class="day-leave-author-input" placeholder="직급 이름">'
                                 : '<b id="day-edit-leave-author"></b>'}</div>
                             <div class="day-edit-actions">
@@ -13412,7 +13417,7 @@
                             const aEl = document.getElementById('day-edit-leave-author');
                             const aIn = document.getElementById('day-edit-leave-author-input');
                             if (aEl) aEl.textContent = info.author;
-                            if (aIn) aIn.value = info.author;   // 관리자: 작성자 변경 가능
+                            if (aIn) aIn.value = info.author;   // 관리자·결재권자: 작성자 변경 가능
                             leaveEditSyncDays();                 // 기간 1일 초과면 연차일수 비활성
                         } else {
                             const tEl = document.getElementById('day-edit-time');
@@ -13453,13 +13458,13 @@
                     : '시작일~종료일을 지정하면 그 기간의 모든 날짜에 일정이 한 번에 등록됩니다.';
                 if (btnEl) btnEl.textContent = isLeave ? '＋ 연월차 등록' : '＋ 일정 추가';
                 if (isLeave) {
-                    // 작성자: 기본은 자동 기입(읽기전용), 관리자만 입력란으로 변경 가능
+                    // 작성자: 기본은 자동 기입(읽기전용), 관리자·결재권자만 입력란으로 변경 가능
                     const myLabel = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
                     const aEl = document.getElementById('day-ev-leave-author');
                     const aIn = document.getElementById('day-ev-leave-author-input');
-                    const admin = calIsAdmin();
-                    if (aEl) { aEl.style.display = admin ? 'none' : ''; aEl.textContent = myLabel; }
-                    if (aIn) { aIn.style.display = admin ? '' : 'none'; if (admin) aIn.value = myLabel; }
+                    const canAuthor = calCanEditLeaveAuthor();
+                    if (aEl) { aEl.style.display = canAuthor ? 'none' : ''; aEl.textContent = myLabel; }
+                    if (aIn) { aIn.style.display = canAuthor ? '' : 'none'; if (canAuthor) aIn.value = myLabel; }
                     updateLeaveDaysBadge();
                 }
                 const sEl = document.getElementById('day-ev-start');
@@ -13529,14 +13534,14 @@
                 leaveType = (tSel && tSel.value) || '연차';
                 author = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
                 const myLabel = author;
-                if (calIsAdmin()) {
-                    // 관리자는 작성자 입력란 값을 사용(다른 직원 연월차 대리 등록 가능)
+                if (calCanEditLeaveAuthor()) {
+                    // 관리자·결재권자는 작성자 입력란 값을 사용(다른 직원 연월차 대리 등록 가능)
                     const aIn = document.getElementById('day-ev-leave-author-input');
                     if (aIn) author = aIn.value.trim();
                     if (!author) { alert('작성자를 입력하세요.'); return; }
                 }
                 if (!author) { alert('로그인 정보(이름)를 확인할 수 없습니다.\n다시 로그인해 주세요.'); return; }
-                // 소유 그룹(월잠금 판정용): 본인 명의 등록이면 내 그룹, 관리자 대리 등록(작성자 변경)은
+                // 소유 그룹(월잠금 판정용): 본인 명의 등록이면 내 그룹, 관리자·결재권자 대리 등록(작성자 변경)은
                 // 대상자 그룹을 알 수 없어 미상(null → 어느 결재든 있으면 잠기는 보수 판정)
                 ownerGroup = (myLabel && author === myLabel) ? leaveUserGroup() : null;
                 title = buildLeaveTitle(author, leaveDays, leaveType, startVal, endVal);
@@ -13624,20 +13629,20 @@
             const endVal = (endEl && endEl.value) ? endEl.value : startVal;
             let title, time, memo, leaveDays = null, leaveType = null, author = '', ownerGroup = null;
             if (isLeave) {
-                // 연월차: 작성자는 원본 유지(관리자만 입력란으로 변경 가능), 연차일수·종류 변경
+                // 연월차: 작성자는 원본 유지(관리자·결재권자만 입력란으로 변경 가능), 연차일수·종류 변경
                 // 휴가기간 1일 초과면 연차일수 미적용 → 제목에 기간 표시
                 const info = leaveInfoOf(orig);
                 const dSel = document.getElementById('day-edit-leave-days');
                 const tSel = document.getElementById('day-edit-leave-type');
                 author = info.author;
-                if (calIsAdmin()) {
+                if (calCanEditLeaveAuthor()) {
                     const aIn = document.getElementById('day-edit-leave-author-input');
                     if (aIn) author = aIn.value.trim() || info.author;
                 }
                 leaveDays = (startVal !== endVal) ? null : ((dSel && dSel.value) || info.days || '1');
                 leaveType = (tSel && tSel.value) || info.type || '연차';
                 // 소유 그룹 유지: 작성자 그대로면 원본 ownerGroup(없으면 본인 명의일 때 내 그룹으로 보정),
-                // 관리자가 작성자를 바꿨으면 미상(null → 보수 잠금 판정)
+                // 관리자·결재권자가 작성자를 바꿨으면 미상(null → 보수 잠금 판정)
                 const myLabel = (typeof currentAuthorLabel === 'function') ? currentAuthorLabel() : '';
                 if (author === info.author) ownerGroup = orig.ownerGroup || null;
                 if (!ownerGroup && myLabel && author === myLabel) ownerGroup = leaveUserGroup();
