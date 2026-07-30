@@ -8975,6 +8975,7 @@
                     <button id="photo-order-prev" onclick="movePhotoInGroup('prev')">◀ 앞으로</button>
                     <button id="photo-order-next" onclick="movePhotoInGroup('next')">뒤로 ▶</button>
                 </div>
+                <button id="photo-add-to-group-btn" class="photo-add-group-btn" onclick="addPhotoToCurrentGroup()" style="display: none;">➕ 사진 추가</button>
                 <button id="photo-delete-btn" class="photo-delete-btn" onclick="deletePhoto()" style="display: none;">🗑️ 삭제</button>
             </div>
         </div>
@@ -9059,29 +9060,19 @@
             pointer-events: none;
         }
 
-        /* 카드(그룹)에 사진 추가 버튼 (우상단) */
-        .photo-add-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 28px;
-            height: 28px;
-            border: none;
-            border-radius: 50%;
-            background: rgba(33, 37, 41, 0.82);
+        /* 뷰어 하단 '사진 추가' 버튼 — 순서 이동 버튼과 같은 알약형, 강조용 파란 테두리 */
+        .photo-add-group-btn {
+            background: rgba(59, 130, 246, 0.22);
             color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-            line-height: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border: 1px solid rgba(147, 197, 253, 0.85);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 12.5px;
+            font-weight: 600;
             cursor: pointer;
-            z-index: 4;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.28);
-            transition: transform 0.15s ease, background 0.15s ease;
+            transition: background 0.15s ease;
         }
-        .photo-add-btn:hover { background: rgba(59, 130, 246, 0.92); transform: scale(1.08); }
+        .photo-add-group-btn:hover { background: rgba(59, 130, 246, 0.45); }
 
         /* 제목: 사진 하단 알약형 배너 */
         .photo-title-pill {
@@ -9536,6 +9527,15 @@
         let photoUploading = false; // 배치 업로드 진행 중 (모달 닫기 차단용)
         function photoEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+        // 제목 그룹 비교용 정규화 키 — 앞뒤 공백 제거 + 유니코드 NFC 정규화.
+        // 한글은 완성형(NFC)과 조합형(NFD)이 화면상 완전히 같아 보이지만 문자열로는 다르다
+        // (macOS 파일명·Finder에서 복사한 제목이 NFD로 들어오는 일이 흔함) → 정규화 없이 비교하면
+        // 같은 제목인데도 다른 그룹으로 갈라져 그리드에 똑같은 제목 카드가 2장 나온다.
+        function photoTitleKey(t) {
+            const s = String(t == null ? '' : t);
+            return (s.normalize ? s.normalize('NFC') : s).trim();
+        }
+
         // Firebase Storage 참조
         // 주의: storage 변수는 첫 번째 <script> 블록에서 이미 let으로 선언됨.
         // 여기서 다시 let으로 선언하면 전역 렉시컬 스코프 충돌(Identifier 'storage' has already been declared)로
@@ -9607,7 +9607,7 @@
             const seenTitles = new Set();
             const cards = [];   // [{ repIndex, count }]
             allPhotos.forEach((photo, index) => {
-                const t = (photo.title || '').trim();
+                const t = photoTitleKey(photo.title);
                 if (!t) { cards.push({ repIndex: index, count: 1 }); return; }
                 if (seenTitles.has(t)) return;
                 seenTitles.add(t);
@@ -9625,16 +9625,11 @@
                     : '<span class="photo-title-empty">제목 없음</span>';
                 const dblAttr = canEditTitle ? ` ondblclick="startEditPhotoTitle(${index}, this)" title="더블클릭하여 제목 수정"` : '';
                 const badge = card.count > 1 ? `<div class="photo-count-badge">${card.count}장</div>` : '';
-                // 제목이 있는(그룹화 가능한) 카드에는 이 그룹에 사진을 바로 추가하는 버튼을 표시
-                const hasTitle = !!(photo.title || '').trim();
-                const addBtn = (canUploadPhotos && hasTitle)
-                    ? `<button type="button" class="photo-add-btn" onclick="event.stopPropagation(); openPhotoUploadForCard(${index})" title="이 그룹에 사진 추가">＋</button>`
-                    : '';
+                // 그룹에 사진 추가는 썸네일이 아니라 뷰어 안에서 (사진 위에 버튼을 얹지 않음)
                 return `
                 <div class="photo-item" onclick="openPhotoViewer(${index})">
                     <img src="${photo.url}" alt="${photoEsc(photo.title || photo.filename)}" loading="lazy">
                     ${badge}
-                    ${addBtn}
                     <div class="photo-overlay">
                         <span>${new Date(photo.createdAt).toLocaleDateString('ko-KR')}</span>
                     </div>
@@ -9663,9 +9658,9 @@
         // 그룹 내 순서: sortOrder 지정분(오름차순) 먼저, 미지정분(이후 추가 업로드 등)은 기존 최신순으로 뒤에
         // 첫 번째 사진이 그리드 카드의 대표(메인 썸네일)
         function photoGroupOf(photo) {
-            const t = ((photo && photo.title) || '').trim();
+            const t = photoTitleKey(photo && photo.title);
             if (!t) return photo ? [photo] : [];
-            const members = allPhotos.filter(p => ((p.title || '').trim()) === t);
+            const members = allPhotos.filter(p => photoTitleKey(p.title) === t);
             const ordered = members.filter(p => typeof p.sortOrder === 'number')
                 .sort((a, b) => a.sortOrder - b.sortOrder);
             return ordered.concat(members.filter(p => typeof p.sortOrder !== 'number'));
@@ -9718,8 +9713,9 @@
                 else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
             });
         }
-        async function savePhotoTitle(photoRefs, title) {
+        async function savePhotoTitle(photoRefs, rawTitle) {
             // photoRefs: 편집 시작 시 캡처한 photo 객체(단건 또는 그룹 배열) — 현재 배열에서 id로 재탐색해 반영
+            const title = photoTitleKey(rawTitle);   // 그룹 키와 같은 정규화로 저장
             const refs = Array.isArray(photoRefs) ? photoRefs : [photoRefs];
             const failed = [];
             for (const ref of refs) {
@@ -9766,10 +9762,18 @@
             document.getElementById('photo-upload-modal').style.display = 'flex';
         }
 
-        // 그리드 카드의 ➕ 버튼: 해당 카드(그룹)의 대표 사진 인덱스로 제목을 찾아 고정 업로드
-        function openPhotoUploadForCard(index) {
-            const photo = allPhotos[index];
-            openPhotoUpload(photo ? (photo.title || '') : '');
+        // 뷰어 하단 '➕ 사진 추가': 지금 보고 있는 사진의 그룹 제목으로 고정해 업로드 모달을 연다.
+        // 업로드 모달(z 2000)이 뷰어(z 3000)보다 아래라 뷰어를 먼저 닫아야 모달이 보인다.
+        function addPhotoToCurrentGroup() {
+            const photo = allPhotos[currentPhotoIndex];
+            if (!photo) return;
+            const title = photo.title || '';
+            if (!photoTitleKey(title)) {
+                alert('제목이 없는 사진에는 그룹 추가를 사용할 수 없습니다.\n먼저 제목을 지정해주세요.');
+                return;
+            }
+            closePhotoViewer();
+            openPhotoUpload(title);
         }
 
         function closePhotoUpload() {
@@ -9821,9 +9825,29 @@
                 return true;
             });
 
-            selectedPhotoFiles = [...selectedPhotoFiles, ...validFiles];
-            selectedPhotoTitles = [...selectedPhotoTitles, ...validFiles.map(() => '')];
+            // 이미 담긴 사진은 제외 — 파일창을 다시 열어 같은 사진을 포함해 다시 고르거나
+            // 드래그 후 다시 선택하면 대기 목록에 같은 파일이 두 번 쌓여 그대로 두 번 업로드되고,
+            // 같은 사진이 그룹에 중복 등록(장수도 부풀려짐)된다. 이름+크기+수정시각으로 동일 판정.
+            const fileKey = f => `${f.name}|${f.size}|${f.lastModified}`;
+            const queued = new Set(selectedPhotoFiles.map(fileKey));
+            const freshFiles = [], dupNames = [];
+            validFiles.forEach(f => {
+                const k = fileKey(f);
+                if (queued.has(k)) { dupNames.push(f.name); return; }
+                queued.add(k);
+                freshFiles.push(f);
+            });
+
+            selectedPhotoFiles = [...selectedPhotoFiles, ...freshFiles];
+            selectedPhotoTitles = [...selectedPhotoTitles, ...freshFiles.map(() => '')];
+            if (dupNames.length) {
+                alert(`이미 선택한 사진은 제외했습니다:\n${dupNames.join(', ')}`);
+            }
             renderPhotoPreview();
+
+            // 파일 input 값 초기화 — 안 비우면 목록에서 지운 사진을 같은 파일로 다시 고를 때 change가 뜨지 않음
+            const fileInput = document.getElementById('photo-file-input');
+            if (fileInput) fileInput.value = '';
         }
 
         // 사진 미리보기 렌더링
@@ -9831,16 +9855,22 @@
             const previewGrid = document.getElementById('photo-preview-grid');
             previewGrid.innerHTML = '';
 
+            // 카드를 선택 순서대로 먼저 만들고 이미지는 읽히는 대로 채운다 —
+            // 예전엔 FileReader.onload 안에서 append해 읽기 완료 순서대로 뒤섞였고,
+            // ✕ 버튼의 index가 화면 위치와 어긋나 엉뚱한 사진이 지워질 수 있었다
             selectedPhotoFiles.forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const div = document.createElement('div');
-                    div.className = 'photo-preview-item';
-                    div.innerHTML = `
-                        <img src="${e.target.result}" alt="미리보기">
+                const div = document.createElement('div');
+                div.className = 'photo-preview-item';
+                div.innerHTML = `
+                        <img alt="미리보기">
                         <button class="remove-btn" onclick="removePreviewPhoto(${index})">×</button>
                     `;
-                    previewGrid.appendChild(div);
+                previewGrid.appendChild(div);
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = div.querySelector('img');
+                    if (img) img.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
             });
@@ -9899,7 +9929,8 @@
             photoUploading = true;   // 진행 중 모달 닫기 차단 (대기 배열이 비면 루프가 파손됨)
 
             // 업로드 묶음 공통 제목 (모든 사진에 동일 적용 → 같은 제목 그룹으로 묶임)
-            const commonTitle = (document.getElementById('photo-upload-title')?.value || '').trim();
+            // photoTitleKey로 저장 — 조합형(NFD)으로 입력·붙여넣기된 제목이 기존 그룹과 갈라지지 않게 통일
+            const commonTitle = photoTitleKey(document.getElementById('photo-upload-title')?.value);
 
             try {
                 // 스냅샷 순회 — 도중에 selectedPhotoFiles가 바뀌어도 루프는 안전.
@@ -10092,6 +10123,13 @@
             const deleteBtn = document.getElementById('photo-delete-btn');
             if (deleteBtn) {
                 deleteBtn.style.display = canDeletePhoto(photo) ? 'block' : 'none';
+            }
+
+            // 이 그룹에 사진 추가: 업로드 권한 + 제목이 있는(그룹인) 사진일 때만
+            const addGroupBtn = document.getElementById('photo-add-to-group-btn');
+            if (addGroupBtn) {
+                const canAdd = (typeof userCan === 'function' && userCan('photos')) && !!photoTitleKey(photo.title);
+                addGroupBtn.style.display = canAdd ? '' : 'none';
             }
 
             // 그룹에 사진이 1장뿐이면 좌우 화살표 숨김
