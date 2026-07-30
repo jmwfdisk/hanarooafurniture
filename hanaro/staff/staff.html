@@ -8928,7 +8928,7 @@
     <div id="photo-upload-modal" class="tool-modal" style="display: none;">
         <div class="tool-modal-content photo-upload-content">
             <div class="tool-modal-header">
-                <h3>📤 사진 업로드</h3>
+                <h3 id="photo-upload-modal-title">📤 사진 업로드</h3>
                 <button class="tool-modal-close" onclick="closePhotoUpload()">닫기</button>
             </div>
             <div class="photo-upload-body">
@@ -9031,6 +9031,10 @@
         .photo-empty-slot span { font-size: clamp(22px, 4vw, 38px); opacity: 0.55; line-height: 1; }
         .photo-empty-slot p { font-size: 12px; margin: 8px 0 0; }
 
+        /* 업로드 권한 보유자: 빈 칸도 클릭해 바로 사진 추가 */
+        .photo-empty-slot.addable { cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease; }
+        .photo-empty-slot.addable:hover { border-color: #4dabf7; background: #eef6ff; color: #339af0; }
+
         .photo-item {
             aspect-ratio: 1;
             overflow: hidden;
@@ -9039,11 +9043,11 @@
             border-radius: 8px;
         }
 
-        /* 같은 제목 그룹 카드의 사진 장수 배지 (우상단) */
+        /* 같은 제목 그룹 카드의 사진 장수 배지 (좌상단) */
         .photo-count-badge {
             position: absolute;
             top: 8px;
-            right: 8px;
+            left: 8px;
             background: rgba(33, 37, 41, 0.82);
             color: #fff;
             padding: 3px 10px;
@@ -9054,6 +9058,30 @@
             z-index: 3;
             pointer-events: none;
         }
+
+        /* 카드(그룹)에 사진 추가 버튼 (우상단) */
+        .photo-add-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(33, 37, 41, 0.82);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 4;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+        .photo-add-btn:hover { background: rgba(59, 130, 246, 0.92); transform: scale(1.08); }
 
         /* 제목: 사진 하단 알약형 배너 */
         .photo-title-pill {
@@ -9126,6 +9154,11 @@
             padding: 9px 12px;
             font-size: 14px;
             outline: none;
+        }
+        .photo-upload-title.locked {
+            background: #f1f3f5;
+            color: #495057;
+            cursor: not-allowed;
         }
         .photo-upload-title:focus { border-color: #3b82f6; }
 
@@ -9567,6 +9600,7 @@
                 return;
             }
             const COLS = 5, MIN_ROWS = 2;
+            const canUploadPhotos = typeof userCan === 'function' && userCan('photos');
 
             // 같은 제목의 사진들은 카드 1장으로 묶는다 (대표 = 그룹 정렬상 첫 사진, 장수 배지 표시)
             // 제목 없는 사진은 각각 단독 카드 (뷰어 그룹 규칙과 동일)
@@ -9591,10 +9625,16 @@
                     : '<span class="photo-title-empty">제목 없음</span>';
                 const dblAttr = canEditTitle ? ` ondblclick="startEditPhotoTitle(${index}, this)" title="더블클릭하여 제목 수정"` : '';
                 const badge = card.count > 1 ? `<div class="photo-count-badge">${card.count}장</div>` : '';
+                // 제목이 있는(그룹화 가능한) 카드에는 이 그룹에 사진을 바로 추가하는 버튼을 표시
+                const hasTitle = !!(photo.title || '').trim();
+                const addBtn = (canUploadPhotos && hasTitle)
+                    ? `<button type="button" class="photo-add-btn" onclick="event.stopPropagation(); openPhotoUploadForCard(${index})" title="이 그룹에 사진 추가">＋</button>`
+                    : '';
                 return `
                 <div class="photo-item" onclick="openPhotoViewer(${index})">
                     <img src="${photo.url}" alt="${photoEsc(photo.title || photo.filename)}" loading="lazy">
                     ${badge}
+                    ${addBtn}
                     <div class="photo-overlay">
                         <span>${new Date(photo.createdAt).toLocaleDateString('ko-KR')}</span>
                     </div>
@@ -9603,10 +9643,15 @@
             }).join('');
 
             // 카드가 있어도 5열 격자를 채우도록 빈 칸(점선)을 추가 — 최소 5×2 = 10칸
+            // 업로드 권한이 있으면 빈 칸도 클릭해 바로 새 사진(새 그룹)을 추가할 수 있다
             const totalCells = Math.max(COLS * MIN_ROWS, Math.ceil(cards.length / COLS) * COLS);
             for (let i = cards.length; i < totalCells; i++) {
-                html += `
-                <div class="photo-empty-slot">
+                html += canUploadPhotos
+                    ? `<div class="photo-empty-slot addable" onclick="openPhotoUpload()" title="클릭하여 사진 추가">
+                    <span>➕</span>
+                    <p>사진 추가</p>
+                </div>`
+                    : `<div class="photo-empty-slot">
                     <span>🖼️</span>
                     <p>이미지가 없습니다</p>
                 </div>`;
@@ -9628,6 +9673,18 @@
 
         // 제목 수정 권한: 활동사진첩 권한 + (본인 업로드 사진 또는 관리자) — Firestore 규칙과 일치
         function canEditPhotoTitle(photo) {
+            if (!(typeof userCan === 'function' && userCan('photos'))) return false;
+            if (!photo) return false;
+            let u = {};
+            try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+            if (u.isAdmin) return true;
+            const owner = photo.uploadedBy;
+            return !!owner && (owner === u.uid || owner === u.email || owner === u.username);
+        }
+
+        // 개별 사진 삭제 권한: 관리자 또는 그 사진을 올린 본인 — Firestore 규칙(admin or 본인)과 일치.
+        // canEditPhotoTitle과 달리 "그룹 전체가 본인 소유"까지 요구하지 않는다 — 자기가 올린 한 장만 지우면 되므로.
+        function canDeletePhoto(photo) {
             if (!(typeof userCan === 'function' && userCan('photos'))) return false;
             if (!photo) return false;
             let u = {};
@@ -9680,7 +9737,9 @@
         }
 
         // 사진 업로드 모달 열기
-        function openPhotoUpload() {
+        // forcedTitle이 주어지면(그리드 카드의 ➕ 버튼) 해당 그룹 제목으로 고정해서 업로드 —
+        // 그룹에 사진을 추가할 때 제목 오타로 그룹이 갈라지는 것을 방지
+        function openPhotoUpload(forcedTitle) {
             const loggedInUser = sessionStorage.getItem('loggedInUser');
             if (!loggedInUser) {
                 alert('로그인이 필요합니다.');
@@ -9694,10 +9753,23 @@
             selectedPhotoFiles = [];
             selectedPhotoTitles = [];
             document.getElementById('photo-preview-grid').innerHTML = '';
+            const hasForced = typeof forcedTitle === 'string' && forcedTitle.trim();
             const titleInput = document.getElementById('photo-upload-title');
-            if (titleInput) titleInput.value = '';
+            if (titleInput) {
+                titleInput.value = hasForced ? forcedTitle : '';
+                titleInput.readOnly = !!hasForced;
+                titleInput.classList.toggle('locked', !!hasForced);
+            }
+            const modalTitle = document.getElementById('photo-upload-modal-title');
+            if (modalTitle) modalTitle.textContent = hasForced ? `📤 "${forcedTitle}" 그룹에 사진 추가` : '📤 사진 업로드';
             document.getElementById('upload-submit-btn').disabled = true;
             document.getElementById('photo-upload-modal').style.display = 'flex';
+        }
+
+        // 그리드 카드의 ➕ 버튼: 해당 카드(그룹)의 대표 사진 인덱스로 제목을 찾아 고정 업로드
+        function openPhotoUploadForCard(index) {
+            const photo = allPhotos[index];
+            openPhotoUpload(photo ? (photo.title || '') : '');
         }
 
         function closePhotoUpload() {
@@ -9709,6 +9781,10 @@
             document.getElementById('photo-upload-modal').style.display = 'none';
             selectedPhotoFiles = [];
             selectedPhotoTitles = [];
+            const titleInput = document.getElementById('photo-upload-title');
+            if (titleInput) { titleInput.readOnly = false; titleInput.classList.remove('locked'); }
+            const modalTitle = document.getElementById('photo-upload-modal-title');
+            if (modalTitle) modalTitle.textContent = '📤 사진 업로드';
         }
 
         // 드래그 앤 드롭 설정
@@ -10012,13 +10088,10 @@
             document.getElementById('photo-viewer-date').textContent = new Date(photo.createdAt).toLocaleDateString('ko-KR');
             document.getElementById('photo-viewer-author').textContent = `업로더: ${photo.uploaderName || ''}`;
 
-            // 관리자만 삭제 버튼 표시
-            const loggedInUser = sessionStorage.getItem('loggedInUser');
+            // 삭제 버튼: 관리자 또는 본인이 올린 사진만 (Firestore 규칙과 일치)
             const deleteBtn = document.getElementById('photo-delete-btn');
             if (deleteBtn) {
-                let isAdmin = false;
-                try { isAdmin = !!(loggedInUser && JSON.parse(loggedInUser).isAdmin); } catch (e) {}
-                deleteBtn.style.display = isAdmin ? 'block' : 'none';
+                deleteBtn.style.display = canDeletePhoto(photo) ? 'block' : 'none';
             }
 
             // 그룹에 사진이 1장뿐이면 좌우 화살표 숨김
@@ -10095,12 +10168,15 @@
             if (viewerPos < viewerGroup.length - 1) { viewerPos++; renderViewerPhoto(); }
         }
 
-        // 사진 삭제 (관리자 전용)
+        // 사진 삭제 (관리자 또는 본인이 올린 사진)
         async function deletePhoto() {
+            const photo = allPhotos[currentPhotoIndex];
+            if (!canDeletePhoto(photo)) {
+                alert('이 사진을 삭제할 권한이 없습니다.');
+                return;
+            }
             if (!(await showStaffConfirm('이 사진을 삭제하시겠습니까?'))) return;
 
-            const photo = allPhotos[currentPhotoIndex];
-            
             try {
                 // Firestore에서 삭제
                 await db.collection('activityPhotos').doc(photo.id).delete();
