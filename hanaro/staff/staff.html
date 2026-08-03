@@ -8915,7 +8915,11 @@
     <div class="board-section" id="photo-gallery-section" style="display: none;">
         <div class="board-header">
             <h2>📷 활동사진첩</h2>
-            <button class="inquiry-btn photo-upload-btn" onclick="openPhotoUpload()">📤 사진 업로드</button>
+            <div class="photo-header-actions">
+                <!-- 썸네일 없이 원본만 올라간 기존 사진 일괄 최적화 (관리자에게만, 대상이 있을 때만 노출) -->
+                <button class="inquiry-btn photo-optimize-btn" id="photo-optimize-btn" onclick="optimizeExistingPhotos()" style="display: none;">🗜️ 기존 사진 최적화</button>
+                <button class="inquiry-btn photo-upload-btn" onclick="openPhotoUpload()">📤 사진 업로드</button>
+            </div>
         </div>
         
         <!-- 사진 그리드 -->
@@ -8948,8 +8952,9 @@
                     <div class="notice-content">
                         <strong>자동 압축 안내</strong>
                         <p>업로드된 사진은 자동으로 압축됩니다.<br>
-                        • 최대 해상도: 1200 x 1200px<br>
-                        • 최종 저장 크기: 800KB 이하</p>
+                        • 최대 해상도: 1600 x 1600px<br>
+                        • 최종 저장 크기: 800KB 이하<br>
+                        • 목록용 썸네일(480px)을 따로 만들어 빠르게 표시</p>
                     </div>
                 </div>
                 <div class="photo-preview-grid" id="photo-preview-grid"></div>
@@ -8966,6 +8971,8 @@
         <button class="photo-viewer-nav photo-viewer-prev" onclick="prevPhoto()">‹</button>
         <div class="photo-viewer-content">
             <img id="photo-viewer-image" src="" alt="">
+            <!-- 원본이 아직 안 받아졌을 때만 (썸네일 위에) 표시 -->
+            <div class="photo-viewer-spinner" id="photo-viewer-spinner" style="display: none;"><span class="table-spinner"></span></div>
             <div class="photo-viewer-info">
                 <span id="photo-viewer-title" style="font-weight:700;width:100%;text-align:center;"></span>
                 <span id="photo-viewer-date"></span>
@@ -8984,6 +8991,18 @@
 
     <style>
         /* 활동사진첩 스타일 */
+        .photo-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+        .photo-optimize-btn {
+            font-size: 12px !important;
+            padding: 10px 16px !important;
+            border-radius: 10px !important;
+            background: rgba(255, 255, 255, 0.9) !important;
+            border: 2px solid #cccccc !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+            color: #333 !important;
+        }
+        .photo-optimize-btn:disabled { opacity: 0.6; cursor: progress; }
+
         .photo-upload-btn {
             font-size: 12px !important;
             padding: 10px 20px !important;
@@ -9158,6 +9177,7 @@
             height: 100%;
             object-fit: cover;
             transition: transform 0.3s ease;
+            background: #eef0f2;   /* 썸네일 도착 전 빈 칸이 흰색으로 번쩍이지 않게 */
         }
 
         .photo-item:hover img {
@@ -9385,6 +9405,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            position: relative;   /* 원본 로딩 스피너 기준 */
+        }
+
+        /* 썸네일이 먼저 뜨고 원본을 받는 동안만 보이는 스피너 */
+        .photo-viewer-spinner {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.45);
+            border-radius: 999px;
+            pointer-events: none;
         }
 
         .photo-viewer-content img {
@@ -9393,6 +9425,7 @@
             max-height: calc(100vh - 260px);
             object-fit: contain;
             border-radius: 8px;
+            transition: opacity 0.15s ease;   /* 원본 로딩 중 흐림 → 도착 시 복귀 */
         }
 
         .photo-viewer-close {
@@ -9594,6 +9627,8 @@
         // 사진 그리드 렌더링
         function renderPhotoGrid() {
             const grid = document.getElementById('photo-grid');
+            // 썸네일 없는 옛 사진이 남아 있으면 관리자에게 최적화 버튼 노출
+            try { updatePhotoOptimizeBtn(); } catch (e) {}
             // 아직 서버에서 한 번도 못 불러왔고 사진도 없으면 로딩 스피너
             if (!photosLoaded && allPhotos.length === 0) {
                 grid.innerHTML = '<div class="photo-loading"><span class="table-spinner"></span>사진을 불러오는 중…</div>';
@@ -9626,9 +9661,11 @@
                 const dblAttr = canEditTitle ? ` ondblclick="startEditPhotoTitle(${index}, this)" title="더블클릭하여 제목 수정"` : '';
                 const badge = card.count > 1 ? `<div class="photo-count-badge">${card.count}장</div>` : '';
                 // 그룹에 사진 추가는 썸네일이 아니라 뷰어 안에서 (사진 위에 버튼을 얹지 않음)
+                // 목록은 썸네일(480px·80KB 이하)만 받는다 — 원본(수 MB)을 카드마다 내려받으면 사진첩 진입이 통째로 느려진다.
+                // thumbUrl이 없는 옛 사진은 원본 폴백(관리자용 '기존 사진 최적화'로 썸네일 생성 가능)
                 return `
                 <div class="photo-item" onclick="openPhotoViewer(${index})">
-                    <img src="${photo.url}" alt="${photoEsc(photo.title || photo.filename)}" loading="lazy">
+                    <img src="${photo.thumbUrl || photo.url}" alt="${photoEsc(photo.title || photo.filename)}" loading="lazy" decoding="async">
                     ${badge}
                     <div class="photo-overlay">
                         <span>${new Date(photo.createdAt).toLocaleDateString('ko-KR')}</span>
@@ -9917,8 +9954,9 @@
             if (!hasShownNotice) {
                 const noticeMsg = '📸 사진 업로드 안내\n\n' +
                     '업로드된 사진은 자동으로 압축됩니다:\n' +
-                    '• 최대 해상도: 1200 x 1200px\n' +
-                    '• 최종 저장 크기: 800KB 이하\n\n' +
+                    '• 최대 해상도: 1600 x 1600px\n' +
+                    '• 최종 저장 크기: 800KB 이하\n' +
+                    '• 목록용 썸네일(480px)도 함께 생성\n\n' +
                     '압축을 시작합니다.';
                 alert(noticeMsg);
                 sessionStorage.setItem('photoUploadNoticeShown', 'true');
@@ -9936,22 +9974,44 @@
                 // 스냅샷 순회 — 도중에 selectedPhotoFiles가 바뀌어도 루프는 안전.
                 // 파일별로 add 성공 시 대기 목록에서 즉시 제거 → 중간 실패 후 재시도해도 성공분이 중복 등록되지 않음.
                 const batch = selectedPhotoFiles.slice();
+                let doneCount = 0;
                 for (const file of batch) {
+                    uploadBtn.textContent = `업로드 중... (${doneCount + 1}/${batch.length})`;
                     const photoTitle = commonTitle;
                     const timestamp = Date.now();
                     const filename = `${timestamp}_${file.name}`;
+                    const baseName = photoBaseName(file.name);
+
+                    // 0) 업로드 전 리사이즈·압축 — 원본을 그대로 올리면 사진첩 목록·뷰어가 매번 수 MB를
+                    //    내려받게 되어 느리다. 본문용(1600px)과 목록용 썸네일(480px)을 한 번의 디코딩으로 생성.
+                    const proc = await photoProcessImage(file);
+                    const mainBody = (proc.main && proc.main.blob.size < file.size) ? proc.main.blob : file;
+                    const mainName = (mainBody === file) ? filename : `${timestamp}_${baseName}.jpg`;
 
                     // 1) Storage 업로드 시도 — 'Storage 실패'만 base64 폴백 대상
-                    let downloadURL = null;
-                    let uploadedRef = null;
+                    let downloadURL = null, thumbURL = null;
+                    let uploadedRef = null, thumbRef = null;
                     if (storage) {
                         try {
-                            console.log('Storage 업로드 시작:', filename);
-                            const storageRef = storage.ref(`activity-photos/${filename}`);
-                            const uploadTask = await storageRef.put(file);
+                            console.log('Storage 업로드 시작:', mainName, `${Math.round(mainBody.size / 1024)}KB`);
+                            const storageRef = storage.ref(`activity-photos/${mainName}`);
+                            const uploadTask = await storageRef.put(mainBody, { contentType: mainBody.type || file.type || 'image/jpeg' });
                             downloadURL = await uploadTask.ref.getDownloadURL();
                             uploadedRef = uploadTask.ref;
                             console.log('Storage 업로드 완료, URL:', downloadURL);
+
+                            // 썸네일은 실패해도 업로드 자체는 계속 (목록이 원본 폴백으로 뜰 뿐)
+                            // 경로는 activity-photos/ 평면 유지 — Storage 규칙이 하위 폴더를 허용하지 않음
+                            if (proc.thumb) {
+                                try {
+                                    const tRef = storage.ref(`activity-photos/${timestamp}_thumb_${baseName}.jpg`);
+                                    const tTask = await tRef.put(proc.thumb.blob, { contentType: 'image/jpeg' });
+                                    thumbURL = await tTask.ref.getDownloadURL();
+                                    thumbRef = tTask.ref;
+                                } catch (thumbError) {
+                                    console.warn('썸네일 업로드 실패(원본으로 표시):', thumbError.code, thumbError.message);
+                                }
+                            }
                         } catch (storageError) {
                             console.warn('Storage 업로드 실패, Base64로 대체:', storageError.code, storageError.message);
                             downloadURL = null;
@@ -9963,21 +10023,27 @@
                     //    (예전엔 Storage 폴백 catch가 Firestore 오류까지 삼켜 같은 사진을 base64로
                     //     다시 add 시도했고, put된 Storage 파일이 고아로 남았음 → 여기서 보상 삭제)
                     try {
-                        await db.collection('activityPhotos').add({
-                            filename: filename,
+                        const docData = {
+                            filename: mainName,
                             originalName: file.name,
                             title: photoTitle,
                             url: url,
                             uploadedBy: userData.uid || userData.username,
                             uploaderName: userData.name || userData.username,
                             createdAt: new Date().toISOString()
-                        });
+                        };
+                        if (thumbURL) docData.thumbUrl = thumbURL;
+                        // 실제로 올린 본문의 크기만 기록 (압축본이 원본보다 커서 원본을 올린 경우는 제외)
+                        if (proc.main && mainBody !== file) { docData.width = proc.main.width; docData.height = proc.main.height; }
+                        await db.collection('activityPhotos').add(docData);
                         console.log('Firestore 저장 성공');
                     } catch (firestoreError) {
                         console.error('Firestore 저장 오류:', firestoreError);
                         if (uploadedRef) uploadedRef.delete().catch(() => {});
+                        if (thumbRef) thumbRef.delete().catch(() => {});
                         throw firestoreError;
                     }
+                    doneCount++;
 
                     // 3) 이 파일 확정 → 대기 목록에서 제거
                     const si = selectedPhotoFiles.indexOf(file);
@@ -10026,6 +10092,164 @@
                 reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
+        }
+
+        // ── 활동사진첩 이미지 최적화 ─────────────────────────────────────────────
+        // 업로드 원본(요즘 폰 사진은 3~8MB)을 그대로 Storage에 올리면 목록은 카드 수만큼,
+        // 뷰어는 넘길 때마다 원본을 내려받아 체감 속도가 크게 떨어진다.
+        // → 본문용(1600px·800KB 이하)과 목록용 썸네일(480px·80KB 이하)을 만들어 올린다.
+        const PHOTO_MAX_DIM = 1600, PHOTO_MAX_KB = 800;
+        const PHOTO_THUMB_DIM = 480, PHOTO_THUMB_KB = 80;
+
+        // 파일명에서 확장자 제거 (JPEG로 변환되면 .jpg를 새로 붙이므로)
+        function photoBaseName(name) {
+            return String(name || 'photo').replace(/\.[^./\\]+$/, '') || 'photo';
+        }
+
+        // 로드된 <img>를 maxDim 이내로 줄여 JPEG Blob 생성. 목표 용량 이하가 될 때까지 품질을 낮춘다.
+        // 실패(캔버스 오류 등)하면 null → 호출부는 원본을 그대로 쓴다.
+        function photoCanvasBlob(img, maxDim, targetKB) {
+            return new Promise(resolve => {
+                try {
+                    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+                    if (!w || !h) return resolve(null);
+                    const scale = Math.min(1, maxDim / Math.max(w, h));
+                    const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = cw; canvas.height = ch;
+                    const ctx = canvas.getContext('2d');
+                    // 투명 PNG를 JPEG로 바꾸면 투명부가 검게 나오므로 흰 배경을 먼저 깐다
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, cw, ch);
+                    ctx.drawImage(img, 0, 0, cw, ch);
+                    const tryQuality = (q) => {
+                        canvas.toBlob(blob => {
+                            if (!blob) return resolve(null);
+                            if (blob.size <= targetKB * 1024 || q <= 0.45) {
+                                resolve({ blob: blob, width: cw, height: ch });
+                            } else {
+                                tryQuality(Math.round((q - 0.1) * 100) / 100);
+                            }
+                        }, 'image/jpeg', q);
+                    };
+                    tryQuality(0.85);
+                } catch (e) {
+                    console.warn('이미지 압축 실패:', e);
+                    resolve(null);
+                }
+            });
+        }
+
+        // File/Blob 한 장을 한 번만 디코딩해 본문용·썸네일용 두 벌을 만든다.
+        // GIF는 압축하면 애니메이션이 죽으므로 본문은 원본 유지(썸네일만 정지 이미지로 생성).
+        async function photoProcessImage(file) {
+            const objUrl = URL.createObjectURL(file);
+            try {
+                const img = await new Promise((resolve, reject) => {
+                    const im = new Image();
+                    im.onload = () => resolve(im);
+                    im.onerror = () => reject(new Error('이미지 디코딩 실패'));
+                    im.src = objUrl;
+                });
+                const isGif = /gif/i.test(file.type || '');
+                const main = isGif ? null : await photoCanvasBlob(img, PHOTO_MAX_DIM, PHOTO_MAX_KB);
+                const thumb = await photoCanvasBlob(img, PHOTO_THUMB_DIM, PHOTO_THUMB_KB);
+                return { main: main, thumb: thumb };
+            } catch (e) {
+                console.warn('이미지 처리 실패, 원본을 그대로 사용:', e);
+                return { main: null, thumb: null };
+            } finally {
+                URL.revokeObjectURL(objUrl);
+            }
+        }
+
+        // 기존 사진(썸네일 없이 원본만 올라간 것) 일괄 최적화 — 관리자 전용.
+        // 원본을 내려받아 압축본+썸네일을 새로 올리고 문서의 url/thumbUrl을 교체한 뒤 옛 원본을 지운다.
+        let photoOptimizeBusy = false;
+        function photoCanOptimize() {
+            let u = {};
+            try { u = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+            return !!u.isAdmin && !!db && !!storage;
+        }
+
+        // 최적화 대상: 썸네일이 없고 https 주소로 저장된 사진 (base64 레거시는 제외)
+        function photoOptimizeTargets() {
+            return allPhotos.filter(p => !p.thumbUrl && typeof p.url === 'string' && /^https?:/i.test(p.url));
+        }
+
+        function updatePhotoOptimizeBtn() {
+            const btn = document.getElementById('photo-optimize-btn');
+            if (!btn) return;
+            const n = photoCanOptimize() ? photoOptimizeTargets().length : 0;
+            btn.style.display = n > 0 ? '' : 'none';
+            if (!photoOptimizeBusy) btn.textContent = `🗜️ 기존 사진 최적화 (${n})`;
+        }
+
+        async function optimizeExistingPhotos() {
+            if (photoOptimizeBusy) return;
+            if (!photoCanOptimize()) { alert('관리자만 사용할 수 있습니다.'); return; }
+            const targets = photoOptimizeTargets();
+            if (!targets.length) { alert('최적화할 사진이 없습니다.'); return; }
+            if (!(await showStaffConfirm(
+                `기존 사진 ${targets.length}장을 압축하고 목록용 썸네일을 만듭니다.\n` +
+                `사진 수에 따라 몇 분 걸릴 수 있고, 진행 중에는 창을 닫지 마세요.\n\n진행할까요?`))) return;
+
+            const btn = document.getElementById('photo-optimize-btn');
+            photoOptimizeBusy = true;
+            if (btn) btn.disabled = true;
+            let ok = 0, fail = 0;
+
+            for (let i = 0; i < targets.length; i++) {
+                const photo = targets[i];
+                if (btn) btn.textContent = `🗜️ 최적화 중… ${i + 1}/${targets.length}`;
+                try {
+                    // Storage CORS 허용 도메인(cors.json)에서만 동작 — 로컬 file:// 로는 실패한다
+                    const res = await fetch(photo.url);
+                    if (!res.ok) throw new Error(`다운로드 실패 (${res.status})`);
+                    const blob = await res.blob();
+                    const proc = await photoProcessImage(blob);
+                    if (!proc.thumb && !proc.main) throw new Error('압축 실패');
+
+                    const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    const base = photoBaseName(photo.originalName || photo.filename);
+                    const update = {};
+                    let oldUrl = null;
+
+                    if (proc.thumb) {
+                        const tTask = await storage.ref(`activity-photos/${stamp}_thumb_${base}.jpg`)
+                            .put(proc.thumb.blob, { contentType: 'image/jpeg' });
+                        update.thumbUrl = await tTask.ref.getDownloadURL();
+                    }
+                    // 본문 교체는 실제로 의미 있게 작아질 때만 (20% 이상 감소)
+                    if (proc.main && proc.main.blob.size < blob.size * 0.8) {
+                        const mTask = await storage.ref(`activity-photos/${stamp}_${base}.jpg`)
+                            .put(proc.main.blob, { contentType: 'image/jpeg' });
+                        update.url = await mTask.ref.getDownloadURL();
+                        update.width = proc.main.width;
+                        update.height = proc.main.height;
+                        oldUrl = photo.url;
+                    }
+                    if (!Object.keys(update).length) { fail++; continue; }
+
+                    await db.collection('activityPhotos').doc(photo.id).update(update);
+                    Object.assign(photo, update);
+                    // 문서 갱신이 끝난 뒤에만 옛 원본 삭제 (실패해도 고아 파일만 남고 화면은 정상)
+                    if (oldUrl && oldUrl.includes('firebase')) {
+                        try { await storage.refFromURL(oldUrl).delete(); } catch (e) { console.warn('옛 원본 삭제 실패:', e); }
+                    }
+                    ok++;
+                } catch (e) {
+                    console.error('사진 최적화 실패:', photo.id, e);
+                    fail++;
+                }
+            }
+
+            photoOptimizeBusy = false;
+            if (btn) btn.disabled = false;
+            photoImgCache.clear();   // 교체된 주소로 다시 받도록
+            renderPhotoGrid();
+            alert(`사진 최적화 완료\n\n• 성공: ${ok}장\n• 실패: ${fail}장` +
+                  (fail ? '\n\n실패분은 다시 실행하면 재시도합니다.' : ''));
         }
 
         // 이미지 압축 함수 (Firestore 1MB 제한 대응)
@@ -10082,6 +10306,40 @@
         let viewerGroup = [];   // allPhotos 인덱스 배열
         let viewerPos = 0;      // viewerGroup 내 현재 위치
 
+        // 뷰어 이미지 선(先)로딩 캐시 — 넘길 때마다 원본을 새로 받느라 멈칫하던 것 해소.
+        // 브라우저 캐시에도 남지만, 요소를 붙들고 있어야 디코딩본까지 유지돼 전환이 즉시 끝난다.
+        const photoImgCache = new Map();   // url → HTMLImageElement
+        let viewerRenderToken = 0;         // 늦게 도착한 로드가 다음 사진을 덮어쓰지 않게 하는 세대 번호
+
+        function photoPreload(url) {
+            if (!url) return null;
+            let im = photoImgCache.get(url);
+            if (im) return im;
+            // 메모리 상한 — 오래된 것부터 버린다 (브라우저 HTTP 캐시에는 남음)
+            while (photoImgCache.size >= 40) {
+                photoImgCache.delete(photoImgCache.keys().next().value);
+            }
+            im = new Image();
+            im.decoding = 'async';
+            im.src = url;
+            photoImgCache.set(url, im);
+            return im;
+        }
+
+        function photoIsPreloaded(url) {
+            const im = photoImgCache.get(url);
+            return !!(im && im.complete && im.naturalWidth);
+        }
+
+        // 현재 위치 기준 앞뒤 사진을 미리 받아둔다 (다음/이전 클릭 시 대기 없음)
+        function photoPreloadNeighbors() {
+            [1, -1, 2, -2].forEach(off => {
+                const idx = viewerGroup[viewerPos + off];
+                const p = (idx !== undefined) ? allPhotos[idx] : null;
+                if (p) photoPreload(p.url);
+            });
+        }
+
         function openPhotoViewer(index) {
             const photo = allPhotos[index];
             if (!photo) return;
@@ -10108,7 +10366,36 @@
             if (!photo) return;
             const total = viewerGroup.length;
 
-            document.getElementById('photo-viewer-image').src = photo.url;
+            // 이미지 표시: 이미 받아둔 원본이면 즉시, 아니면 썸네일을 먼저 띄우고(빈 화면 방지)
+            // 원본이 도착하면 바꿔 끼운다. 그 사이 다른 사진으로 넘어갔으면 무시(토큰 비교).
+            const imgEl = document.getElementById('photo-viewer-image');
+            const spinner = document.getElementById('photo-viewer-spinner');
+            const token = ++viewerRenderToken;
+            const fullUrl = photo.url;
+            if (photoIsPreloaded(fullUrl)) {
+                imgEl.src = fullUrl;
+                imgEl.style.opacity = '';
+                if (spinner) spinner.style.display = 'none';
+            } else {
+                // 썸네일이 없는 옛 사진은 직전 사진이 잠깐 남으므로 흐리게 처리해 로딩 중임을 알린다
+                if (photo.thumbUrl) { imgEl.src = photo.thumbUrl; imgEl.style.opacity = ''; }
+                else imgEl.style.opacity = '0.35';
+                if (spinner) spinner.style.display = '';
+                const im = photoPreload(fullUrl);
+                const settle = (applySrc) => {
+                    if (token !== viewerRenderToken) return;   // 이미 다음 사진으로 넘어감
+                    if (applySrc) imgEl.src = fullUrl;
+                    imgEl.style.opacity = '';
+                    if (spinner) spinner.style.display = 'none';
+                };
+                if (im.complete && im.naturalWidth) settle(true);
+                else {
+                    im.addEventListener('load', () => settle(true), { once: true });
+                    im.addEventListener('error', () => settle(!photo.thumbUrl), { once: true });
+                }
+            }
+            photoPreloadNeighbors();
+
             const vTitle = document.getElementById('photo-viewer-title');
             if (vTitle) {
                 const base = photo.title || '';
@@ -10196,6 +10483,9 @@
 
         function closePhotoViewer() {
             document.getElementById('photo-viewer-modal').style.display = 'none';
+            viewerRenderToken++;   // 닫은 뒤 늦게 도착한 원본이 이미지를 갈아끼우지 않게
+            const spinner = document.getElementById('photo-viewer-spinner');
+            if (spinner) spinner.style.display = 'none';
         }
 
         function prevPhoto() {
@@ -10219,7 +10509,7 @@
                 // Firestore에서 삭제
                 await db.collection('activityPhotos').doc(photo.id).delete();
                 
-                // Storage에서 삭제 시도
+                // Storage에서 삭제 시도 (본문 + 썸네일)
                 if (storage && photo.url.includes('firebase')) {
                     try {
                         const storageRef = storage.refFromURL(photo.url);
@@ -10227,6 +10517,9 @@
                     } catch (e) {
                         console.warn('Storage 삭제 실패:', e);
                     }
+                }
+                if (storage && typeof photo.thumbUrl === 'string' && photo.thumbUrl.includes('firebase')) {
+                    try { await storage.refFromURL(photo.thumbUrl).delete(); } catch (e) { console.warn('썸네일 삭제 실패:', e); }
                 }
 
                 alert('사진이 삭제되었습니다.');
