@@ -9674,7 +9674,7 @@
                 // 목록은 썸네일(480px·80KB 이하)만 받는다 — 원본(수 MB)을 카드마다 내려받으면 사진첩 진입이 통째로 느려진다.
                 // thumbUrl이 없는 옛 사진은 원본 폴백(관리자용 '기존 사진 최적화'로 썸네일 생성 가능)
                 return `
-                <div class="photo-item" onclick="openPhotoViewer(${index})">
+                <div class="photo-item" onclick="openPhotoViewer(${index})" onmouseenter="photoPreload((allPhotos[${index}]||{}).url)">
                     <img src="${photo.thumbUrl || photo.url}" alt="${photoEsc(photo.title || photo.filename)}" loading="lazy" decoding="async">
                     ${badge}
                     <div class="photo-overlay">
@@ -10336,6 +10336,36 @@
             return im;
         }
 
+        // 썸네일을 먼저 띄울 때 쓸 "원본이 차지할 표시 크기" 계산.
+        // 480px 썸네일을 그대로 넣으면 제 크기(작게)로 그려졌다가 원본이 오면 확 커지므로,
+        // 원본 크기(width/height)를 아는 사진만 미리 그 크기로 고정해 크기 변화가 없게 한다.
+        // CSS 상한(.photo-viewer-content max-width:90%, img max-height:calc(100vh-260px))과 동일 계산.
+        function photoViewerBox(photo) {
+            const w = photo && photo.width, h = photo && photo.height;
+            if (!w || !h) return null;   // 크기 미상(옛 사진) → 썸네일 미리보기 생략
+            const capH = Math.max(160, window.innerHeight - 260);
+            const capW = Math.max(160, window.innerWidth * 0.9);
+            const scale = Math.min(capH / h, capW / w, 1);   // 원본보다 크게는 늘리지 않음
+            return { w: Math.round(w * scale), h: Math.round(h * scale) };
+        }
+
+        // 원본이 한 번 로드되면 그 크기를 메모리에 기억 — 문서에 width/height가 없는 사진도
+        // 다음 번부터는 썸네일 미리보기를 제 크기로 띄울 수 있다 (Firestore 저장은 하지 않음)
+        function photoRememberSize(photo, im) {
+            if (!photo || !im || !im.naturalWidth) return;
+            if (!photo.width || !photo.height) {
+                photo.width = im.naturalWidth;
+                photo.height = im.naturalHeight;
+            }
+        }
+
+        // 인라인으로 고정했던 표시 크기 해제 (원본이 붙은 뒤에는 CSS 상한이 관리)
+        function photoViewerClearBox(imgEl) {
+            if (!imgEl) return;
+            imgEl.style.width = '';
+            imgEl.style.height = '';
+        }
+
         // 로딩 스피너 — 곧바로 뜨는 사진에서 깜빡이지 않도록 조금 늦게 표시한다
         let viewerSpinnerTimer = null;
         function photoViewerSpinner(show, delayMs) {
@@ -10395,13 +10425,20 @@
             const token = ++viewerRenderToken;
             const fullUrl = photo.url;
             if (photoIsPreloaded(fullUrl)) {
+                photoRememberSize(photo, photoImgCache.get(fullUrl));
                 imgEl.src = fullUrl;
                 imgEl.style.opacity = '';
                 imgEl.classList.remove('photo-img-loading');
+                photoViewerClearBox(imgEl);
                 photoViewerSpinner(false);
             } else {
-                // 썸네일이 있으면 흐리게 먼저 띄우고, 없는 옛 사진은 직전 사진을 반투명으로 남긴다
-                if (photo.thumbUrl) {
+                // 썸네일은 원본이 차지할 크기로 고정해 흐리게 먼저 띄운다(크기 변화 없음).
+                // 원본 크기를 모르는 옛 사진은 썸네일을 쓰지 않고 직전 사진을 반투명으로 남긴다 —
+                // 작게 떴다가 커지는 것보다 낫다.
+                const box = photo.thumbUrl ? photoViewerBox(photo) : null;
+                if (box) {
+                    imgEl.style.width = box.w + 'px';
+                    imgEl.style.height = box.h + 'px';
                     imgEl.src = photo.thumbUrl;
                     imgEl.style.opacity = '';
                     imgEl.classList.add('photo-img-loading');
@@ -10412,10 +10449,12 @@
                 photoViewerSpinner(true);
                 const im = photoPreload(fullUrl);
                 const settle = (applySrc) => {
+                    photoRememberSize(photo, im);
                     if (token !== viewerRenderToken) return;   // 이미 다음 사진으로 넘어감
                     if (applySrc) imgEl.src = fullUrl;
                     imgEl.style.opacity = '';
                     imgEl.classList.remove('photo-img-loading');
+                    photoViewerClearBox(imgEl);
                     photoViewerSpinner(false);
                 };
                 if (im.complete && im.naturalWidth) settle(true);
@@ -10516,7 +10555,7 @@
             viewerRenderToken++;   // 닫은 뒤 늦게 도착한 원본이 이미지를 갈아끼우지 않게
             photoViewerSpinner(false);
             const imgEl = document.getElementById('photo-viewer-image');
-            if (imgEl) { imgEl.classList.remove('photo-img-loading'); imgEl.style.opacity = ''; }
+            if (imgEl) { imgEl.classList.remove('photo-img-loading'); imgEl.style.opacity = ''; photoViewerClearBox(imgEl); }
         }
 
         function prevPhoto() {
