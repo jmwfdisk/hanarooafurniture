@@ -9409,15 +9409,25 @@
         }
 
         /* 썸네일이 먼저 뜨고 원본을 받는 동안만 보이는 스피너 */
+        /* display:flex 필수 — .table-spinner는 <span>이라 부모가 flex가 아니면 width/height가 안 먹는다 */
         .photo-viewer-spinner {
             position: absolute;
-            top: 50%; left: 50%;
+            top: calc(50% - 40px); left: 50%;   /* 하단 정보 2줄만큼 위로 — 사진 중앙에 오도록 */
             transform: translate(-50%, -50%);
-            padding: 10px 14px;
-            background: rgba(0, 0, 0, 0.45);
-            border-radius: 999px;
+            display: flex; align-items: center; justify-content: center;
+            width: 62px; height: 62px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
             pointer-events: none;
+            z-index: 2;
         }
+        /* 어두운 뷰어 배경에 맞춘 스피너 색 */
+        .photo-viewer-spinner .table-spinner {
+            border-color: rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+        }
+        /* 원본 도착 전 썸네일을 흐리게 — 저해상도가 최종본처럼 보이지 않게 */
+        .photo-viewer-content img.photo-img-loading { filter: blur(3px); }
 
         .photo-viewer-content img {
             max-width: 100%;
@@ -9425,7 +9435,7 @@
             max-height: calc(100vh - 260px);
             object-fit: contain;
             border-radius: 8px;
-            transition: opacity 0.15s ease;   /* 원본 로딩 중 흐림 → 도착 시 복귀 */
+            transition: opacity 0.15s ease, filter 0.2s ease;   /* 원본 로딩 중 흐림 → 도착 시 복귀 */
         }
 
         .photo-viewer-close {
@@ -10326,6 +10336,19 @@
             return im;
         }
 
+        // 로딩 스피너 — 곧바로 뜨는 사진에서 깜빡이지 않도록 조금 늦게 표시한다
+        let viewerSpinnerTimer = null;
+        function photoViewerSpinner(show, delayMs) {
+            const sp = document.getElementById('photo-viewer-spinner');
+            if (viewerSpinnerTimer) { clearTimeout(viewerSpinnerTimer); viewerSpinnerTimer = null; }
+            if (!sp) return;
+            if (!show) { sp.style.display = 'none'; return; }
+            viewerSpinnerTimer = setTimeout(() => {
+                sp.style.display = '';
+                viewerSpinnerTimer = null;
+            }, (delayMs === undefined) ? 150 : delayMs);
+        }
+
         function photoIsPreloaded(url) {
             const im = photoImgCache.get(url);
             return !!(im && im.complete && im.naturalWidth);
@@ -10369,24 +10392,31 @@
             // 이미지 표시: 이미 받아둔 원본이면 즉시, 아니면 썸네일을 먼저 띄우고(빈 화면 방지)
             // 원본이 도착하면 바꿔 끼운다. 그 사이 다른 사진으로 넘어갔으면 무시(토큰 비교).
             const imgEl = document.getElementById('photo-viewer-image');
-            const spinner = document.getElementById('photo-viewer-spinner');
             const token = ++viewerRenderToken;
             const fullUrl = photo.url;
             if (photoIsPreloaded(fullUrl)) {
                 imgEl.src = fullUrl;
                 imgEl.style.opacity = '';
-                if (spinner) spinner.style.display = 'none';
+                imgEl.classList.remove('photo-img-loading');
+                photoViewerSpinner(false);
             } else {
-                // 썸네일이 없는 옛 사진은 직전 사진이 잠깐 남으므로 흐리게 처리해 로딩 중임을 알린다
-                if (photo.thumbUrl) { imgEl.src = photo.thumbUrl; imgEl.style.opacity = ''; }
-                else imgEl.style.opacity = '0.35';
-                if (spinner) spinner.style.display = '';
+                // 썸네일이 있으면 흐리게 먼저 띄우고, 없는 옛 사진은 직전 사진을 반투명으로 남긴다
+                if (photo.thumbUrl) {
+                    imgEl.src = photo.thumbUrl;
+                    imgEl.style.opacity = '';
+                    imgEl.classList.add('photo-img-loading');
+                } else {
+                    imgEl.style.opacity = '0.35';
+                    imgEl.classList.remove('photo-img-loading');
+                }
+                photoViewerSpinner(true);
                 const im = photoPreload(fullUrl);
                 const settle = (applySrc) => {
                     if (token !== viewerRenderToken) return;   // 이미 다음 사진으로 넘어감
                     if (applySrc) imgEl.src = fullUrl;
                     imgEl.style.opacity = '';
-                    if (spinner) spinner.style.display = 'none';
+                    imgEl.classList.remove('photo-img-loading');
+                    photoViewerSpinner(false);
                 };
                 if (im.complete && im.naturalWidth) settle(true);
                 else {
@@ -10484,8 +10514,9 @@
         function closePhotoViewer() {
             document.getElementById('photo-viewer-modal').style.display = 'none';
             viewerRenderToken++;   // 닫은 뒤 늦게 도착한 원본이 이미지를 갈아끼우지 않게
-            const spinner = document.getElementById('photo-viewer-spinner');
-            if (spinner) spinner.style.display = 'none';
+            photoViewerSpinner(false);
+            const imgEl = document.getElementById('photo-viewer-image');
+            if (imgEl) { imgEl.classList.remove('photo-img-loading'); imgEl.style.opacity = ''; }
         }
 
         function prevPhoto() {
