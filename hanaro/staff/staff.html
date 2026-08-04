@@ -9660,9 +9660,13 @@
                 cards.push({ repIndex: allPhotos.indexOf(group[0]), count: group.length });
             });
 
-            let html = cards.map(card => {
+            let html = cards.map((card, cardPos) => {
                 const index = card.repIndex;
                 const photo = allPhotos[index];
+                // 첫 두 줄은 어차피 화면 안이라 lazy를 걸지 않는다 — lazy는 화면 안 이미지도
+                // 레이아웃이 끝난 뒤에야 요청해서 첫 표시가 눈에 띄게 늦어진다
+                const eager = cardPos < COLS * MIN_ROWS;
+                const loadAttr = eager ? ' fetchpriority="high"' : ' loading="lazy"';
                 // 제목 수정은 그룹 내 모든 사진이 본인 사진이거나 관리자일 때만 (Firestore 규칙과 일치)
                 const canEditTitle = photoGroupOf(photo).every(canEditPhotoTitle);
                 const titleHtml = photo.title
@@ -9675,7 +9679,7 @@
                 // thumbUrl이 없는 옛 사진은 원본 폴백(관리자용 '기존 사진 최적화'로 썸네일 생성 가능)
                 return `
                 <div class="photo-item" onclick="openPhotoViewer(${index})" onmouseenter="photoPreload((allPhotos[${index}]||{}).url)">
-                    <img src="${photo.thumbUrl || photo.url}" alt="${photoEsc(photo.title || photo.filename)}" loading="lazy" decoding="async">
+                    <img src="${photo.thumbUrl || photo.url}" alt="${photoEsc(photo.title || photo.filename)}"${loadAttr} decoding="async">
                     ${badge}
                     <div class="photo-overlay">
                         <span>${new Date(photo.createdAt).toLocaleDateString('ko-KR')}</span>
@@ -10005,7 +10009,10 @@
                         try {
                             console.log('Storage 업로드 시작:', mainName, `${Math.round(mainBody.size / 1024)}KB`);
                             const storageRef = storage.ref(`activity-photos/${mainName}`);
-                            const uploadTask = await storageRef.put(mainBody, { contentType: mainBody.type || file.type || 'image/jpeg' });
+                            const uploadTask = await storageRef.put(mainBody, {
+                                contentType: mainBody.type || file.type || 'image/jpeg',
+                                cacheControl: PHOTO_CACHE_CONTROL
+                            });
                             downloadURL = await uploadTask.ref.getDownloadURL();
                             uploadedRef = uploadTask.ref;
                             console.log('Storage 업로드 완료, URL:', downloadURL);
@@ -10015,7 +10022,7 @@
                             if (proc.thumb) {
                                 try {
                                     const tRef = storage.ref(`activity-photos/${timestamp}_thumb_${baseName}.jpg`);
-                                    const tTask = await tRef.put(proc.thumb.blob, { contentType: 'image/jpeg' });
+                                    const tTask = await tRef.put(proc.thumb.blob, { contentType: 'image/jpeg', cacheControl: PHOTO_CACHE_CONTROL });
                                     thumbURL = await tTask.ref.getDownloadURL();
                                     thumbRef = tTask.ref;
                                 } catch (thumbError) {
@@ -10110,6 +10117,9 @@
         // → 본문용(1600px·800KB 이하)과 목록용 썸네일(480px·80KB 이하)을 만들어 올린다.
         const PHOTO_MAX_DIM = 1600, PHOTO_MAX_KB = 800;
         const PHOTO_THUMB_DIM = 480, PHOTO_THUMB_KB = 80;
+        // Storage는 업로드 시 지정하지 않으면 캐시 헤더가 없어 브라우저가 방문할 때마다 사진을 다시 받는다
+        // (썸네일이 80KB인데도 사진첩을 열 때마다 늦게 뜨는 원인). 파일명이 매번 유일하므로 영구 캐시가 안전.
+        const PHOTO_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
         // 파일명에서 확장자 제거 (JPEG로 변환되면 .jpg를 새로 붙이므로)
         function photoBaseName(name) {
@@ -10190,18 +10200,41 @@
         function updatePhotoOptimizeBtn() {
             const btn = document.getElementById('photo-optimize-btn');
             if (!btn) return;
-            const n = photoCanOptimize() ? photoOptimizeTargets().length : 0;
-            btn.style.display = n > 0 ? '' : 'none';
-            if (!photoOptimizeBusy) btn.textContent = `🗜️ 기존 사진 최적화 (${n})`;
+            // 캐시 헤더 보정은 문서만 봐서는 필요 여부를 알 수 없으므로(Storage 메타데이터 조회 필요)
+            // 관리자에게는 사진이 있는 한 항상 노출한다
+            const canRun = photoCanOptimize() && allPhotos.length > 0;
+            btn.style.display = canRun ? '' : 'none';
+            if (!photoOptimizeBusy) {
+                const n = canRun ? photoOptimizeTargets().length : 0;
+                btn.textContent = n > 0 ? `🗜️ 사진 최적화 (${n})` : '🗜️ 사진 최적화';
+            }
+        }
+
+        // 이미 올라간 파일의 캐시 헤더 보정 — 없으면 브라우저가 매번 다시 받는다.
+        // 'skip'(이미 적용) | 'fixed' | 'fail'
+        async function photoFixCacheHeader(url) {
+            if (!url || !/^https?:/i.test(url) || url.indexOf('firebase') < 0) return 'skip';
+            try {
+                const ref = storage.refFromURL(url);
+                const meta = await ref.getMetadata();
+                if (meta && meta.cacheControl && meta.cacheControl.indexOf('max-age=31536000') >= 0) return 'skip';
+                await ref.updateMetadata({ cacheControl: PHOTO_CACHE_CONTROL });   // 다운로드 URL은 그대로 유지된다
+                return 'fixed';
+            } catch (e) {
+                console.warn('캐시 헤더 보정 실패:', url, e && e.code, e && e.message);
+                return 'fail';
+            }
         }
 
         async function optimizeExistingPhotos() {
             if (photoOptimizeBusy) return;
             if (!photoCanOptimize()) { alert('관리자만 사용할 수 있습니다.'); return; }
             const targets = photoOptimizeTargets();
-            if (!targets.length) { alert('최적화할 사진이 없습니다.'); return; }
+            const cacheTargets = allPhotos.length;
+            if (!targets.length && !cacheTargets) { alert('최적화할 사진이 없습니다.'); return; }
             if (!(await showStaffConfirm(
-                `기존 사진 ${targets.length}장을 압축하고 목록용 썸네일을 만듭니다.\n` +
+                (targets.length ? `압축·썸네일 생성이 필요한 사진 ${targets.length}장을 처리하고,\n` : '') +
+                `사진 ${cacheTargets}장의 캐시 설정을 점검합니다(다음 방문부터 즉시 표시).\n` +
                 `사진 수에 따라 몇 분 걸릴 수 있고, 진행 중에는 창을 닫지 마세요.\n\n진행할까요?`))) return;
 
             const btn = document.getElementById('photo-optimize-btn');
@@ -10227,13 +10260,13 @@
 
                     if (proc.thumb) {
                         const tTask = await storage.ref(`activity-photos/${stamp}_thumb_${base}.jpg`)
-                            .put(proc.thumb.blob, { contentType: 'image/jpeg' });
+                            .put(proc.thumb.blob, { contentType: 'image/jpeg', cacheControl: PHOTO_CACHE_CONTROL });
                         update.thumbUrl = await tTask.ref.getDownloadURL();
                     }
                     // 본문 교체는 실제로 의미 있게 작아질 때만 (20% 이상 감소)
                     if (proc.main && proc.main.blob.size < blob.size * 0.8) {
                         const mTask = await storage.ref(`activity-photos/${stamp}_${base}.jpg`)
-                            .put(proc.main.blob, { contentType: 'image/jpeg' });
+                            .put(proc.main.blob, { contentType: 'image/jpeg', cacheControl: PHOTO_CACHE_CONTROL });
                         update.url = await mTask.ref.getDownloadURL();
                         update.width = proc.main.width;
                         update.height = proc.main.height;
@@ -10254,12 +10287,27 @@
                 }
             }
 
+            // 2단계: 캐시 헤더 보정 — 본문·썸네일 파일 모두. 헤더가 없으면 방문할 때마다 다시 받는다.
+            let cacheFixed = 0, cacheFail = 0;
+            for (let i = 0; i < allPhotos.length; i++) {
+                const photo = allPhotos[i];
+                if (btn) btn.textContent = `🗜️ 캐시 설정 점검… ${i + 1}/${allPhotos.length}`;
+                for (const u of [photo.url, photo.thumbUrl]) {
+                    const r = await photoFixCacheHeader(u);
+                    if (r === 'fixed') cacheFixed++;
+                    else if (r === 'fail') cacheFail++;
+                }
+            }
+
             photoOptimizeBusy = false;
             if (btn) btn.disabled = false;
             photoImgCache.clear();   // 교체된 주소로 다시 받도록
             renderPhotoGrid();
-            alert(`사진 최적화 완료\n\n• 성공: ${ok}장\n• 실패: ${fail}장` +
-                  (fail ? '\n\n실패분은 다시 실행하면 재시도합니다.' : ''));
+            alert(`사진 최적화 완료\n\n` +
+                  `• 압축·썸네일 성공: ${ok}장 / 실패: ${fail}장\n` +
+                  `• 캐시 설정 적용: ${cacheFixed}개 파일` + (cacheFail ? ` / 실패: ${cacheFail}개` : '') +
+                  ((fail || cacheFail) ? '\n\n실패분은 다시 실행하면 재시도합니다.' : '') +
+                  '\n\n캐시 효과는 다음 방문부터 나타납니다.');
         }
 
         // 이미지 압축 함수 (Firestore 1MB 제한 대응)
