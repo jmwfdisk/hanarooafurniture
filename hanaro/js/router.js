@@ -224,7 +224,9 @@
             }
             
             window.__schoolExcelUploading = true;
-            const uploadTask = fileRef.put(file);
+            // school-list.xlsx는 파일명이 고정(덮어쓰기)이라 장기 캐시 금지 — 옛 명단이 계속 보이게 된다.
+            // no-cache = 캐시는 하되 매번 재검증(내용 그대로면 304).
+            const uploadTask = fileRef.put(file, { cacheControl: 'no-cache' });
             
             uploadTask.on('state_changed',
                 (snapshot) => {

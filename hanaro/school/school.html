@@ -1792,7 +1792,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 
                 window.__schoolExcelUploading = true;
-                const uploadTask = fileRef.put(file);
+                // school-list.xlsx는 파일명이 고정이라 새로 올리면 같은 URL의 내용만 바뀐다 →
+                // 절대 장기 캐시를 걸면 안 된다(옛 명단이 계속 보임). no-cache = 캐시하되 매번 재검증(변경 없으면 304).
+                const uploadTask = fileRef.put(file, { cacheControl: 'no-cache' });
                 
                 uploadTask.on('state_changed',
                     (snapshot) => {

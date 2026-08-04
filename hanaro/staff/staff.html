@@ -3409,6 +3409,12 @@
             }
         }
 
+        // Storage 캐시 헤더 — 지정하지 않으면 브라우저가 방문할 때마다 파일을 다시 받는다.
+        // 업로드 파일명이 매번 유일(타임스탬프+랜덤)해서 내용이 바뀌면 URL도 바뀌므로 영구 캐시가 안전하다.
+        // PRIVATE는 개인정보성 파일용 — 브라우저에는 캐시하되 공용(중간) 캐시에는 저장하지 않는다.
+        const STORAGE_CACHE_PUBLIC = 'public, max-age=31536000, immutable';
+        const STORAGE_CACHE_PRIVATE = 'private, max-age=31536000, immutable';
+
         // 첨부파일을 Firebase Storage에 업로드하고 메타({name,url,type,size}) 배열을 반환(문서엔 URL만 저장 → 가벼움)
         async function uploadFilesToStorage(files) {
             if (!storage && typeof firebase !== 'undefined' && firebase.storage) {
@@ -3418,7 +3424,9 @@
             const uploaded = await Promise.all(files.map(async (file) => {
                 const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${file.name}`;
                 const ref = storage.ref(`as-result-files/${fileName}`);
-                const snap = await ref.put(file);
+                // contentType은 넘기지 않는다 — SDK가 File.type에서 채우며, undefined를 명시하면
+                // as-result-files 규칙의 contentType 검사(html/svg 차단)에 걸릴 수 있다
+                const snap = await ref.put(file, { cacheControl: STORAGE_CACHE_PUBLIC });
                 const url = await snap.ref.getDownloadURL();
                 return { name: file.name, url: url, type: file.type, size: file.size };
             }));
@@ -4656,8 +4664,8 @@
                     const timestamp = Date.now();
                     const fileName = `${timestamp}_${file.name}`;
                     const storageRef = storage.ref(`as-result-files/${fileName}`);
-                    
-                    const snapshot = await storageRef.put(file);
+
+                    const snapshot = await storageRef.put(file, { cacheControl: STORAGE_CACHE_PUBLIC });
                     const downloadURL = await snapshot.ref.getDownloadURL();
                     
                     return {
@@ -7482,7 +7490,8 @@
             if (!storage && typeof firebase !== 'undefined' && firebase.storage) { try { storage = firebase.storage(); } catch (e) {} }
             if (!storage) throw new Error('파일 저장소(Storage) 연결을 확인할 수 없습니다.');
             const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${file.name}`;
-            const snap = await storage.ref(`hr-photos/${fileName}`).put(file);
+            // 인사기록 사진은 개인정보 → 브라우저 캐시만 허용(공용 캐시 저장 금지)
+            const snap = await storage.ref(`hr-photos/${fileName}`).put(file, { cacheControl: STORAGE_CACHE_PRIVATE });
             return await snap.ref.getDownloadURL();
         }
 
@@ -8468,7 +8477,9 @@
                     // 파일명에 무작위 토큰 — 경로 추측으로 타인 명세서 접근 불가(경로는 본인만 읽는 paySlips 문서에만 저장)
                     const rand = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
                     const ref = storage.ref(`pay-slips/${ym}_${coKey}_${rand}.pdf`);
-                    const snap = await ref.put(blob, { contentType: 'application/pdf' });
+                    // 급여명세서는 캐시에 남기지 않는다 — 공용 PC에서 브라우저 캐시로 타인이 열람하는 것을 막기 위해
+                    // (열 때마다 다시 받지만 파일이 작아 부담 없음)
+                    const snap = await ref.put(blob, { contentType: 'application/pdf', cacheControl: 'private, no-store' });
                     const url = await snap.ref.getDownloadURL();
                     // 월 키는 '귀속월_회사' — 두 회사가 같은 달에 각각 발행해도 서로 덮어쓰지 않음
                     // (구버전 키 'YYYY-MM'(회사 구분 없음)은 목록에서 하나로 발행분으로 표시)
@@ -15303,7 +15314,7 @@
                 try {
                     const name = `${Date.now()}_${file.name}`;
                     const ref = storage.ref(`schedule-images/${name}`);
-                    const snap = await ref.put(file);
+                    const snap = await ref.put(file, { cacheControl: STORAGE_CACHE_PUBLIC });
                     const url = await snap.ref.getDownloadURL();
                     newImgs.push({ name: file.name, url });
                     scheduleData.images.push({ name: file.name, url });

@@ -2574,7 +2574,9 @@ document.getElementById("as-form").addEventListener("submit", async function(eve
                 const timestamp = Date.now();
                 const fileName = `${timestamp}_${file.name}`;
                 const storageRef = storage.ref(`as-files/${fileName}`);
-                const snapshot = await storageRef.put(file);
+                // 캐시 헤더가 없으면 첨부를 볼 때마다 다시 받는다. 파일명이 매번 유일해 영구 캐시가 안전하고,
+                // 신청서 첨부는 개인정보성이라 공용(중간) 캐시에는 저장되지 않게 private로 둔다.
+                const snapshot = await storageRef.put(file, { cacheControl: 'private, max-age=31536000, immutable' });
                 const downloadURL = await snapshot.ref.getDownloadURL();
                 return { name: file.name, url: downloadURL, type: file.type, size: file.size, _ref: snapshot.ref };
             });
