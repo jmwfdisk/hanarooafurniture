@@ -2659,6 +2659,24 @@
         .matsheet-tools .matsheet-save { background: #44aa6b; border-color: #44aa6b; color: #fff; font-weight: 600; }
         .matsheet-tools .matsheet-save:hover { background: #3a8f5a; }
         .matsheet-wrap { flex: 1; min-height: 0; overflow: auto; border: 1px solid #e3e6ea; border-radius: 8px; }
+        /* 일정한 열·행 유지 — 공용 .schedule-table의 min-width:90px / letter-spacing:0.3em이
+           1~31일 칸까지 벌려 표가 들쭉날쭉해지므로 이 패널에서만 되돌린다.
+           너비는 JS(matDefaultColWidths)가 지정하고 여기서는 그 값이 그대로 먹도록 정리만 한다. */
+        #matsheet-panel .schedule-table { width: auto; min-width: 100%; }
+        #matsheet-panel .schedule-table th,
+        #matsheet-panel .schedule-table td {
+            min-width: 0; letter-spacing: normal; padding: 0;
+            height: 28px;                 /* 행 높이 균일 — 추가한 행도 같은 높이가 된다 */
+            box-sizing: border-box;
+        }
+        #matsheet-panel .schedule-table th { font-size: 12px; padding: 0 2px; }
+        #matsheet-panel .sched-colname { letter-spacing: normal; padding: 2px; font-size: 12px; text-overflow: ellipsis; }
+        #matsheet-panel .schedule-cell-ro {
+            padding: 4px 6px; min-height: 0; line-height: 1.4;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;   /* 잘린 값은 title 툴팁으로 확인 */
+        }
+        /* 병합 셀은 보통 제목/설명이라 줄바꿈을 허용 */
+        #matsheet-panel .schedule-table td.sched-merged .schedule-cell-ro { white-space: normal; text-overflow: clip; }
         @media (max-width: 768px) {
             .mat-tabs { padding: 6px 10px 0; }
             .mat-tab { padding: 7px 11px; font-size: 12px; }
@@ -15562,6 +15580,26 @@
         ];
         const MAT_SHEET_MAX_BYTES = 900000;   // Firestore 문서 1MB 한도 여유분
 
+        // 열 기본 너비(px). 지정하지 않으면 sheetRenderTable이 table-layout:auto로 두어
+        // 브라우저가 내용 길이대로 열을 잡는다 — 1~31일 칸이 제각각 벌어져 표가 들쭉날쭉해진다.
+        const MAT_W = { first: 190, second: 96, day: 44, tail: 78, plain: 118 };
+        function matIsDayCol(label) { return /^\s*\d{1,2}\s*일\s*$/.test(String(label == null ? '' : label)); }
+        function matDefaultColWidths(columns) {
+            const firstDay = columns.findIndex(matIsDayCol);
+            return columns.map((label, i) => {
+                if (matIsDayCol(label)) return MAT_W.day;
+                if (firstDay < 0) return i === 0 ? MAT_W.first : MAT_W.plain;   // 날짜 열이 없는 시트
+                if (i < firstDay) return i === 0 ? MAT_W.first : MAT_W.second;  // 품목·규격
+                return MAT_W.tail;                                              // 집계·비고
+            });
+        }
+        // 사용자가 직접 조절해 저장한 너비가 있으면 건드리지 않는다(하나라도 값이 있으면 보존).
+        function matApplyDefaultColWidths(m) {
+            if (!m || !Array.isArray(m.columns)) return;
+            const has = Array.isArray(m.colWidths) && m.colWidths.some(v => v != null && +v > 0);
+            if (!has) m.colWidths = matDefaultColWidths(m.columns);
+        }
+
         let matTab = MAT_SHEETS[0].key;   // 현재 탭 (MAT_SHEETS[].key)
         let matSheetData = null;      // 현재 시트 모델 (시트 엔진 공용 형식)
         let matSheetLoadedAt = null;  // 불러온 시점의 updatedAt — 저장 시 낙관적 잠금 기준
@@ -15675,6 +15713,7 @@
                     seeded = true;
                 }
             }
+            matApplyDefaultColWidths(matSheetData);   // 열 폭 고정 → table-layout:fixed로 렌더
             if (load) load.style.display = 'none';
             schedSel = null;
             matSheetDirty = false;
@@ -15700,9 +15739,23 @@
                     : '저장된 내용 없음 (빈 양식)');
                 meta.classList.toggle('matsheet-meta-warn', matSheetNotice.indexOf('⚠️') === 0);
             }
-            sheetRenderTable(matSheetData, document.getElementById('matsheet-thead'), document.getElementById('matsheet-tbody'), canEdit);
+            const theadEl = document.getElementById('matsheet-thead');
+            const tbodyEl = document.getElementById('matsheet-tbody');
+            sheetRenderTable(matSheetData, theadEl, tbodyEl, canEdit);
+            // 열 폭을 고정했으므로 긴 글자는 …로 잘린다 — 원문은 hover 툴팁으로 보여준다
+            if (theadEl) theadEl.querySelectorAll('th').forEach((th, i) => {
+                const label = matSheetData.columns[i] || '';
+                th.title = label;
+                const inp = th.querySelector('.sched-colname');
+                if (inp) inp.title = label;
+            });
+            if (tbodyEl) tbodyEl.querySelectorAll('td[data-r]').forEach(td => {
+                const row = matSheetData.grid[+td.dataset.r];
+                const v = row ? row[+td.dataset.c] : '';
+                if (v) td.title = v;
+            });
             // rerender 콜백은 편집 표시용 래퍼 — 최초 렌더는 matSheetRender 직접 호출이라 dirty가 서지 않는다
-            sheetBind(matSheetData, document.getElementById('matsheet-tbody'), matSheetTouched, canEdit);
+            sheetBind(matSheetData, tbodyEl, matSheetTouched, canEdit);
         }
         function matSheetTouched() { matSheetDirty = true; matSheetRender(); }
 
@@ -15804,6 +15857,7 @@
                         updatedAt: (matSheetData && matSheetData.updatedAt) || '',
                         updatedBy: (matSheetData && matSheetData.updatedBy) || ''
                     };
+                    matApplyDefaultColWidths(matSheetData);
                     schedSel = null;
                     if (typeof sheetResetHistory === 'function') sheetResetHistory();
                     matSheetDirty = true;
