@@ -5274,6 +5274,7 @@
             if (matGridEl) matGridEl.style.display = 'none';
             const matPanel = document.getElementById('matsheet-panel');
             if (matPanel) matPanel.style.display = 'flex';
+            matLoadSeed();          // 초기 데이터 미리 받아두기(8개 시트 공용, 최초 1회)
             matSheetLoad(matTab);
 
             // 키보드 단축키 이벤트 리스너 추가
@@ -15606,6 +15607,8 @@
         let matSheetDirty = false;    // 저장하지 않은 편집 여부 (탭 이동 시 확인)
         let matSheetSaving = false;   // 저장 연타 가드
         let matSheetNotice = '';      // 안내줄 문구 (초기 데이터 표시 중 / 읽기 실패 등)
+        let matSheetReadFailed = false;   // 저장본 읽기 실패 — 모르고 덮어쓰는 것을 저장 시 막는다
+        let matLoadToken = 0;             // 늦게 온 응답이 이미 넘어간 탭을 덮지 않도록 세대 비교
 
         function matSheetCfg(key) { return MAT_SHEETS.find(s => s.key === key) || null; }
         function matSheetCanEdit() { return (typeof userCan === 'function') ? userCan('materials') : false; }
@@ -15671,57 +15674,75 @@
             return matSeedCache;
         }
 
+        function matModelFromSeed(s, cfg) {
+            return {
+                columns: (Array.isArray(s.columns) && s.columns.length) ? s.columns.slice() : cfg.columns.slice(),
+                grid: s.grid.map(r => r.slice()),
+                merges: Array.isArray(s.merges) ? s.merges.map(m => ({ r: m.r, c: m.c, rs: m.rs, cs: m.cs })) : [],
+                aligns: [], fills: [], colWidths: [], rowHeights: [],
+                updatedAt: '', updatedBy: ''
+            };
+        }
+        // Firestore 읽기가 안 끝나도 화면이 영영 멈추지 않도록 상한을 둔다
+        function matWithTimeout(p, ms) {
+            return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('응답 시간 초과')), ms))]);
+        }
+
+        // 시트 로드는 '먼저 그리고 나중에 교체' — 예전엔 Firestore 왕복 + 시드 fetch를
+        // 모두 기다린 뒤에야 처음 그려서, 읽기가 늦으면 '시트를 불러오는 중…'이 계속 돌았다.
+        // ① 초기 데이터로 즉시 렌더 → ② 저장본이 오면 교체. 늦게 온 응답이 이미 넘어간
+        // 탭을 덮지 않도록 matLoadToken 세대 비교(활동사진첩 viewerRenderToken과 같은 방식).
         async function matSheetLoad(key) {
             const cfg = matSheetCfg(key);
             if (!cfg) return;
+            const token = ++matLoadToken;
             const load = document.getElementById('matsheet-loading');
-            if (load) load.style.display = 'flex';
-            matSheetData = matEmptySheet(cfg);
+
+            // ① 초기 데이터로 먼저 그린다. 시드를 아직 안 받았을 때만 스피너를 보인다
+            //    (8개 시트가 한 파일이라 최초 1회만 받으면 이후 탭은 즉시 전환된다)
+            let seed = matSeedCache;
+            if (!seed) {
+                if (load) load.style.display = 'flex';
+                seed = await matLoadSeed();
+                if (token !== matLoadToken) return;   // 그 사이 다른 탭으로 이동
+                if (load) load.style.display = 'none';
+            }
+            const s = seed && seed[key];
+            const hasSeed = !!(s && Array.isArray(s.grid) && s.grid.length);
+            matSheetData = hasSeed ? matModelFromSeed(s, cfg) : matEmptySheet(cfg);
             matSheetLoadedAt = null;
-            let seeded = false, readFailed = false;
-            if (!db && typeof initStaffDB === 'function') initStaffDB();
-            let hasDoc = false;
-            if (db) {
-                try {
-                    const snap = await db.collection('materialSheets').doc(key).get();
-                    if (snap.exists) {
-                        matSheetData = matUnpackSheet(snap.data(), cfg);
-                        matSheetLoadedAt = snap.data().updatedAt || '';
-                        hasDoc = true;
-                    } else {
-                        matSheetLoadedAt = '';   // 신규 — 저장 시 낙관적 잠금 기준 없음
-                    }
-                } catch (e) {
-                    // 읽기 실패(규칙 미게시/네트워크)는 alert 대신 안내줄에 표시 —
-                    // 탭을 누를 때마다 팝업이 뜨면 쓸 수 없다. 저장 실패는 그대로 alert.
-                    console.error('자재 시트 로드 실패:', e);
-                    readFailed = true;
-                }
-            }
-            // 저장된 문서가 없으면 초기 데이터(8월분)를 채워 보여준다
-            if (!hasDoc) {
-                const seed = await matLoadSeed();
-                const s = seed && seed[key];
-                if (s && Array.isArray(s.grid) && s.grid.length) {
-                    matSheetData = {
-                        columns: Array.isArray(s.columns) && s.columns.length ? s.columns.slice() : cfg.columns.slice(),
-                        grid: s.grid.map(r => r.slice()),
-                        merges: Array.isArray(s.merges) ? s.merges.map(m => ({ r: m.r, c: m.c, rs: m.rs, cs: m.cs })) : [],
-                        aligns: [], fills: [], colWidths: [], rowHeights: [],
-                        updatedAt: '', updatedBy: ''
-                    };
-                    seeded = true;
-                }
-            }
-            matApplyDefaultColWidths(matSheetData);   // 열 폭 고정 → table-layout:fixed로 렌더
-            if (load) load.style.display = 'none';
-            schedSel = null;
+            matSheetReadFailed = false;
             matSheetDirty = false;
-            matSheetNotice = readFailed
-                ? '⚠️ 저장된 내용을 불러오지 못했습니다 (materialSheets 읽기 규칙 확인) — 초기 데이터 표시 중'
-                : (seeded ? '초기 데이터 (2026.08 월재고 엑셀) — [💾 저장]을 눌러야 반영됩니다' : '');
+            matSheetNotice = hasSeed ? '초기 데이터 (2026.08 월재고 엑셀) — [💾 저장]을 눌러야 반영됩니다' : '';
+            matApplyDefaultColWidths(matSheetData);   // 열 폭 고정 → table-layout:fixed로 렌더
+            schedSel = null;
             if (typeof sheetResetHistory === 'function') sheetResetHistory();
             matSheetRender();
+
+            // ② 저장본을 뒤에서 가져와 있으면 교체한다
+            if (!db && typeof initStaffDB === 'function') initStaffDB();
+            if (!db) return;
+            try {
+                const snap = await matWithTimeout(db.collection('materialSheets').doc(key).get(), 15000);
+                if (token !== matLoadToken) return;
+                if (!snap.exists) { matSheetLoadedAt = ''; return; }   // 신규 — 낙관적 잠금 기준 없음
+                if (matSheetDirty) return;                             // 편집 중이면 덮지 않는다
+                matSheetData = matUnpackSheet(snap.data(), cfg);
+                matSheetLoadedAt = snap.data().updatedAt || '';
+                matSheetNotice = '';
+                matApplyDefaultColWidths(matSheetData);
+                schedSel = null;
+                if (typeof sheetResetHistory === 'function') sheetResetHistory();
+                matSheetRender();
+            } catch (e) {
+                if (token !== matLoadToken) return;
+                // 읽기 실패(네트워크/권한/시간초과)는 alert 대신 안내줄에 — 탭마다 팝업이 뜨면 쓸 수 없다.
+                // matSheetReadFailed가 서면 저장 시 남의 저장본을 모르고 덮는 것을 막는다.
+                console.error('자재 시트 로드 실패:', e);
+                matSheetReadFailed = true;
+                matSheetNotice = '⚠️ 저장본을 불러오지 못했습니다 — 초기 데이터 표시 중 (탭을 다시 눌러 확인)';
+                matSheetRender();
+            }
         }
 
         function matSheetRender() {
@@ -15918,6 +15939,12 @@
                 await db.runTransaction(async (tx) => {
                     const cur = await tx.get(ref);
                     const serverAt = cur.exists ? (cur.data().updatedAt || '') : '';
+                    // 읽기가 실패했으면 기준 시각(matSheetLoadedAt)이 없어 충돌 검사를 못 한다 —
+                    // 이때 서버에 문서가 있으면 남의 저장본을 모르고 덮게 되므로 막는다.
+                    if (matSheetReadFailed && cur.exists) {
+                        conflict = { at: serverAt, by: (cur.data() && cur.data().updatedBy) || '', unread: true };
+                        return;
+                    }
                     if (matSheetLoadedAt !== null && serverAt && serverAt !== matSheetLoadedAt) {
                         conflict = { at: serverAt, by: (cur.data() && cur.data().updatedBy) || '' };
                         return;
@@ -15925,9 +15952,13 @@
                     tx.set(ref, payload);
                 });
                 if (conflict) {
-                    alert(`다른 사용자가 먼저 저장했습니다.\n(${String(conflict.at).slice(0, 16).replace('T', ' ')}${conflict.by ? ' · ' + conflict.by : ''})\n\n덮어쓰지 않았습니다. 탭을 다시 눌러 최신본을 불러온 뒤 편집해주세요.`);
+                    const when = `${String(conflict.at).slice(0, 16).replace('T', ' ')}${conflict.by ? ' · ' + conflict.by : ''}`;
+                    alert(conflict.unread
+                        ? `이미 저장된 내용이 있는데 불러오지 못한 상태입니다.\n(${when})\n\n덮어쓰지 않았습니다. 탭을 다시 눌러 저장본을 불러온 뒤 편집해주세요.`
+                        : `다른 사용자가 먼저 저장했습니다.\n(${when})\n\n덮어쓰지 않았습니다. 탭을 다시 눌러 최신본을 불러온 뒤 편집해주세요.`);
                     return;
                 }
+                matSheetReadFailed = false;
                 matSheetLoadedAt = payload.updatedAt;   // 방금 저장본이 새 기준
                 matSheetData.updatedAt = payload.updatedAt;
                 matSheetData.updatedBy = payload.updatedBy;
