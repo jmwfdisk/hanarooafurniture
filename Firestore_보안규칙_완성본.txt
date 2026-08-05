@@ -299,6 +299,24 @@ service cloud.firestore {
       allow delete: if permFor('materials');
     }
 
+    // ========== 자재관리 시트 탭 (materialSheets) ==========
+    // 자재관리 모달 상단 시트 탭('월재고' 엑셀 양식 8종). 문서 1개 = 시트 1개.
+    // 문서 ID는 고정 키(prod/vendor/inject/brow/neworder/pipe/matsum/alllist).
+    // 구조: { columns[], grid(JSON 문자열), merges[], aligns/fills(JSON 문자열),
+    //         colWidths[], rowHeights[], label, updatedAt, updatedBy }
+    // 권한은 materials와 동일 — 읽기는 임직원 전체, 쓰기는 '자재관리' 권한 보유자.
+    match /materialSheets/{sheetId} {
+      allow read: if isEmployee();
+      allow create, update: if permFor('materials') &&
+        request.resource.data.keys().hasAll(['columns', 'grid', 'updatedAt']) &&
+        request.resource.data.grid is string &&          // 중첩 배열 회피용 JSON 문자열
+        request.resource.data.columns is list &&
+        request.resource.data.updatedAt is string &&
+        (!('label' in request.resource.data) || request.resource.data.label is string) &&
+        (!('updatedBy' in request.resource.data) || request.resource.data.updatedBy is string);
+      allow delete: if permFor('materials');
+    }
+
     // ========== 납품 일정관리 (deliverySchedule) ==========
     // 구조: doc('main') 단일 문서에 { notice, rows:[...], images:[...] } 형태로 저장
     match /deliverySchedule/{docId} {

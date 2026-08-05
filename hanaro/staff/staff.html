@@ -2607,7 +2607,64 @@
             overflow: auto;
             min-width: 0; /* flexbox에서 스크롤 가능하도록 */
         }
-        
+
+        /* ── 시트 탭 바 (헤더 바로 아래) ───────────────────────────── */
+        .mat-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 8px 16px 0;
+            background: #f7f8fa;
+            border-bottom: 1px solid #e3e6ea;
+            overflow-x: auto;           /* 탭이 많아 가로 스크롤 (모바일) */
+            -webkit-overflow-scrolling: touch;
+            flex: 0 0 auto;
+        }
+        .mat-tab {
+            flex: 0 0 auto;
+            padding: 8px 14px;
+            border: 1px solid #e3e6ea;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            background: #eef0f3;
+            color: #5a6272;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .15s, color .15s;
+        }
+        .mat-tab:hover { background: #e4e7ec; color: #37405a; }
+        .mat-tab.active {
+            background: #fff;
+            color: #2c3a63;
+            border-color: #d5d9e0;
+            box-shadow: 0 -2px 0 #44aa6b inset;
+        }
+
+        /* ── 시트 패널 (자재목록 외 탭) ─────────────────────────────── */
+        .matsheet-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+        .matsheet-toolbar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 0 0 10px; flex-wrap: wrap; flex: 0 0 auto;
+        }
+        .matsheet-title { font-size: 15px; font-weight: 700; color: #2c3a63; }
+        .matsheet-meta { font-size: 12px; color: #8a91a0; }
+        .matsheet-meta.matsheet-meta-warn { color: #c2410c; font-weight: 600; }
+        .matsheet-tools { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+        .matsheet-tools button {
+            padding: 7px 13px; border: 1px solid #d5d9e0; background: #fff;
+            border-radius: 8px; cursor: pointer; font-size: 13px; color: #465; white-space: nowrap;
+        }
+        .matsheet-tools button:hover { background: #f3f4f6; }
+        .matsheet-tools .matsheet-save { background: #44aa6b; border-color: #44aa6b; color: #fff; font-weight: 600; }
+        .matsheet-tools .matsheet-save:hover { background: #3a8f5a; }
+        .matsheet-wrap { flex: 1; min-height: 0; overflow: auto; border: 1px solid #e3e6ea; border-radius: 8px; }
+        @media (max-width: 768px) {
+            .mat-tabs { padding: 6px 10px 0; }
+            .mat-tab { padding: 7px 11px; font-size: 12px; }
+            .matsheet-tools { margin-left: 0; }
+        }
+
         /* Tabulator 그리드 스크롤 설정 */
         #materials-grid .tabulator-tableHolder {
             overflow-x: auto;
@@ -5187,6 +5244,16 @@
             const { canEdit, user } = getMaterialsPermission();
             materialsUndoStack = [];
             materialsRedoStack = [];
+            // 시트 탭은 항상 '자재목록'으로 초기화 (이전에 시트 탭에서 닫았어도 표가 먼저 보이게)
+            matTab = 'list';
+            matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null;
+            matRenderTabs();
+            const matMenubar = document.getElementById('excel-menubar');
+            if (matMenubar) matMenubar.style.display = '';
+            const matGridEl = document.getElementById('materials-grid');
+            if (matGridEl) matGridEl.style.display = '';
+            const matPanel = document.getElementById('matsheet-panel');
+            if (matPanel) matPanel.style.display = 'none';
             renderRibbonButtons(canEdit);
             initMaterialsGrid(canEdit);
             startMaterialsListener();
@@ -5199,7 +5266,11 @@
                     if (!modal || modal.style.display === 'none') {
                         return;
                     }
-                    
+                    // 시트 탭에서는 시트 엔진이 단축키를 담당 — 여기서 처리하면 Ctrl+Z가 양쪽에서 걸린다
+                    if (typeof matTab !== 'undefined' && matTab !== 'list') {
+                        return;
+                    }
+
                     // 입력 필드에 포커스가 있으면 단축키 무시
                     const activeElement = document.activeElement;
                     if (activeElement && (
@@ -5478,6 +5549,11 @@
                 materialsTable.destroy();
                 materialsTable = null;
             }
+
+            // 시트 탭 상태 정리 — sheetActive를 남겨두면 닫힌 뒤에도 단축키가 이 모델을 건드린다
+            matTab = 'list';
+            matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null;
+            if (typeof sheetResetHistory === 'function') sheetResetHistory();
         }
 
         // 액션 버튼 렌더링
@@ -8767,7 +8843,10 @@
                 <h2>자재관리</h2>
                 <button class="materials-close-btn" onclick="closeMaterialsModal()">닫기</button>
             </header>
-            
+
+            <!-- 시트 탭: [자재목록](Tabulator) + 월재고 엑셀의 시트별 표(시트 엔진). matRenderTabs()가 MAT_SHEETS로 렌더 -->
+            <div class="mat-tabs" id="mat-tabs"></div>
+
             <!-- Excel 스타일 메뉴바 -->
             <div class="excel-menubar" id="excel-menubar">
                 <button class="excel-menu-item" data-menu="excel" onclick="switchExcelMenu('excel', event)">Hanaro</button>
@@ -8878,6 +8957,29 @@
             <div class="materials-modal-body" style="position:relative;">
                 <div id="materials-loading" class="grid-loading"><span class="table-spinner"></span>자재 목록을 불러오는 중…</div>
                 <div id="materials-grid"></div>
+
+                <!-- 시트 탭 패널 (자재목록 외 탭). 재고현황과 같은 시트 엔진을 재사용 -->
+                <div id="matsheet-panel" class="matsheet-panel" style="display:none;">
+                    <div class="matsheet-toolbar">
+                        <span class="matsheet-title" id="matsheet-title"></span>
+                        <span class="matsheet-meta" id="matsheet-meta"></span>
+                        <div class="matsheet-tools" id="matsheet-tools">
+                            <button type="button" onclick="matSheetAddRow()">➕ 행</button>
+                            <button type="button" onclick="sheetAddCol()">➕ 열</button>
+                            <button type="button" onclick="matSheetImportExcel()">📥 엑셀</button>
+                            <button type="button" onclick="matSheetExportExcel()">📤 내보내기</button>
+                            <button type="button" class="matsheet-save" onclick="matSheetSave()">💾 저장</button>
+                        </div>
+                    </div>
+                    <div class="matsheet-wrap">
+                        <table class="inv-table schedule-table">
+                            <thead id="matsheet-thead"></thead>
+                            <tbody id="matsheet-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="matsheet-loading" class="grid-loading" style="display:none;"><span class="table-spinner"></span>시트를 불러오는 중…</div>
+                </div>
+                <input type="file" id="matsheet-excel-input" accept=".xlsx,.xls" style="display:none" onchange="matSheetExcelPicked(event)">
             </div>
         </div>
     </div>
@@ -14909,7 +15011,15 @@
         function sheetUndoAction(){ if (!sheetActive || !sheetUndoStack.length) return; sheetRedoStack.push(sheetSnap(sheetActive.model)); sheetApplySnap(sheetUndoStack.pop()); schedSel = null; sheetActive.rerender(); }
         function sheetRedoAction(){ if (!sheetActive || !sheetRedoStack.length) return; sheetUndoStack.push(sheetSnap(sheetActive.model)); sheetApplySnap(sheetRedoStack.pop()); schedSel = null; sheetActive.rerender(); }
         function sheetResetHistory(){ sheetUndoStack = []; sheetRedoStack = []; }
-        function sheetModalOpen(){ const s = document.getElementById('schedule-modal'), i = document.getElementById('inventory-modal'); return (s && s.style.display === 'flex') || (i && i.style.display === 'flex'); }
+        // 시트 엔진(단축키·우클릭 메뉴·선택 해제)이 살아있어야 하는 모달인지.
+        // 자재관리는 '자재목록'(Tabulator) 탭이 아니라 시트 탭일 때만 해당 — sheetActive에는
+        // 직전에 열었던 재고현황/일정관리 모델이 남아있을 수 있어 탭 조건이 필요하다.
+        function sheetModalOpen(){
+            const s = document.getElementById('schedule-modal'), i = document.getElementById('inventory-modal'), m = document.getElementById('materials-modal');
+            if (s && s.style.display === 'flex') return true;
+            if (i && i.style.display === 'flex') return true;
+            return !!(m && m.style.display === 'flex' && typeof matTab !== 'undefined' && matTab !== 'list');
+        }
 
         function schedHighlight() {
             if (!sheetActive || !sheetActive.tbody) return;
@@ -15429,6 +15539,376 @@
         document.getElementById('schedule-modal').addEventListener('click', function(e) {
             if (e.target === this) closeScheduleModal();
         });
+
+        /* ══════════════════════════════════════════════════════════════════
+           자재관리 시트 탭 ('월재고' 엑셀 양식)
+           ──────────────────────────────────────────────────────────────────
+           상단 탭 = [자재목록](기존 Tabulator, materials 컬렉션) + 아래 8개 시트.
+           8개 시트는 품목×1~31일 매트릭스라 Tabulator의 '행=문서, 고정 필드' 모델로는
+           표현이 안 돼, 재고현황/일정관리가 쓰는 시트 엔진(sheetRenderTable/sheetBind)을
+           그대로 재사용한다. 시트 1개 = Firestore materialSheets/{key} 문서 1개.
+           2D 필드(grid/aligns/fills)는 JSON 문자열로 저장 — Firestore는 중첩 배열 거부.
+           ══════════════════════════════════════════════════════════════════ */
+        const MAT_DAY_COLS = Array.from({ length: 31 }, (_, i) => (i + 1) + '일');
+        // 열 구성은 2026.08 '월재고' 엑셀의 표시 시트 8개(숨김 550개는 지난 납품일정 아카이브라 제외)
+        // 헤더 행에서 그대로 뽑았다. 헤더는 화면에서 편집 가능하므로 월이 바뀌면 사용자가 고칠 수 있다.
+        const MAT_SHEETS = [
+            { key: 'prod',     label: '총생산출고품목',    columns: ['품목'].concat(MAT_DAY_COLS, ['생산완료총수량', '총일정수량', '미생산남은수량', '재고샘플생산']) },
+            { key: 'vendor',   label: '업체 입출고',      columns: ['품목'].concat(MAT_DAY_COLS, ['총수량', '비고', '한빛 재고', '한빛 입고', '한빛 출고', '한빛 남은수량']) },
+            { key: 'inject',   label: '1공장 사출재고',    columns: ['품목', '규격'].concat(MAT_DAY_COLS, ['출고총수량', '재고수량', '입고수량', '총수량', '대분수', '불량(미확인)', 'AS', '샘플', '재입고', '비고', '6인기준필요수량']) },
+            { key: 'brow',     label: '브로우및상판재고',   columns: ['품 목', '규격'].concat(MAT_DAY_COLS, ['총출고수량', '재고수량', '입고수량', '총수량', '불량(미확인)', 'AS', '샘플', '재입고']) },
+            { key: 'neworder', label: '신규및납품수량',    columns: ['구분'].concat(MAT_DAY_COLS, ['합계', '작년 주문 수량', '재작년 주문수량']) },
+            { key: 'pipe',     label: '파이프 레이져 재고', columns: ['품명', '규격', '본수', '절단사이즈', '절단수량', '파이프입고수량', '총수량', '6인용기준', '출고수량', '수량', '본수', '비고'] },
+            { key: 'matsum',   label: '자재현황 정리',     columns: ['왕자 가이드', '지금 가지고 있는 자재', '레이져 자재', '입고 예정 자재', '총 자재', '비고', '구분', '완제품/업체/도장 전·후', '일정 수량', '총 수량', '발주 작업', '수량', '입고 업체', '미입고 수량', '비고', '공장 예상 입고 날짜', '업체 예상 입고 날짜'] },
+            { key: 'alllist',  label: '전 재고 리스트',    columns: ['품명', '규격', '사내(원자재)', '완재품재고 수량', '사내생산 수량(도장완료)', '파이프', '업체미입고 수량', '총합계재고 수량', '재고대분수', '비고', '구분', '총 일정 완제품 출고 수량', '1공장 재고', '현 완제품 총수량', '재고대분수', '비고', '재고 완제품 수량(생산 완료 제품)', '규격', '수량'] }
+        ];
+        const MAT_SHEET_MAX_BYTES = 900000;   // Firestore 문서 1MB 한도 여유분
+
+        let matTab = 'list';          // 현재 탭 ('list' | MAT_SHEETS[].key)
+        let matSheetData = null;      // 현재 시트 모델 (시트 엔진 공용 형식)
+        let matSheetLoadedAt = null;  // 불러온 시점의 updatedAt — 저장 시 낙관적 잠금 기준
+        let matSheetDirty = false;    // 저장하지 않은 편집 여부 (탭 이동 시 확인)
+        let matSheetSaving = false;   // 저장 연타 가드
+        let matSheetNotice = '';      // 안내줄 문구 (초기 데이터 표시 중 / 읽기 실패 등)
+
+        function matSheetCfg(key) { return MAT_SHEETS.find(s => s.key === key) || null; }
+        function matSheetCanEdit() { return (typeof userCan === 'function') ? userCan('materials') : false; }
+        function matEmptySheet(cfg) {
+            return { columns: cfg.columns.slice(), grid: [], merges: [], aligns: [], fills: [], colWidths: [], rowHeights: [], updatedAt: '', updatedBy: '' };
+        }
+        // 시트 이름/헤더 비교용 정규화 — 한글 NFC 통일(맥 파일명은 NFD) + 공백 제거
+        function matNorm(v) { return String(v == null ? '' : v).normalize('NFC').replace(/\s+/g, ''); }
+
+        function matRenderTabs() {
+            const wrap = document.getElementById('mat-tabs');
+            if (!wrap) return;
+            const tabs = [{ key: 'list', label: '자재목록' }].concat(MAT_SHEETS);
+            wrap.innerHTML = tabs.map(t =>
+                `<button type="button" class="mat-tab${t.key === matTab ? ' active' : ''}" data-key="${t.key}" onclick="matTabSelect('${t.key}')">${schedEsc(t.label)}</button>`
+            ).join('');
+        }
+
+        async function matTabSelect(key) {
+            if (matTab === key) return;
+            if (matTab !== 'list' && matSheetDirty &&
+                !(await showStaffConfirm('저장하지 않은 변경이 있습니다.\n저장하지 않고 이동할까요?'))) return;
+            matTab = key;
+            matRenderTabs();
+            const isList = key === 'list';
+            const menubar = document.getElementById('excel-menubar');
+            const ribbon = document.getElementById('excel-ribbon');
+            const grid = document.getElementById('materials-grid');
+            const panel = document.getElementById('matsheet-panel');
+            const matLoading = document.getElementById('materials-loading');
+            // 엑셀 메뉴바/리본은 자재목록(Tabulator) 전용이라 시트 탭에서는 숨긴다
+            if (menubar) menubar.style.display = isList ? '' : 'none';
+            if (ribbon && !isList) ribbon.style.display = 'none';
+            if (grid) grid.style.display = isList ? '' : 'none';
+            if (panel) panel.style.display = isList ? 'none' : 'flex';
+            if (isList) {
+                if (matLoading) matLoading.style.display = 'none';
+                matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null;
+                schedSel = null;
+                if (typeof sheetResetHistory === 'function') sheetResetHistory();
+                // display:none 동안 크기 계산이 어긋나므로 다시 보일 때 재계산
+                if (materialsTable) { try { materialsTable.redraw(true); } catch (e) {} }
+                return;
+            }
+            if (matLoading) matLoading.style.display = 'none';
+            await matSheetLoad(key);
+        }
+
+        function matUnpackSheet(d, cfg) {
+            const parse = (v, fb) => {
+                if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return fb; } }
+                return Array.isArray(v) ? v : fb;
+            };
+            return {
+                columns: (Array.isArray(d.columns) && d.columns.length) ? d.columns.slice() : cfg.columns.slice(),
+                grid: parse(d.grid, []),
+                merges: Array.isArray(d.merges) ? d.merges : [],
+                aligns: parse(d.aligns, []),
+                fills: parse(d.fills, []),
+                colWidths: Array.isArray(d.colWidths) ? d.colWidths : [],
+                rowHeights: Array.isArray(d.rowHeights) ? d.rowHeights : [],
+                updatedAt: d.updatedAt || '',
+                updatedBy: d.updatedBy || ''
+            };
+        }
+
+        // 초기 데이터(2026.08 '월재고' 엑셀에서 추출) — 저장된 문서가 아직 없는 탭에 채워 보여준다.
+        // staff.html에 인라인하면 페이지가 매번 160KB 무거워지므로 시트 탭을 처음 열 때만 받아온다.
+        // 한 번 [💾 저장]하면 materialSheets 문서가 생겨 이후로는 시드를 쓰지 않는다.
+        const MAT_SEED_URL = 'data/materialSheets-2026-08.json?v=20260805';
+        let matSeedCache = null;      // null=미로드, {}=로드 실패(재시도 안 함)
+        async function matLoadSeed() {
+            if (matSeedCache) return matSeedCache;
+            try {
+                const res = await fetch(MAT_SEED_URL);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                matSeedCache = await res.json();
+            } catch (e) {
+                console.warn('자재 시트 초기 데이터 로드 실패(빈 양식으로 진행):', e);
+                matSeedCache = {};
+            }
+            return matSeedCache;
+        }
+
+        async function matSheetLoad(key) {
+            const cfg = matSheetCfg(key);
+            if (!cfg) return;
+            const load = document.getElementById('matsheet-loading');
+            if (load) load.style.display = 'flex';
+            matSheetData = matEmptySheet(cfg);
+            matSheetLoadedAt = null;
+            let seeded = false, readFailed = false;
+            if (!db && typeof initStaffDB === 'function') initStaffDB();
+            let hasDoc = false;
+            if (db) {
+                try {
+                    const snap = await db.collection('materialSheets').doc(key).get();
+                    if (snap.exists) {
+                        matSheetData = matUnpackSheet(snap.data(), cfg);
+                        matSheetLoadedAt = snap.data().updatedAt || '';
+                        hasDoc = true;
+                    } else {
+                        matSheetLoadedAt = '';   // 신규 — 저장 시 낙관적 잠금 기준 없음
+                    }
+                } catch (e) {
+                    // 읽기 실패(규칙 미게시/네트워크)는 alert 대신 안내줄에 표시 —
+                    // 탭을 누를 때마다 팝업이 뜨면 쓸 수 없다. 저장 실패는 그대로 alert.
+                    console.error('자재 시트 로드 실패:', e);
+                    readFailed = true;
+                }
+            }
+            // 저장된 문서가 없으면 초기 데이터(8월분)를 채워 보여준다
+            if (!hasDoc) {
+                const seed = await matLoadSeed();
+                const s = seed && seed[key];
+                if (s && Array.isArray(s.grid) && s.grid.length) {
+                    matSheetData = {
+                        columns: Array.isArray(s.columns) && s.columns.length ? s.columns.slice() : cfg.columns.slice(),
+                        grid: s.grid.map(r => r.slice()),
+                        merges: Array.isArray(s.merges) ? s.merges.map(m => ({ r: m.r, c: m.c, rs: m.rs, cs: m.cs })) : [],
+                        aligns: [], fills: [], colWidths: [], rowHeights: [],
+                        updatedAt: '', updatedBy: ''
+                    };
+                    seeded = true;
+                }
+            }
+            if (load) load.style.display = 'none';
+            schedSel = null;
+            matSheetDirty = false;
+            matSheetNotice = readFailed
+                ? '⚠️ 저장된 내용을 불러오지 못했습니다 (materialSheets 읽기 규칙 확인) — 초기 데이터 표시 중'
+                : (seeded ? '초기 데이터 (2026.08 월재고 엑셀) — [💾 저장]을 눌러야 반영됩니다' : '');
+            if (typeof sheetResetHistory === 'function') sheetResetHistory();
+            matSheetRender();
+        }
+
+        function matSheetRender() {
+            if (!matSheetData || matTab === 'list') return;
+            const canEdit = matSheetCanEdit();
+            const cfg = matSheetCfg(matTab);
+            const tools = document.getElementById('matsheet-tools');
+            if (tools) tools.style.display = canEdit ? 'flex' : 'none';
+            const title = document.getElementById('matsheet-title');
+            if (title) title.textContent = cfg ? cfg.label : '';
+            const meta = document.getElementById('matsheet-meta');
+            if (meta) {
+                meta.textContent = matSheetNotice || (matSheetData.updatedAt
+                    ? `최종 저장 ${String(matSheetData.updatedAt).slice(0, 10)}${matSheetData.updatedBy ? ' · ' + matSheetData.updatedBy : ''}`
+                    : '저장된 내용 없음 (빈 양식)');
+                meta.classList.toggle('matsheet-meta-warn', matSheetNotice.indexOf('⚠️') === 0);
+            }
+            sheetRenderTable(matSheetData, document.getElementById('matsheet-thead'), document.getElementById('matsheet-tbody'), canEdit);
+            // rerender 콜백은 편집 표시용 래퍼 — 최초 렌더는 matSheetRender 직접 호출이라 dirty가 서지 않는다
+            sheetBind(matSheetData, document.getElementById('matsheet-tbody'), matSheetTouched, canEdit);
+        }
+        function matSheetTouched() { matSheetDirty = true; matSheetRender(); }
+
+        function matSheetAddRow() {
+            if (!matSheetCanEdit()) { alert('자재관리 작성 권한이 없습니다.'); return; }
+            if (!matSheetData) return;
+            sheetPushUndo();
+            const b = (typeof schedSelBox === 'function') ? schedSelBox() : null;
+            const at = b ? b.r2 + 1 : matSheetData.grid.length;
+            matSheetData.grid.splice(at, 0, matSheetData.columns.map(() => ''));
+            matSheetData.merges = sheetAdjRowIns(matSheetData.merges, at);
+            matSheetTouched();
+        }
+
+        // ── 엑셀 업로드: 워크북에서 이 탭과 같은 이름의 시트를 찾아 표에 적용 ──
+        function matSheetImportExcel() {
+            if (!matSheetCanEdit()) { alert('자재관리 작성 권한이 없습니다.'); return; }
+            const inp = document.getElementById('matsheet-excel-input');
+            if (inp) inp.click();
+        }
+        // 헤더 행 찾기: 양식의 열 이름과 가장 많이 겹치는 행. '10월|사출재고|출고내역' 같은
+        // 제목 행이 위에 있어 '첫 비어있지 않은 행 = 헤더' 규칙은 이 양식에서 틀린다.
+        function matDetectHeaderRow(aoa, cfg) {
+            const want = new Set(cfg.columns.map(matNorm).filter(Boolean));
+            let best = -1, bestScore = 0;
+            const lim = Math.min(aoa.length, 12);
+            for (let r = 0; r < lim; r++) {
+                const row = aoa[r];
+                if (!Array.isArray(row)) continue;
+                let score = 0;
+                row.forEach(c => { const k = matNorm(c); if (k && want.has(k)) score++; });
+                if (score > bestScore) { bestScore = score; best = r; }
+            }
+            if (bestScore >= 2) return best;
+            return aoa.findIndex(r => Array.isArray(r) && r.some(c => String(c).trim() !== ''));
+        }
+        // 워크북에서 이 탭에 해당하는 시트 이름 찾기.
+        // 정규화(공백 제거) 매칭만 하면 숨김 구버전 시트를 집을 수 있다 —
+        // 실제 '월재고' 파일에 '브로우 및 상판재고'(숨김, 구버전)와 '브로우및상판재고 '(표시)가
+        // 함께 있어 목록 순서상 숨김본이 먼저 잡혔다. 그래서 ① 완전일치 ② 표시 시트 ③ 그 외 순.
+        function matVisibleSheetNames(wb) {
+            const meta = (wb.Workbook && Array.isArray(wb.Workbook.Sheets)) ? wb.Workbook.Sheets : null;
+            if (!meta) return wb.SheetNames.slice();          // 상태 정보가 없으면 전부 표시로 간주
+            const vis = wb.SheetNames.filter((n, i) => !(meta[i] && meta[i].Hidden));
+            return vis.length ? vis : wb.SheetNames.slice();
+        }
+        function matFindSheetName(wb, label) {
+            const exact = wb.SheetNames.find(n => n === label);
+            if (exact) return exact;
+            const visible = matVisibleSheetNames(wb);
+            const key = matNorm(label);
+            return visible.find(n => matNorm(n) === key) || wb.SheetNames.find(n => matNorm(n) === key) || null;
+        }
+        function matSheetExcelPicked(event) {
+            const file = event.target.files[0];
+            event.target.value = '';   // 같은 파일 재선택 허용
+            if (!file) return;
+            if (!matSheetCanEdit()) { alert('자재관리 작성 권한이 없습니다.'); return; }
+            if (typeof XLSX === 'undefined') { alert('엑셀 라이브러리 로드 실패. 새로고침 후 다시 시도하세요.'); return; }
+            const cfg = matSheetCfg(matTab);
+            if (!cfg) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const wb = XLSX.read(e.target.result, { type: 'array' });
+                    // 시트 이름 매칭(공백·NFC 차이 무시, 표시 시트 우선). 못 찾으면 첫 표시 시트를 쓸지 확인
+                    let name = matFindSheetName(wb, cfg.label);
+                    if (!name) {
+                        const first = matVisibleSheetNames(wb)[0];
+                        if (!first) { alert('엑셀에 시트가 없습니다.'); return; }
+                        if (!(await showStaffConfirm(`엑셀에 "${cfg.label}" 시트가 없습니다.\n첫 번째 시트 "${first}"를 사용할까요?`))) return;
+                        name = first;
+                    }
+                    const ws = wb.Sheets[name];
+                    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: true });
+                    if (!aoa.length) { alert('엑셀에서 읽을 데이터가 없습니다.'); return; }
+                    const hi = matDetectHeaderRow(aoa, cfg);
+                    if (hi < 0) { alert('엑셀에서 머리글 행을 찾지 못했습니다.'); return; }
+                    const columns = (aoa[hi] || []).map(c => String(c == null ? '' : c).trim().replace(/\s+/g, ' ') || '항목');
+                    while (columns.length && columns[columns.length - 1] === '항목') columns.pop();
+                    if (!columns.length) { alert('엑셀에서 머리글 행을 찾지 못했습니다.'); return; }
+                    const grid = [];
+                    for (let r = hi + 1; r < aoa.length; r++) {
+                        const row = aoa[r];
+                        if (!Array.isArray(row) || row.every(c => String(c == null ? '' : c).trim() === '')) continue;
+                        grid.push(columns.map((_, c) => String(row[c] != null ? row[c] : '').trim()));
+                    }
+                    if (!grid.length) { alert('엑셀에서 읽을 데이터가 없습니다. (머리글 아래가 비어 있음)'); return; }
+                    // 병합도 함께 가져오되 헤더 행 기준으로 좌표 보정 + 표 범위 밖은 버림
+                    const merges = (ws['!merges'] || [])
+                        .filter(m => m.s.r > hi)
+                        .map(m => ({ r: m.s.r - hi - 1, c: m.s.c, rs: m.e.r - m.s.r + 1, cs: m.e.c - m.s.c + 1 }))
+                        .filter(m => m.r >= 0 && m.r < grid.length && m.c < columns.length && (m.rs > 1 || m.cs > 1));
+                    if (matSheetData && matSheetData.grid.length &&
+                        !(await showStaffConfirm(`"${cfg.label}" 표를 엑셀 내용으로 교체할까요?\n(열 구성과 셀 병합이 엑셀 기준으로 새로 적용됩니다)`))) return;
+                    matSheetData = {
+                        columns: columns, grid: grid, merges: merges,
+                        aligns: [], fills: [], colWidths: [], rowHeights: [],
+                        updatedAt: (matSheetData && matSheetData.updatedAt) || '',
+                        updatedBy: (matSheetData && matSheetData.updatedBy) || ''
+                    };
+                    schedSel = null;
+                    if (typeof sheetResetHistory === 'function') sheetResetHistory();
+                    matSheetDirty = true;
+                    matSheetNotice = '엑셀 적용됨 — [💾 저장]을 눌러야 반영됩니다';
+                    matSheetRender();
+                    alert(`"${name}" 시트를 표에 적용했습니다. (${grid.length}행)\n내용 확인 후 [💾 저장]을 눌러주세요.`);
+                } catch (err) {
+                    console.error('엑셀 처리 오류:', err);
+                    alert('엑셀 처리 중 오류: ' + (err.message || ''));
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function matSheetExportExcel() {
+            if (typeof XLSX === 'undefined') { alert('엑셀 라이브러리 로드 실패.'); return; }
+            if (!matSheetData) return;
+            const cfg = matSheetCfg(matTab);
+            const label = cfg ? cfg.label : '시트';
+            const data = [matSheetData.columns.slice()].concat(matSheetData.grid.map(r => r.slice()));
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, label.slice(0, 31));   // 엑셀 시트명 31자 제한
+            XLSX.writeFile(wb, `자재관리_${label}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        }
+
+        async function matSheetSave() {
+            if (!matSheetCanEdit()) { alert('자재관리 작성 권한이 없습니다.'); return; }
+            if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
+            if (!matSheetData || matTab === 'list') return;
+            if (matSheetSaving) return;
+            const cfg = matSheetCfg(matTab);
+            matSheetSaving = true;
+            try {
+                let user = {};
+                try { user = JSON.parse(sessionStorage.getItem('loggedInUser') || '{}'); } catch (e) {}
+                sheetEnsureSizes(matSheetData);
+                const gridJson = JSON.stringify(matSheetData.grid || []);
+                if (gridJson.length > MAT_SHEET_MAX_BYTES) {
+                    alert('표가 너무 커서 저장할 수 없습니다. (Firestore 문서 1MB 한도)\n행/열을 줄이거나 시트를 나눠주세요.');
+                    return;
+                }
+                const payload = {
+                    columns: matSheetData.columns,
+                    grid: gridJson,                                        // 중첩 배열 회피: 문자열로 저장
+                    merges: matSheetData.merges || [],
+                    aligns: JSON.stringify(matSheetData.aligns || []),     // 중첩 배열 회피
+                    fills: JSON.stringify(matSheetData.fills || []),       // 중첩 배열 회피
+                    colWidths: (matSheetData.colWidths || []).map(v => v == null ? null : v),  // hole→null (Firestore undefined 거부)
+                    rowHeights: (matSheetData.rowHeights || []).map(v => v == null ? null : v),
+                    label: cfg ? cfg.label : matTab,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: user.name || user.username || ''
+                };
+                // 낙관적 잠금: 내가 불러온 뒤 다른 사용자가 저장했으면 덮지 않고 안내
+                const ref = db.collection('materialSheets').doc(matTab);
+                let conflict = null;
+                await db.runTransaction(async (tx) => {
+                    const cur = await tx.get(ref);
+                    const serverAt = cur.exists ? (cur.data().updatedAt || '') : '';
+                    if (matSheetLoadedAt !== null && serverAt && serverAt !== matSheetLoadedAt) {
+                        conflict = { at: serverAt, by: (cur.data() && cur.data().updatedBy) || '' };
+                        return;
+                    }
+                    tx.set(ref, payload);
+                });
+                if (conflict) {
+                    alert(`다른 사용자가 먼저 저장했습니다.\n(${String(conflict.at).slice(0, 16).replace('T', ' ')}${conflict.by ? ' · ' + conflict.by : ''})\n\n덮어쓰지 않았습니다. 탭을 다시 눌러 최신본을 불러온 뒤 편집해주세요.`);
+                    return;
+                }
+                matSheetLoadedAt = payload.updatedAt;   // 방금 저장본이 새 기준
+                matSheetData.updatedAt = payload.updatedAt;
+                matSheetData.updatedBy = payload.updatedBy;
+                matSheetDirty = false;
+                matSheetNotice = '';                    // '초기 데이터' 안내 해제 — 이제 저장본이다
+                matSheetRender();
+                alert(`저장되었습니다. (${payload.label})`);
+            } catch (e) {
+                console.error('자재 시트 저장 실패:', e);
+                alert('저장 중 오류가 발생했습니다.\n(materialSheets 쓰기 규칙/권한 확인)\n' + (e.message || ''));
+            } finally {
+                matSheetSaving = false;
+            }
+        }
     </script>
 
     <div class="partner-logos">
