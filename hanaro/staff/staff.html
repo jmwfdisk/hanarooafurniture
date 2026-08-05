@@ -5237,27 +5237,27 @@
 
             modal.style.display = 'flex';
 
-            // 첫 데이터(onSnapshot) 도착 전까지 로딩 스피너 표시
-            const matLoading = document.getElementById('materials-loading');
-            if (matLoading) matLoading.style.display = 'flex';
-
-            const { canEdit, user } = getMaterialsPermission();
             materialsUndoStack = [];
             materialsRedoStack = [];
-            // 시트 탭은 항상 '자재목록'으로 초기화 (이전에 시트 탭에서 닫았어도 표가 먼저 보이게)
-            matTab = 'list';
-            matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null;
+            // 자재관리는 '월재고' 시트 탭만 쓴다 — 옛 '자재목록'(Tabulator/materials 컬렉션) 탭은
+            // 2026-08-05 사용자 요청으로 제거. 표를 만들지도, onSnapshot을 걸지도 않는다.
+            // (구현부는 아래에 그대로 남아 있으니 되살리려면 이 세 줄만 복구하면 된다:
+            //  renderRibbonButtons(canEdit) / initMaterialsGrid(canEdit) / startMaterialsListener())
+            matTab = MAT_SHEETS[0].key;
+            matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null; matSheetNotice = '';
             matRenderTabs();
-            const matMenubar = document.getElementById('excel-menubar');
-            if (matMenubar) matMenubar.style.display = '';
+            const matLoading = document.getElementById('materials-loading');
+            if (matLoading) matLoading.style.display = 'none';
+            const matMenubar = document.getElementById('excel-menubar');   // 엑셀 메뉴바/리본은 자재목록 전용
+            if (matMenubar) matMenubar.style.display = 'none';
+            const matRibbon = document.getElementById('excel-ribbon');
+            if (matRibbon) matRibbon.style.display = 'none';
             const matGridEl = document.getElementById('materials-grid');
-            if (matGridEl) matGridEl.style.display = '';
+            if (matGridEl) matGridEl.style.display = 'none';
             const matPanel = document.getElementById('matsheet-panel');
-            if (matPanel) matPanel.style.display = 'none';
-            renderRibbonButtons(canEdit);
-            initMaterialsGrid(canEdit);
-            startMaterialsListener();
-            
+            if (matPanel) matPanel.style.display = 'flex';
+            matSheetLoad(matTab);
+
             // 키보드 단축키 이벤트 리스너 추가
             if (!materialsKeyboardHandler) {
                 materialsKeyboardHandler = function(e) {
@@ -5266,10 +5266,9 @@
                     if (!modal || modal.style.display === 'none') {
                         return;
                     }
-                    // 시트 탭에서는 시트 엔진이 단축키를 담당 — 여기서 처리하면 Ctrl+Z가 양쪽에서 걸린다
-                    if (typeof matTab !== 'undefined' && matTab !== 'list') {
-                        return;
-                    }
+                    // '자재목록'(Tabulator) 탭 제거 후로는 자재관리에 시트 탭만 남아, 단축키는
+                    // 시트 엔진이 담당한다. 여기서 처리하면 Ctrl+Z가 양쪽에서 걸리고 표도 없다.
+                    return;
 
                     // 입력 필드에 포커스가 있으면 단축키 무시
                     const activeElement = document.activeElement;
@@ -5551,8 +5550,8 @@
             }
 
             // 시트 탭 상태 정리 — sheetActive를 남겨두면 닫힌 뒤에도 단축키가 이 모델을 건드린다
-            matTab = 'list';
-            matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null;
+            matTab = MAT_SHEETS[0].key;
+            matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null; matSheetNotice = '';
             if (typeof sheetResetHistory === 'function') sheetResetHistory();
         }
 
@@ -15012,13 +15011,12 @@
         function sheetRedoAction(){ if (!sheetActive || !sheetRedoStack.length) return; sheetUndoStack.push(sheetSnap(sheetActive.model)); sheetApplySnap(sheetRedoStack.pop()); schedSel = null; sheetActive.rerender(); }
         function sheetResetHistory(){ sheetUndoStack = []; sheetRedoStack = []; }
         // 시트 엔진(단축키·우클릭 메뉴·선택 해제)이 살아있어야 하는 모달인지.
-        // 자재관리는 '자재목록'(Tabulator) 탭이 아니라 시트 탭일 때만 해당 — sheetActive에는
-        // 직전에 열었던 재고현황/일정관리 모델이 남아있을 수 있어 탭 조건이 필요하다.
+        // 자재관리도 포함 — '자재목록'(Tabulator) 탭을 없앤 뒤로는 열려 있으면 항상 시트 탭이다.
         function sheetModalOpen(){
             const s = document.getElementById('schedule-modal'), i = document.getElementById('inventory-modal'), m = document.getElementById('materials-modal');
             if (s && s.style.display === 'flex') return true;
             if (i && i.style.display === 'flex') return true;
-            return !!(m && m.style.display === 'flex' && typeof matTab !== 'undefined' && matTab !== 'list');
+            return !!(m && m.style.display === 'flex');
         }
 
         function schedHighlight() {
@@ -15564,7 +15562,7 @@
         ];
         const MAT_SHEET_MAX_BYTES = 900000;   // Firestore 문서 1MB 한도 여유분
 
-        let matTab = 'list';          // 현재 탭 ('list' | MAT_SHEETS[].key)
+        let matTab = MAT_SHEETS[0].key;   // 현재 탭 (MAT_SHEETS[].key)
         let matSheetData = null;      // 현재 시트 모델 (시트 엔진 공용 형식)
         let matSheetLoadedAt = null;  // 불러온 시점의 updatedAt — 저장 시 낙관적 잠금 기준
         let matSheetDirty = false;    // 저장하지 않은 편집 여부 (탭 이동 시 확인)
@@ -15582,7 +15580,7 @@
         function matRenderTabs() {
             const wrap = document.getElementById('mat-tabs');
             if (!wrap) return;
-            const tabs = [{ key: 'list', label: '자재목록' }].concat(MAT_SHEETS);
+            const tabs = MAT_SHEETS;   // '자재목록'(Tabulator) 탭은 2026-08-05 제거
             wrap.innerHTML = tabs.map(t =>
                 `<button type="button" class="mat-tab${t.key === matTab ? ' active' : ''}" data-key="${t.key}" onclick="matTabSelect('${t.key}')">${schedEsc(t.label)}</button>`
             ).join('');
@@ -15590,31 +15588,12 @@
 
         async function matTabSelect(key) {
             if (matTab === key) return;
-            if (matTab !== 'list' && matSheetDirty &&
+            if (matSheetDirty &&
                 !(await showStaffConfirm('저장하지 않은 변경이 있습니다.\n저장하지 않고 이동할까요?'))) return;
             matTab = key;
             matRenderTabs();
-            const isList = key === 'list';
-            const menubar = document.getElementById('excel-menubar');
-            const ribbon = document.getElementById('excel-ribbon');
-            const grid = document.getElementById('materials-grid');
             const panel = document.getElementById('matsheet-panel');
-            const matLoading = document.getElementById('materials-loading');
-            // 엑셀 메뉴바/리본은 자재목록(Tabulator) 전용이라 시트 탭에서는 숨긴다
-            if (menubar) menubar.style.display = isList ? '' : 'none';
-            if (ribbon && !isList) ribbon.style.display = 'none';
-            if (grid) grid.style.display = isList ? '' : 'none';
-            if (panel) panel.style.display = isList ? 'none' : 'flex';
-            if (isList) {
-                if (matLoading) matLoading.style.display = 'none';
-                matSheetData = null; matSheetDirty = false; matSheetLoadedAt = null;
-                schedSel = null;
-                if (typeof sheetResetHistory === 'function') sheetResetHistory();
-                // display:none 동안 크기 계산이 어긋나므로 다시 보일 때 재계산
-                if (materialsTable) { try { materialsTable.redraw(true); } catch (e) {} }
-                return;
-            }
-            if (matLoading) matLoading.style.display = 'none';
+            if (panel) panel.style.display = 'flex';
             await matSheetLoad(key);
         }
 
@@ -15707,7 +15686,7 @@
         }
 
         function matSheetRender() {
-            if (!matSheetData || matTab === 'list') return;
+            if (!matSheetData) return;
             const canEdit = matSheetCanEdit();
             const cfg = matSheetCfg(matTab);
             const tools = document.getElementById('matsheet-tools');
@@ -15854,7 +15833,7 @@
         async function matSheetSave() {
             if (!matSheetCanEdit()) { alert('자재관리 작성 권한이 없습니다.'); return; }
             if (!db) { alert('데이터베이스 연결이 없습니다.'); return; }
-            if (!matSheetData || matTab === 'list') return;
+            if (!matSheetData) return;
             if (matSheetSaving) return;
             const cfg = matSheetCfg(matTab);
             matSheetSaving = true;

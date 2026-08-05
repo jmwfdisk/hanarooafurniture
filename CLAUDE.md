@@ -121,7 +121,7 @@ New registrations are created with `status: 'pending'` and require admin approva
 | `asPosts/posts` | AS.html ↔ staff A/S 처리결과 | write=authenticated; **read=`isApprovedUser() OR isEmployee()`** (비인증 공개읽기 차단 — 신청서에 연락처 등 PII. AS.html은 비로그인 시 목록 대신 로그인 안내를 표시하고 로그인 시 `authStateRestored`로 재로드) |
 | `staffPosts/{board}` | staff 직원게시판·회사운영 (boards: `notice`/`cert`/`staff`/`staff-data`/`staff-report`/`suggestion`/`as-result`) | employee (`as-result` needs `permFor('asResult')`; `staff-report`(업무보고 본사) read+write need `permFor('report')`) |
 | `activityPhotos` | staff 활동사진첩 | owner or admin (per-doc) |
-| `materials/{id}` | staff 자재관리 **자재목록 탭** (one doc per row, Tabulator) | read=`isEmployee()`; create/update/delete=`permFor('materials')` |
+| `materials/{id}` | ~~staff 자재관리 자재목록 탭~~ — **2026-08-05 탭 제거로 UI에서 접근 불가** (문서·규칙·구현 코드는 그대로 보존, 되살리려면 `hanaro/staff/CLAUDE.md` 참고) | read=`isEmployee()`; create/update/delete=`permFor('materials')` |
 | `materialSheets/{key}` | staff 자재관리 **시트 탭** ('월재고' 엑셀 양식 8종: `prod`/`vendor`/`inject`/`brow`/`neworder`/`pipe`/`matsum`/`alllist`) — 문서 1개 = 시트 1개, 저장 형식은 `inventory`와 동일(2D 필드는 JSON 문자열) | read=`isEmployee()`; create/update/delete=`permFor('materials')` (materials와 동일) |
 | `inventory/{main\|YYYY-MM-DD\|_index}` | staff 재고현황: `main`=최신본, `YYYY-MM-DD`=날짜별 스냅샷, `_index.dates[]`=저장된 날짜 목록 | `permFor('inventory')` |
 | `deliverySchedule/{YYYY-MM-DD}` | staff 일정관리 | `permFor('schedule')` |
