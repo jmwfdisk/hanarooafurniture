@@ -2965,6 +2965,9 @@
         <a href="#" onclick="openOpsModal(); return false;" data-board="ops">운영관리</a>
         <a href="#" onclick="switchBoard('photo-gallery'); return false;" data-board="photo-gallery">활동사진첩</a>
         <a href="#" onclick="switchBoard('member-management'); return false;" data-board="member-management" style="display:none;">👥 회원관리</a>
+        <!-- 사내 메신저 — 게시판이 아니라 별도 페이지로 이동한다.
+             data-board 를 두지 않는 이유: switchBoard 의 활성화 처리 대상이 되면 안 된다. -->
+        <a href="../messenger/messenger.html" id="messenger-nav" style="display:none;">💬 메신저</a>
     </nav>
 
     <!-- 공통 인증 스크립트 -->
@@ -3307,6 +3310,11 @@
             const isAdminUser = userData.isAdmin === true || userData.username === 'admin';
             const memberNav = document.querySelector('[data-board="member-management"]');
             if (memberNav) memberNav.style.display = isAdminUser ? '' : 'none';
+
+            // 사내 메신저 — 시범 기간에는 관리자에게만 노출한다.
+            // 전사 공개 시 이 조건을 지우면 임직원 전원에게 보인다.
+            const messengerNav = document.getElementById('messenger-nav');
+            if (messengerNav) messengerNav.style.display = isAdminUser ? '' : 'none';
             
             // Firestore 리스너 시작 (user 확정 후)
             startStaffBoards(); // loadAllPosts 등 Firestore 접근 시작 (이름 충돌 방지를 위해 별도 함수)
