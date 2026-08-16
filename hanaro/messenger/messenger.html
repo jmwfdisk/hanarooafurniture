@@ -35,6 +35,12 @@
            common.css를 include하지 않는다. 이 페이지는 사이트 네비(redesign.js)를
            쓰지 않는 전체화면 앱이라, 공용 디자인 시스템의 body 여백·타이포가
            오히려 레이아웃을 방해한다. 클래스는 전부 msg- 접두로 격리한다. */
+        /* HTML의 hidden 속성을 항상 이기게 한다.
+           브라우저 기본 [hidden]{display:none} 은 우선순위가 가장 낮아
+           .클래스{display:flex} 하나만 있어도 무력화된다 —
+           숨겨야 할 배너(답장·수정·녹음)가 화면에 그대로 남는 사고가 났다. */
+        [hidden] { display: none !important; }
+
         :root {
             --msg-green: #44aa6b;
             --msg-green-dark: #3a8f5a;
