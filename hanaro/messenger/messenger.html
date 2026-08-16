@@ -758,6 +758,37 @@
             outline: none;
         }
         .msg-modal-input:focus { border-color: var(--msg-green); }
+
+        /* 🕒 예약 메시지 */
+        .msg-sched-hint { font-size: 12px; color: var(--msg-sub); margin: 0 0 12px; line-height: 1.5; }
+        .msg-sched-label { display: block; font-size: 12px; font-weight: 700; color: var(--msg-sub); margin: 12px 0 6px; }
+        .msg-sched-area { min-height: 68px; resize: vertical; line-height: 1.5; }
+        /* select 는 브라우저 기본 화살표를 그대로 쓴다 — 커스텀 화살표는 OS별로 어긋난다 */
+        select.msg-modal-input { background: #fff; cursor: pointer; }
+        .msg-sched-preview {
+            margin-top: 10px; padding: 11px 13px;
+            background: #f0f8f3; border: 1px solid #d6ebdf; border-radius: 10px;
+            font-size: 13.5px; font-weight: 700; color: var(--msg-green-dark);
+            text-align: center;
+        }
+        .msg-sched-preview.bad { background: #fff2f2; border-color: #ffd7d7; color: #d33; }
+        .msg-sched-listwrap { margin-top: 16px; border-top: 1px solid var(--msg-line); padding-top: 12px; }
+        .msg-sched-listtitle { font-size: 12px; font-weight: 700; color: var(--msg-sub); margin-bottom: 8px; }
+        .msg-sched-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 0; border-bottom: 1px solid #f2f2f7;
+        }
+        .msg-sched-item-main { flex: 1; min-width: 0; }
+        .msg-sched-item-text {
+            font-size: 13px; color: var(--msg-text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .msg-sched-item-at { font-size: 11.5px; color: var(--msg-green-dark); margin-top: 2px; }
+        .msg-sched-empty { font-size: 12.5px; color: var(--msg-sub); padding: 4px 0; }
+        /* 목록의 취소 버튼 — .danger 색은 .msg-modal-foot 안에서만 정의돼 있어 여기서 따로 준다 */
+        .msg-sched-item .msg-pill { flex: 0 0 auto; padding: 5px 11px; font-size: 12px; }
+        .msg-sched-item .msg-pill.danger { color: #ff3b30; }
+
         .msg-member {
             display: flex; align-items: center; gap: 8px;
             padding: 8px 0;
@@ -2401,18 +2432,162 @@
     //   ⚠️ 발송 함수(deliverScheduledMessages)는 **아직 배포 전**이라 예약만 쌓인다 —
     //      앱도 같은 상태다(등록 UI만 있음). 함수가 올라가면 양쪽 다 즉시 동작한다.
 
-    function scheduleMessage() {
-        var d = getDb();
-        var input = byId('msg-input');
-        if (!d || !currentRoomId || !input) return;
-        var text = String(input.value || '').trim();
-        if (!text) { alert('예약할 내용을 입력창에 먼저 적어주세요.'); return; }
+    // ── 🕒 예약 메시지 ────────────────────────────────────────────────
+    //   시각은 드롭다운(빠른 선택) + '직접 지정'(datetime-local)으로 받는다.
+    //   prompt() 로 문자열을 받던 방식은 형식 오류가 잦아 폐기했다.
 
-        var when = prompt('보낼 시각을 입력하세요 (예: 2026-08-16 09:00)');
-        if (!when) return;
-        var at = new Date(String(when).replace(/-/g, '/'));   // Safari 호환
-        if (isNaN(at.getTime())) { alert('시각 형식을 알아볼 수 없습니다.'); return; }
-        if (at.getTime() <= Date.now()) { alert('미래 시각만 예약할 수 있습니다.'); return; }
+    var schedUnsub = null;      // 대기 목록 실시간 구독 해제 함수
+
+    /** 드롭다운 선택지 — 열 때마다 새로 만든다(지난 시각은 넣지 않는다) */
+    function buildSchedOptions() {
+        var sel = byId('msg-sched-preset');
+        if (!sel) return;
+        var now = new Date();
+        var opts = [];
+
+        function plusMin(m) {
+            var t = new Date(now.getTime() + m * 60000);
+            t.setSeconds(0, 0);
+            return t;
+        }
+        function dayAt(offsetDays, h) {
+            var t = new Date(now);
+            t.setDate(t.getDate() + offsetDays);
+            t.setHours(h, 0, 0, 0);
+            return t;
+        }
+
+        opts.push({ label: '30분 뒤', t: plusMin(30) });
+        opts.push({ label: '1시간 뒤', t: plusMin(60) });
+        opts.push({ label: '3시간 뒤', t: plusMin(180) });
+
+        var t18 = dayAt(0, 18);
+        if (t18.getTime() > now.getTime() + 60000) opts.push({ label: '오늘 오후 6시', t: t18 });
+
+        opts.push({ label: '내일 오전 9시', t: dayAt(1, 9) });
+        opts.push({ label: '내일 오후 2시', t: dayAt(1, 14) });
+
+        // 다음 주 월요일 (오늘이 월요일이면 7일 뒤)
+        var dow = now.getDay();                    // 0=일 … 6=토
+        var toMon = (8 - dow) % 7 || 7;
+        opts.push({ label: '다음 주 월요일 오전 9시', t: dayAt(toMon, 9) });
+
+        var html = '';
+        for (var i = 0; i < opts.length; i++) {
+            html += '<option value="' + opts[i].t.getTime() + '">' +
+                esc(opts[i].label) + ' · ' + esc(fmtSchedAt(opts[i].t)) + '</option>';
+        }
+        html += '<option value="custom">직접 지정…</option>';
+        sel.innerHTML = html;
+        sel.value = String(opts[1].t.getTime());   // 기본값 = 1시간 뒤 (앱과 같다)
+    }
+
+    /** "8월 16일 (토) 오후 9:00" */
+    function fmtSchedAt(d) {
+        try {
+            return d.toLocaleString('ko-KR', {
+                month: 'long', day: 'numeric', weekday: 'short',
+                hour: 'numeric', minute: '2-digit'
+            });
+        } catch (e) {
+            return d.toLocaleString('ko-KR');
+        }
+    }
+
+    /** 현재 선택된 시각 (Date) — 고르지 않았으면 null */
+    function currentSchedAt() {
+        var sel = byId('msg-sched-preset');
+        var custom = byId('msg-sched-custom');
+        if (!sel) return null;
+        if (sel.value === 'custom') {
+            if (!custom || !custom.value) return null;
+            var cd = new Date(custom.value);        // datetime-local 은 로컬 시각으로 파싱된다
+            return isNaN(cd.getTime()) ? null : cd;
+        }
+        var ms = parseInt(sel.value, 10);
+        return isNaN(ms) ? null : new Date(ms);
+    }
+
+    function updateSchedPreview() {
+        var box = byId('msg-sched-preview');
+        if (!box) return;
+        var at = currentSchedAt();
+        if (!at) {
+            box.className = 'msg-sched-preview bad';
+            box.textContent = '보낼 시각을 골라주세요';
+            return;
+        }
+        if (at.getTime() <= Date.now() + 60000) {
+            box.className = 'msg-sched-preview bad';
+            box.textContent = '1분 이후 시각만 예약할 수 있어요';
+            return;
+        }
+        box.className = 'msg-sched-preview';
+        box.textContent = fmtSchedAt(at) + ' 에 보냅니다';
+    }
+
+    function onSchedPresetChange() {
+        var sel = byId('msg-sched-preset');
+        var custom = byId('msg-sched-custom');
+        if (!sel || !custom) return;
+        var isCustom = (sel.value === 'custom');
+        custom.hidden = !isCustom;
+        if (isCustom && !custom.value) {
+            // 기본값 = 1시간 뒤, min = 지금부터
+            var t = new Date(Date.now() + 3600000);
+            t.setSeconds(0, 0);
+            custom.value = toLocalInputValue(t);
+            custom.min = toLocalInputValue(new Date(Date.now() + 60000));
+        }
+        updateSchedPreview();
+    }
+
+    /** Date → datetime-local 이 요구하는 "YYYY-MM-DDTHH:mm" (로컬 기준) */
+    function toLocalInputValue(d) {
+        function p(n) { return (n < 10 ? '0' : '') + n; }
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+            'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
+    /** 🕒 버튼 — 모달을 연다 (입력창에 적어둔 내용을 그대로 가져온다) */
+    function scheduleMessage() {
+        var modal = byId('msg-sched-modal');
+        var input = byId('msg-input');
+        var area = byId('msg-sched-text');
+        if (!modal || !currentRoomId) return;
+
+        if (area) area.value = input ? String(input.value || '').trim() : '';
+        buildSchedOptions();
+        var custom = byId('msg-sched-custom');
+        if (custom) { custom.hidden = true; custom.value = ''; }
+        updateSchedPreview();
+        listenMyScheduled();
+
+        modal.hidden = false;
+        if (area) area.focus();
+    }
+
+    function closeScheduleModal() {
+        var modal = byId('msg-sched-modal');
+        if (modal) modal.hidden = true;
+        if (schedUnsub) { try { schedUnsub(); } catch (e) { } schedUnsub = null; }
+    }
+
+    function saveSchedule() {
+        var d = getDb();
+        var area = byId('msg-sched-text');
+        var btn = byId('msg-sched-save');
+        if (!d || !currentRoomId || !area) return;
+
+        var text = String(area.value || '').trim();
+        if (!text) { alert('보낼 내용을 적어주세요.'); area.focus(); return; }
+
+        var at = currentSchedAt();
+        if (!at) { alert('보낼 시각을 골라주세요.'); return; }
+        // 규칙이 sendAt > request.time 을 요구한다. 저장까지의 지연을 감안해 1분 여유를 둔다.
+        if (at.getTime() <= Date.now() + 60000) { alert('1분 이후 시각만 예약할 수 있어요.'); return; }
+
+        if (btn) { btn.disabled = true; btn.textContent = '등록 중…'; }
 
         d.collection('msgRooms').doc(currentRoomId).collection('scheduledMessages').add({
             senderId: meUid,
@@ -2422,13 +2597,78 @@
             sent: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }).then(function () {
-            input.value = '';
-            autoGrow();
-            alert(at.toLocaleString('ko-KR') + ' 에 보내도록 예약했어요.');
+            // 입력창에서 가져온 내용이면 원본도 비운다
+            var input = byId('msg-input');
+            if (input && String(input.value || '').trim() === text) { input.value = ''; autoGrow(); }
+            area.value = '';
+            updateSchedPreview();
         }).catch(function (err) {
             console.error('[메신저] 예약 실패:', err);
             alert('예약하지 못했습니다.');
+        }).then(function () {
+            if (btn) { btn.disabled = false; btn.textContent = '예약 등록'; }
         });
+    }
+
+    /**
+     * 대기 중인 내 예약 목록 (실시간).
+     * ⚠️ orderBy 를 넣지 않는다 — where 2개 + orderBy 는 복합 인덱스를 요구한다.
+     *    등가 필터만 쓰면 인덱스 없이 동작하므로 정렬은 클라이언트에서 한다(건수가 적다).
+     */
+    function listenMyScheduled() {
+        var d = getDb();
+        var wrap = byId('msg-sched-listwrap');
+        var list = byId('msg-sched-list');
+        var title = byId('msg-sched-listtitle');
+        if (!d || !currentRoomId || !wrap || !list) return;
+
+        if (schedUnsub) { try { schedUnsub(); } catch (e) { } schedUnsub = null; }
+
+        schedUnsub = d.collection('msgRooms').doc(currentRoomId)
+            .collection('scheduledMessages')
+            .where('senderId', '==', meUid)
+            .where('sent', '==', false)
+            .onSnapshot(function (snap) {
+                var rows = [];
+                snap.forEach(function (doc) {
+                    var v = doc.data() || {};
+                    var ms = v.sendAt && v.sendAt.toDate ? v.sendAt.toDate().getTime() : 0;
+                    rows.push({ id: doc.id, text: String(v.text || ''), ms: ms });
+                });
+                rows.sort(function (a, b) { return a.ms - b.ms; });
+
+                if (!rows.length) { wrap.hidden = true; list.innerHTML = ''; return; }
+                wrap.hidden = false;
+                if (title) title.textContent = '대기 중인 예약 · ' + rows.length;
+
+                var html = '';
+                for (var i = 0; i < rows.length; i++) {
+                    html += '<div class="msg-sched-item">' +
+                        '<div class="msg-sched-item-main">' +
+                        '<div class="msg-sched-item-text">' + esc(rows[i].text) + '</div>' +
+                        '<div class="msg-sched-item-at">' + esc(fmtSchedAt(new Date(rows[i].ms))) + '</div>' +
+                        '</div>' +
+                        '<button type="button" class="msg-pill danger" data-sched-cancel="' + esc(rows[i].id) + '">취소</button>' +
+                        '</div>';
+                }
+                list.innerHTML = html;
+            }, function (err) {
+                console.error('[메신저] 예약 목록 조회 실패:', err);
+                wrap.hidden = false;
+                list.innerHTML = '<div class="msg-sched-empty">목록을 불러오지 못했어요.</div>';
+            });
+    }
+
+    function cancelScheduled(id) {
+        var d = getDb();
+        if (!d || !currentRoomId || !id) return;
+        // 규칙이 sent=false 인 본인 문서만 삭제를 허용한다(이미 보내진 것은 못 지운다).
+        d.collection('msgRooms').doc(currentRoomId)
+            .collection('scheduledMessages').doc(id).delete()
+            .catch(function (err) {
+                console.error('[메신저] 예약 취소 실패:', err);
+                alert('취소하지 못했습니다.');
+            });
     }
 
     // ── 👤 내 프로필 (msgProfiles 본인 문서 — 규칙이 허용하는 3필드만) ────────
@@ -3498,6 +3738,27 @@
         var schedBtn = byId('msg-schedule');
         if (schedBtn) schedBtn.addEventListener('click', scheduleMessage);
 
+        // 🕒 예약 모달
+        var schedPreset = byId('msg-sched-preset');
+        if (schedPreset) schedPreset.addEventListener('change', onSchedPresetChange);
+        var schedCustom = byId('msg-sched-custom');
+        if (schedCustom) schedCustom.addEventListener('change', updateSchedPreview);
+        var schedSave = byId('msg-sched-save');
+        if (schedSave) schedSave.addEventListener('click', saveSchedule);
+        var schedClose = byId('msg-sched-close');
+        if (schedClose) schedClose.addEventListener('click', closeScheduleModal);
+        var schedModal = byId('msg-sched-modal');
+        if (schedModal) schedModal.addEventListener('click', function (e) {
+            // 바깥 어두운 영역 클릭 시 닫기
+            if (e.target === schedModal) closeScheduleModal();
+        });
+        // 목록의 취소 버튼은 매번 새로 그려지므로 위임으로 받는다
+        var schedList = byId('msg-sched-list');
+        if (schedList) schedList.addEventListener('click', function (e) {
+            var b = e.target.closest ? e.target.closest('[data-sched-cancel]') : null;
+            if (b) cancelScheduled(b.getAttribute('data-sched-cancel'));
+        });
+
         var replyCancel = byId('msg-reply-cancel');
         if (replyCancel) replyCancel.addEventListener('click', function () { setReplyTarget(null); });
         var editCancel = byId('msg-edit-cancel');
@@ -3706,6 +3967,37 @@
         <div class="msg-modal-body"><pre class="msg-longtext" id="msg-text-body"></pre></div>
         <div class="msg-modal-foot">
             <button type="button" class="msg-pill" id="msg-text-close">닫기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🕒 예약 메시지 -->
+<div class="msg-modal" id="msg-sched-modal" hidden>
+    <div class="msg-modal-box">
+        <div class="msg-modal-head">🕒 예약 메시지</div>
+        <div class="msg-modal-body">
+            <p class="msg-sched-hint">지정한 시각에 자동으로 전송돼요.<br>브라우저를 닫아도 서버가 대신 보냅니다.</p>
+
+            <label class="msg-sched-label" for="msg-sched-text">보낼 내용</label>
+            <textarea class="msg-modal-input msg-sched-area" id="msg-sched-text" placeholder="예약해서 보낼 메시지"></textarea>
+
+            <label class="msg-sched-label" for="msg-sched-preset">언제 보낼까요</label>
+            <!-- 선택지는 여는 시점마다 새로 만든다 (시간이 흐르면 '오늘 오후 6시' 가 과거가 된다) -->
+            <select class="msg-modal-input" id="msg-sched-preset"></select>
+
+            <!-- '직접 지정' 을 골랐을 때만 보인다 -->
+            <input type="datetime-local" class="msg-modal-input" id="msg-sched-custom" hidden style="margin-top:8px;">
+
+            <div class="msg-sched-preview" id="msg-sched-preview"></div>
+
+            <div class="msg-sched-listwrap" id="msg-sched-listwrap" hidden>
+                <div class="msg-sched-listtitle" id="msg-sched-listtitle">대기 중인 예약</div>
+                <div id="msg-sched-list"></div>
+            </div>
+        </div>
+        <div class="msg-modal-foot">
+            <button type="button" class="msg-pill" id="msg-sched-close">닫기</button>
+            <button type="button" class="msg-pill primary" id="msg-sched-save">예약 등록</button>
         </div>
     </div>
 </div>
