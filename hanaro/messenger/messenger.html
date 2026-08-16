@@ -785,6 +785,28 @@
         }
         .msg-sched-item-at { font-size: 11.5px; color: var(--msg-green-dark); margin-top: 2px; }
         .msg-sched-empty { font-size: 12.5px; color: var(--msg-sub); padding: 4px 0; }
+        /* 첨부 고르기 */
+        .msg-sched-pickbtn { width: 100%; text-align: center; padding: 9px 12px; }
+        .msg-sched-picked {
+            display: flex; align-items: center; gap: 8px;
+            margin-top: 8px; padding: 9px 12px;
+            background: #f5f5f7; border-radius: 10px;
+            font-size: 13px;
+        }
+        .msg-sched-picked-thumb {
+            width: 34px; height: 34px; flex: 0 0 auto;
+            border-radius: 6px; object-fit: cover; background: #e5e5ea;
+        }
+        .msg-sched-picked-name {
+            flex: 1; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .msg-sched-picked-size { font-size: 11.5px; color: var(--msg-sub); }
+        .msg-sched-picked-x {
+            flex: 0 0 auto; border: 0; background: transparent;
+            font-size: 15px; color: var(--msg-sub); cursor: pointer; padding: 2px 4px;
+        }
+        .msg-sched-item-badge { font-size: 11.5px; color: var(--msg-sub); }
         /* 목록의 취소 버튼 — .danger 색은 .msg-modal-foot 안에서만 정의돼 있어 여기서 따로 준다 */
         .msg-sched-item .msg-pill { flex: 0 0 auto; padding: 5px 11px; font-size: 12px; }
         .msg-sched-item .msg-pill.danger { color: #ff3b30; }
@@ -2437,6 +2459,92 @@
     //   prompt() 로 문자열을 받던 방식은 형식 오류가 잦아 폐기했다.
 
     var schedUnsub = null;      // 대기 목록 실시간 구독 해제 함수
+    var schedFile = null;       // 예약에 붙일 첨부 (등록을 눌러야 업로드된다)
+    var schedThumbUrl = null;   // 미리보기용 objectURL — 교체·해제 때 revoke 해야 샌다
+
+    /** 예약 첨부 고르기 */
+    function onSchedPickFile(e) {
+        var f = e.target.files && e.target.files[0];
+        e.target.value = '';                 // 같은 파일을 다시 골라도 change 가 뜨도록
+        if (!f) return;
+
+        if (/^text\/html/.test(f.type) || /svg/.test(f.type)) {
+            alert('이 형식은 보낼 수 없습니다. (HTML·SVG)');
+            return;
+        }
+        // 이미지는 등록 시 축소되므로 여기서는 원본 크기로 막지 않는다(축소 후 다시 검사한다).
+        if (!/^image\//.test(f.type) && f.size >= MAX_ATTACH_BYTES) {
+            alert('20MB 미만 파일만 보낼 수 있습니다. (현재 ' + humanSize(f.size) + ')');
+            return;
+        }
+
+        schedFile = f;
+        renderSchedPicked();
+    }
+
+    function renderSchedPicked() {
+        var box = byId('msg-sched-picked');
+        var thumb = byId('msg-sched-picked-thumb');
+        var name = byId('msg-sched-picked-name');
+        var size = byId('msg-sched-picked-size');
+        if (!box) return;
+
+        if (schedThumbUrl) { URL.revokeObjectURL(schedThumbUrl); schedThumbUrl = null; }
+
+        if (!schedFile) {
+            box.hidden = true;
+            if (thumb) { thumb.hidden = true; thumb.removeAttribute('src'); }
+            return;
+        }
+
+        box.hidden = false;
+        if (name) name.textContent = schedFile.name || '첨부파일';
+        if (size) size.textContent = humanSize(schedFile.size);
+
+        if (thumb) {
+            if (/^image\//.test(schedFile.type)) {
+                schedThumbUrl = URL.createObjectURL(schedFile);
+                thumb.src = schedThumbUrl;
+                thumb.hidden = false;
+            } else {
+                thumb.hidden = true;
+                thumb.removeAttribute('src');
+            }
+        }
+    }
+
+    function clearSchedFile() {
+        schedFile = null;
+        renderSchedPicked();
+    }
+
+    /**
+     * 첨부 1개를 Storage 에 올리고 메시지 필드를 돌려준다.
+     * 경로는 반드시 messenger/ 로 시작해야 한다 — 규칙 마지막 줄이 그 외 경로를 전부 막는다.
+     */
+    function uploadSchedAttachment(file) {
+        return shrinkImage(file).then(function (payload) {
+            if (payload.size >= MAX_ATTACH_BYTES) {
+                throw new Error('20MB 미만 파일만 보낼 수 있습니다. (현재 ' + humanSize(payload.size) + ')');
+            }
+            var isImage = /^image\//.test(file.type) && !/svg/.test(file.type);
+            var path = 'messenger/chat-media/' + meUid + '/' + safeFileName(file.name);
+
+            return firebase.storage().ref(path).put(payload, {
+                contentType: payload.type || file.type || 'application/octet-stream',
+                cacheControl: ATTACH_CACHE_CONTROL
+            }).then(function (snap) {
+                return snap.ref.getDownloadURL();
+            }).then(function (url) {
+                if (isImage) return { imageUrl: url };
+                return {
+                    fileUrl: url,
+                    fileName: file.name || '첨부파일',
+                    fileSize: payload.size || file.size || 0
+                };
+            });
+        });
+    }
 
     /** 드롭다운 선택지 — 열 때마다 새로 만든다(지난 시각은 넣지 않는다) */
     function buildSchedOptions() {
@@ -2557,6 +2665,7 @@
         if (!modal || !currentRoomId) return;
 
         if (area) area.value = input ? String(input.value || '').trim() : '';
+        clearSchedFile();               // 지난번에 고른 첨부가 남아 있지 않게
         buildSchedOptions();
         var custom = byId('msg-sched-custom');
         if (custom) { custom.hidden = true; custom.value = ''; }
@@ -2580,31 +2689,45 @@
         if (!d || !currentRoomId || !area) return;
 
         var text = String(area.value || '').trim();
-        if (!text) { alert('보낼 내용을 적어주세요.'); area.focus(); return; }
+        // 첨부만 예약하는 것도 허용한다 (사진 한 장만 보내는 경우)
+        if (!text && !schedFile) { alert('보낼 내용을 적거나 첨부를 골라주세요.'); area.focus(); return; }
 
         var at = currentSchedAt();
         if (!at) { alert('보낼 시각을 골라주세요.'); return; }
         // 규칙이 sendAt > request.time 을 요구한다. 저장까지의 지연을 감안해 1분 여유를 둔다.
         if (at.getTime() <= Date.now() + 60000) { alert('1분 이후 시각만 예약할 수 있어요.'); return; }
 
-        if (btn) { btn.disabled = true; btn.textContent = '등록 중…'; }
+        var roomId = currentRoomId;
+        if (btn) { btn.disabled = true; btn.textContent = schedFile ? '첨부 올리는 중…' : '등록 중…'; }
 
-        d.collection('msgRooms').doc(currentRoomId).collection('scheduledMessages').add({
-            senderId: meUid,
-            senderName: (meData && meData.name) || '',
-            text: text,
-            sendAt: firebase.firestore.Timestamp.fromDate(at),
-            sent: false,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        // 첨부는 **등록을 누른 지금** 올린다 — 고르기만 하고 닫는 경우가 많아 미리 올리면 쓰레기가 쌓인다.
+        var prep = schedFile ? uploadSchedAttachment(schedFile) : Promise.resolve({});
+
+        prep.then(function (extra) {
+            if (btn) btn.textContent = '등록 중…';
+
+            var body = {
+                senderId: meUid,
+                senderName: (meData && meData.name) || '',
+                text: text,
+                sendAt: firebase.firestore.Timestamp.fromDate(at),
+                sent: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            // imageUrl 또는 fileUrl+fileName+fileSize — 발송 함수가 그대로 메시지로 옮긴다
+            for (var k in extra) { if (Object.prototype.hasOwnProperty.call(extra, k)) body[k] = extra[k]; }
+
+            return d.collection('msgRooms').doc(roomId).collection('scheduledMessages').add(body);
         }).then(function () {
             // 입력창에서 가져온 내용이면 원본도 비운다
             var input = byId('msg-input');
             if (input && String(input.value || '').trim() === text) { input.value = ''; autoGrow(); }
             area.value = '';
+            clearSchedFile();
             updateSchedPreview();
         }).catch(function (err) {
             console.error('[메신저] 예약 실패:', err);
-            alert('예약하지 못했습니다.');
+            alert(err && err.message ? err.message : '예약하지 못했습니다.');
         }).then(function () {
             if (btn) { btn.disabled = false; btn.textContent = '예약 등록'; }
         });
@@ -2633,7 +2756,11 @@
                 snap.forEach(function (doc) {
                     var v = doc.data() || {};
                     var ms = v.sendAt && v.sendAt.toDate ? v.sendAt.toDate().getTime() : 0;
-                    rows.push({ id: doc.id, text: String(v.text || ''), ms: ms });
+                    // 첨부만 예약한 경우 본문이 비어 있어 목록이 빈칸으로 보인다 → 종류를 대신 적는다
+                    var badge = '';
+                    if (v.imageUrl) badge = '🖼 사진';
+                    else if (v.fileUrl) badge = '📄 ' + (v.fileName || '첨부파일');
+                    rows.push({ id: doc.id, text: String(v.text || ''), badge: badge, ms: ms });
                 });
                 rows.sort(function (a, b) { return a.ms - b.ms; });
 
@@ -2643,9 +2770,14 @@
 
                 var html = '';
                 for (var i = 0; i < rows.length; i++) {
+                    var line = rows[i].text
+                        ? esc(rows[i].text)
+                        : '<span class="msg-sched-item-badge">' + esc(rows[i].badge || '(내용 없음)') + '</span>';
                     html += '<div class="msg-sched-item">' +
                         '<div class="msg-sched-item-main">' +
-                        '<div class="msg-sched-item-text">' + esc(rows[i].text) + '</div>' +
+                        '<div class="msg-sched-item-text">' + line + '</div>' +
+                        (rows[i].text && rows[i].badge
+                            ? '<div class="msg-sched-item-badge">' + esc(rows[i].badge) + '</div>' : '') +
                         '<div class="msg-sched-item-at">' + esc(fmtSchedAt(new Date(rows[i].ms))) + '</div>' +
                         '</div>' +
                         '<button type="button" class="msg-pill danger" data-sched-cancel="' + esc(rows[i].id) + '">취소</button>' +
@@ -3743,6 +3875,12 @@
         if (schedPreset) schedPreset.addEventListener('change', onSchedPresetChange);
         var schedCustom = byId('msg-sched-custom');
         if (schedCustom) schedCustom.addEventListener('change', updateSchedPreview);
+        var schedPick = byId('msg-sched-pick');
+        var schedFileInput = byId('msg-sched-file');
+        if (schedPick && schedFileInput) schedPick.addEventListener('click', function () { schedFileInput.click(); });
+        if (schedFileInput) schedFileInput.addEventListener('change', onSchedPickFile);
+        var schedRemove = byId('msg-sched-remove');
+        if (schedRemove) schedRemove.addEventListener('click', clearSchedFile);
         var schedSave = byId('msg-sched-save');
         if (schedSave) schedSave.addEventListener('click', saveSchedule);
         var schedClose = byId('msg-sched-close');
@@ -3980,6 +4118,18 @@
 
             <label class="msg-sched-label" for="msg-sched-text">보낼 내용</label>
             <textarea class="msg-modal-input msg-sched-area" id="msg-sched-text" placeholder="예약해서 보낼 메시지"></textarea>
+
+            <label class="msg-sched-label">첨부 <span style="font-weight:400;">(사진 또는 파일 · 선택)</span></label>
+            <button type="button" class="msg-pill msg-sched-pickbtn" id="msg-sched-pick">📎 사진·파일 고르기</button>
+            <input type="file" id="msg-sched-file" hidden>
+            <div class="msg-sched-picked" id="msg-sched-picked" hidden>
+                <img class="msg-sched-picked-thumb" id="msg-sched-picked-thumb" alt="" hidden>
+                <span class="msg-sched-picked-name">
+                    <span id="msg-sched-picked-name"></span><br>
+                    <span class="msg-sched-picked-size" id="msg-sched-picked-size"></span>
+                </span>
+                <button type="button" class="msg-sched-picked-x" id="msg-sched-remove" title="첨부 빼기">✕</button>
+            </div>
 
             <label class="msg-sched-label" for="msg-sched-preset">언제 보낼까요</label>
             <!-- 선택지는 여는 시점마다 새로 만든다 (시간이 흐르면 '오늘 오후 6시' 가 과거가 된다) -->
