@@ -671,7 +671,9 @@
             flex: 0 0 auto;
             display: flex;
             gap: 8px;
-            padding: 0 12px 12px;
+            /* 위쪽 여백이 0이면 검색창의 border-bottom 에 버튼이 딱 붙어 보인다.
+               아래는 부서 헤더(회색 sticky 띠)와의 간격이라 같은 값으로 맞춘다. */
+            padding: 12px;
         }
         /* display 를 직접 지정한 요소는 hidden 속성만으로 숨지 않는다 (작성자 스타일이 이긴다).
            거래처 계정에서 '그룹 만들기' 를 감추려면 이 규칙이 필요하다. */
