@@ -1817,6 +1817,11 @@
             badge.hidden = totalUnread === 0;
         }
 
+        // 창 제목에도 안읽음 수를 넣는다.
+        // 브라우저 탭에서 바로 보이고, **데스크탑 앱(Electron)이 이 제목을 읽어
+        // 독/작업표시줄 배지를 띄운다** — 앱에서 DOM을 훑지 않아도 되게 하는 연결점이다.
+        document.title = totalUnread > 0 ? '(' + totalUnread + ') 하나로 메신저' : '하나로 메신저';
+
         renderFolderChips(visible);
 
         // 폴더 칩 필터
