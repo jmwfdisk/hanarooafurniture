@@ -3311,10 +3311,11 @@
             const memberNav = document.querySelector('[data-board="member-management"]');
             if (memberNav) memberNav.style.display = isAdminUser ? '' : 'none';
 
-            // 사내 메신저 — 시범 기간에는 관리자에게만 노출한다.
-            // 전사 공개 시 이 조건을 지우면 임직원 전원에게 보인다.
+            // 사내 메신저 — 임직원 전원에게 노출한다 (2026-08-18 전사 공개).
+            // 이 페이지 자체가 임직원 전용이므로 여기까지 온 사람은 모두 대상이다.
+            // 대화 접근 권한은 화면이 아니라 보안규칙(참여자만 읽기)이 지킨다.
             const messengerNav = document.getElementById('messenger-nav');
-            if (messengerNav) messengerNav.style.display = isAdminUser ? '' : 'none';
+            if (messengerNav) messengerNav.style.display = '';
             
             // Firestore 리스너 시작 (user 확정 후)
             startStaffBoards(); // loadAllPosts 등 Firestore 접근 시작 (이름 충돌 방지를 위해 별도 함수)
