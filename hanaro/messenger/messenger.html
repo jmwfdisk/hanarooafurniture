@@ -1723,7 +1723,13 @@
         // (disabled 를 막 푼 직후라 한 박자 뒤에 줘야 먹는다)
         setTimeout(function () {
             var inp = byId('msg-input');
-            if (inp && !inp.disabled) { try { inp.focus(); } catch (e) { } }
+            if (!inp || inp.disabled) return;
+            // ⚠️ **창(문서)에 포커스가 없으면 element.focus() 는 무시된다.**
+            //    데스크탑 앱에서 창이 활성화되지 않은 채 떠 있으면 이 경우가 되는데,
+            //    파일 첨부 대화상자를 한 번 열면(=OS 가 창을 활성화) 그제야 되던 증상이 그것이다.
+            //    window.focus() 로 창부터 깨운 뒤 입력창에 준다.
+            try { window.focus(); } catch (e) { }
+            try { inp.focus(); } catch (e) { }
         }, 60);
         renderRooms();                 // 선택 표시 갱신
         renderPeerPresence();          // 다음 스냅샷을 기다리지 않고 접속 점을 바로 표시
@@ -4296,7 +4302,10 @@
             // 방이 열려 있는데 비활성으로 남아 있다면 그것도 함께 되돌린다.
             input.addEventListener('mousedown', function () {
                 if (currentRoomId && input.disabled) setComposerEnabled(true);
-                setTimeout(function () { try { input.focus(); } catch (e) { } }, 0);
+                setTimeout(function () {
+                    try { window.focus(); } catch (e) { }   // 창부터 깨운다 (위 설명 참고)
+                    try { input.focus(); } catch (e) { }
+                }, 0);
             });
 
             input.addEventListener('keydown', function (e) {
