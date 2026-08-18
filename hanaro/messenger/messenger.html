@@ -681,7 +681,12 @@
             font-family: inherit;
             line-height: 1.4;
             outline: none;
+            /* 여러 줄이 되면 오른쪽에 스크롤바가 생겨 지저분하다.
+               **막대만 감춘다** — 휠·드래그 스크롤은 그대로 된다(overflow 는 auto 유지). */
+            scrollbar-width: none;          /* Firefox */
+            -ms-overflow-style: none;       /* 구 Edge */
         }
+        .msg-input::-webkit-scrollbar { display: none; }   /* Chromium·Electron·Safari */
         .msg-input:focus { border-color: var(--msg-green); }
         .msg-input:disabled { background: var(--msg-bg); }
         .msg-send {
@@ -4262,6 +4267,14 @@
                 autoGrow(input);
                 if (input.value) signalTyping(); else stopTypingSignal();
             });
+            // 입력창을 눌렀는데 커서가 안 잡히는 경우가 있었다(데스크탑 앱, 첫 대화방).
+            // 눌렀다는 것은 쓰려는 뜻이므로 확실히 포커스를 준다.
+            // 방이 열려 있는데 비활성으로 남아 있다면 그것도 함께 되돌린다.
+            input.addEventListener('mousedown', function () {
+                if (currentRoomId && input.disabled) setComposerEnabled(true);
+                setTimeout(function () { try { input.focus(); } catch (e) { } }, 0);
+            });
+
             input.addEventListener('keydown', function (e) {
                 if (e.key !== 'Enter' || e.shiftKey) return;
                 // 한글 조합 중의 Enter 는 글자 확정용이다 — 여기서 보내면
