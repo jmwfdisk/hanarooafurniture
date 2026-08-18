@@ -581,13 +581,22 @@
         .msg-attach {
             flex: 0 0 auto;
             width: 40px; height: 40px;
+            display: inline-flex; align-items: center; justify-content: center;
             border: 1px solid var(--msg-line);
             border-radius: 12px;
             background: #fff;
-            font-size: 17px;
+            padding: 0;
             line-height: 1;
+            cursor: pointer;
         }
         .msg-attach:hover:not(:disabled) { background: #f2f2f7; }
+        .msg-attach svg { width: 21px; height: 21px; fill: var(--msg-sub); display: block; }
+        .msg-attach:hover:not(:disabled) svg { fill: var(--msg-text); }
+        /* 대화방을 고르기 전에는 비활성 — 아이콘도 함께 흐려져야 눌리지 않는 게 보인다 */
+        .msg-attach:disabled { cursor: default; }
+        .msg-attach:disabled svg { opacity: .35; }
+        /* 녹음 중에는 마이크를 빨갛게 */
+        .msg-attach.recording svg { fill: #ff3b30; }
 
         .msg-upload {
             flex: 0 0 auto;
@@ -1026,12 +1035,20 @@
 
             <form class="msg-input-bar" id="msg-form" autocomplete="off">
                 <input type="file" id="msg-file" hidden>
+                <!-- 상단 버튼과 같은 방식(Material Symbols 인라인 SVG). 이모지는 OS·폰트마다
+                     모양과 크기가 제각각이라 정렬이 어긋난다. -->
                 <button type="button" class="msg-attach" id="msg-attach"
-                        title="사진·파일 첨부" disabled>📎</button>
+                        title="사진·파일 첨부" aria-label="사진·파일 첨부" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15.75q0 2.6-1.825 4.425Q14.35 22 11.75 22q-2.6 0-4.425-1.825Q5.5 18.35 5.5 15.75V6.5q0-1.875 1.313-3.188Q8.125 2 10 2t3.188 1.312Q14.5 4.625 14.5 6.5v8.75q0 1.15-.8 1.95-.8.8-1.95.8t-1.95-.8q-.8-.8-.8-1.95V6.5h1.5v8.75q0 .525.363.888.362.362.887.362t.888-.362q.362-.363.362-.888V6.5q0-1.25-.875-2.125T10 3.5q-1.25 0-2.125.875T7 6.5v9.25q0 1.975 1.388 3.363Q9.775 20.5 11.75 20.5t3.363-1.387Q16.5 17.725 16.5 15.75V6.5H18Z"/></svg>
+                </button>
                 <button type="button" class="msg-attach" id="msg-voice"
-                        title="음성 메시지 녹음" disabled>🎤</button>
+                        title="음성 메시지 녹음" aria-label="음성 메시지 녹음" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14q-1.25 0-2.125-.875T9 11V5q0-1.25.875-2.125T12 2q1.25 0 2.125.875T15 5v6q0 1.25-.875 2.125T12 14Zm-1 7v-3.075q-2.6-.35-4.3-2.325Q5 13.625 5 11h2q0 2.075 1.463 3.537Q9.925 16 12 16t3.538-1.463Q17 13.075 17 11h2q0 2.625-1.7 4.6-1.7 1.975-4.3 2.325V21Z"/></svg>
+                </button>
                 <button type="button" class="msg-attach" id="msg-schedule"
-                        title="예약 메시지" disabled>🕒</button>
+                        title="예약 메시지" aria-label="예약 메시지" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15.3 16.7 1.4-1.4-3.7-3.7V7h-2v5.4ZM12 22q-2.075 0-3.9-.788-1.825-.787-3.175-2.137-1.35-1.35-2.137-3.175Q2 14.075 2 12t.788-3.9q.787-1.825 2.137-3.175 1.35-1.35 3.175-2.137Q9.925 2 12 2t3.9.788q1.825.787 3.175 2.137 1.35 1.35 2.138 3.175Q22 9.925 22 12t-.787 3.9q-.788 1.825-2.138 3.175-1.35 1.35-3.175 2.137Q14.075 22 12 22Z"/></svg>
+                </button>
                 <textarea class="msg-input" id="msg-input" rows="1"
                           placeholder="메시지를 입력하세요" maxlength="5000" disabled></textarea>
                 <button type="submit" class="msg-send" id="msg-send" disabled>전송</button>
@@ -2578,6 +2595,8 @@
             mediaRecorder.start();
             recStartAt = Date.now();
             byId('msg-rec-bar').hidden = false;
+            var vb = byId('msg-voice');
+            if (vb) vb.classList.add('recording');      // 마이크 아이콘을 빨갛게
             recTimer = setInterval(function () {
                 var ms = Date.now() - recStartAt;
                 byId('msg-rec-time').textContent = durLabel(ms / 1000);
@@ -2595,6 +2614,8 @@
         var seconds = (Date.now() - recStartAt) / 1000;
         clearInterval(recTimer); recTimer = null;
         byId('msg-rec-bar').hidden = true;
+        var vb2 = byId('msg-voice');
+        if (vb2) vb2.classList.remove('recording');
 
         mediaRecorder.addEventListener('stop', function () {
             if (!send || !recChunks.length) { recChunks = []; return; }
