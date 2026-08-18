@@ -1641,7 +1641,17 @@
     /** 조직도에서 사람을 눌러 여는 경로 — 방이 없으면 만들어야 한다 */
     function openDirectRoom(peer) {
         var d = getDb();
-        if (!d) return;
+        if (!d) {
+            // 위 openRoomFromList 와 같은 이유 — 준비 전에 누르면 조용히 죽지 않게 기다린다
+            document.body.classList.add('msg-detail');
+            setChatHeader(peer.name || '대화', '');
+            renderChatMessage('연결하는 중…');
+            withDb(
+                function () { openDirectRoom(peer); },
+                function () { renderChatMessage('연결하지 못했습니다. 잠시 후 다시 눌러 주세요.'); }
+            );
+            return;
+        }
 
         var roomId = directRoomId(meUid, peer.uid);
         if (currentRoomId === roomId) return;      // 같은 방 재클릭 — 리스너를 다시 붙이지 않는다
@@ -1673,7 +1683,21 @@
     /** 대화 목록에서 여는 경로 — 방이 이미 있으므로 생성 단계를 건너뛴다 */
     function openRoomFromList(room) {
         var d = getDb();
-        if (!d) return;
+        if (!d) {
+            // ⚠️ Firebase 초기화 전에 눌렀다. 예전에는 그냥 return 해서
+            //    **눌러도 아무 일이 없고 입력창이 비활성으로 남았다**
+            //    (데스크탑 앱에서 "첫 대화방이 활성화 안 된다"던 원인 —
+            //     앱은 캐시를 비우고 열어 초기화가 느린데 창이 뜨자마자 누를 수 있다).
+            //    기다렸다가 다시 연다.
+            document.body.classList.add('msg-detail');
+            setChatHeader(roomTitle(room), '');
+            renderChatMessage('연결하는 중…');
+            withDb(
+                function () { openRoomFromList(room); },
+                function () { renderChatMessage('연결하지 못했습니다. 잠시 후 다시 눌러 주세요.'); }
+            );
+            return;
+        }
         if (currentRoomId === room.id) return;
         detachRoom();
 
