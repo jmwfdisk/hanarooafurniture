@@ -117,6 +117,27 @@
         }
         .msg-pill:hover { background: #f2f2f7; }
 
+        /* 상단 아이콘 버튼 (내 정보·설정·로그아웃) */
+        .msg-icobtn {
+            flex: 0 0 auto;
+            width: 34px; height: 34px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border: 1px solid var(--msg-line);
+            background: #fff;
+            border-radius: 999px;
+            padding: 0;
+            cursor: pointer;
+        }
+        .msg-icobtn:hover { background: #f2f2f7; }
+        .msg-icobtn svg {
+            width: 19px; height: 19px;
+            fill: var(--msg-sub);          /* 아이콘 색은 글자보다 옅게 */
+            display: block;
+        }
+        .msg-icobtn:hover svg { fill: var(--msg-text); }
+        /* 로그아웃만 위험 동작이라 눌렀을 때 색으로 구분한다 */
+        #msg-logout-btn:hover svg { fill: #ff3b30; }
+
         /* ── 본문 2단 ── */
         .msg-body {
             flex: 1;
@@ -895,9 +916,18 @@
         <span class="msg-brand">하나로 메신저</span>
         <span class="msg-topbar-spacer"></span>
         <span class="msg-me" id="msg-me"></span>
-        <button type="button" class="msg-pill" id="msg-mypage-btn">내 정보</button>
-        <button type="button" class="msg-pill" id="msg-settings-btn">설정</button>
-        <button type="button" class="msg-pill" id="msg-logout-btn">로그아웃</button>
+        <!-- 아이콘은 Material Symbols 의 path 를 **인라인 SVG** 로 넣는다.
+             아이콘 폰트를 외부에서 받아오면 데스크탑 앱에서 로드가 늦어 글자가 잠깐 보이고,
+             CSP·오프라인 상황에서도 깨진다. 좁은 창에서 자리도 아낀다. -->
+        <button type="button" class="msg-icobtn" id="msg-mypage-btn" title="내 정보" aria-label="내 정보">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12q-1.65 0-2.825-1.175Q8 9.65 8 8q0-1.65 1.175-2.825Q10.35 4 12 4q1.65 0 2.825 1.175Q16 6.35 16 8q0 1.65-1.175 2.825Q13.65 12 12 12Zm-8 8v-2.8q0-.85.438-1.563.437-.712 1.162-1.087 1.55-.775 3.15-1.163Q10.35 13 12 13t3.25.387q1.6.388 3.15 1.163.725.375 1.163 1.087.437.713.437 1.563V20Z"/></svg>
+        </button>
+        <button type="button" class="msg-icobtn" id="msg-settings-btn" title="설정" aria-label="설정">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.25 22-.4-3.2q-.325-.125-.612-.3-.288-.175-.563-.375L4.7 19.375l-2.75-4.75 2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75 2.975 1.25q.275-.2.575-.375.3-.175.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3.287.175.562.375l2.975-1.25 2.75 4.75-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95-2.75 4.75-2.95-1.25q-.275.2-.575.375-.3.175-.6.3l-.4 3.2Zm2.8-6.5q1.45 0 2.475-1.025Q15.55 13.45 15.55 12q0-1.45-1.025-2.475Q13.5 8.5 12.05 8.5q-1.475 0-2.488 1.025Q8.55 10.55 8.55 12q0 1.45 1.012 2.475Q10.575 15.5 12.05 15.5Z"/></svg>
+        </button>
+        <button type="button" class="msg-icobtn" id="msg-logout-btn" title="로그아웃" aria-label="로그아웃">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21q-.825 0-1.412-.587Q3 19.825 3 19V5q0-.825.588-1.413Q4.175 3 5 3h6.5v2H5v14h6.5v2Zm11-4-1.375-1.45 2.55-2.55H9v-2h8.175l-2.55-2.55L16 7l5 5Z"/></svg>
+        </button>
     </header>
 
     <div class="msg-body">
