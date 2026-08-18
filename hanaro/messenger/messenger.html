@@ -843,6 +843,39 @@
             color: var(--msg-sub);
         }
         .msg-gate[hidden] { display: none; }
+        /* 게이트 안의 로그인 폼 — 데스크탑 앱에서는 홈페이지로 튕길 수 없어 여기서 직접 받는다 */
+        .msg-gate { flex-direction: column; gap: 0; }
+        .msg-login {
+            width: 100%; max-width: 320px;
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 26px 22px;
+            background: #fff;
+            border: 1px solid var(--msg-line);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,.06);
+        }
+        .msg-login-logo { width: 64px; height: 64px; align-self: center; margin-bottom: 2px; }
+        .msg-login-title {
+            font-size: 17px; font-weight: 800; color: var(--msg-text);
+            text-align: center; margin-bottom: 2px;
+        }
+        .msg-login-sub { font-size: 12px; color: var(--msg-sub); text-align: center; margin-bottom: 8px; }
+        .msg-login input {
+            width: 100%;
+            border: 1px solid var(--msg-line); border-radius: 10px;
+            padding: 11px 13px; font-size: 14px; font-family: inherit;
+            outline: none;
+        }
+        .msg-login input:focus { border-color: var(--msg-green); }
+        .msg-login button {
+            width: 100%; border: 0; border-radius: 10px;
+            padding: 12px; font-size: 14px; font-weight: 700; font-family: inherit;
+            background: var(--msg-green); color: #fff; cursor: pointer;
+        }
+        .msg-login button:hover:not(:disabled) { background: var(--msg-green-dark); }
+        .msg-login button:disabled { background: #c7c7cc; cursor: default; }
+        .msg-login-err { font-size: 12.5px; color: #d33; text-align: center; min-height: 16px; }
+        .msg-login-note { font-size: 11.5px; color: var(--msg-sub); text-align: center; line-height: 1.6; }
 
         /* ── 모바일: 한 번에 한 화면만 ── */
         @media (max-width: 900px) {
@@ -1013,7 +1046,23 @@
     </div>
 </div>
 
-<div class="msg-gate" id="msg-gate">접근 권한을 확인하는 중…</div>
+<div class="msg-gate" id="msg-gate">
+    <span id="msg-gate-msg">접근 권한을 확인하는 중…</span>
+
+    <!-- 로그인 폼 — 로그인되어 있지 않을 때만 펼친다.
+         브라우저에서는 홈페이지에 이미 로그인한 상태로 들어오는 경우가 많아 보이지 않고,
+         데스크탑 앱에서는 홈페이지를 거치지 않으므로 여기서 직접 받는다. -->
+    <form class="msg-login" id="msg-login" hidden autocomplete="on">
+        <img class="msg-login-logo" id="msg-login-logo" alt="" src="../../image/logo.png">
+        <div class="msg-login-title">하나로 메신저</div>
+        <div class="msg-login-sub">하나로오에이퍼니처 사내 메신저</div>
+        <input type="email" id="msg-login-email" placeholder="이메일" autocomplete="username" required>
+        <input type="password" id="msg-login-pw" placeholder="비밀번호" autocomplete="current-password" required>
+        <div class="msg-login-err" id="msg-login-err"></div>
+        <button type="submit" id="msg-login-btn">로그인</button>
+        <div class="msg-login-note">홈페이지(hanarooa.com) 계정으로 로그인합니다.<br>계정 생성·비밀번호 변경은 홈페이지에서 하세요.</div>
+    </form>
+</div>
 
 <!-- 홈페이지 공용 인증 싱글톤. 캐시버스트 값은 홈페이지 전 페이지와 같아야 한다. -->
 <script src="../js/auth.js?v=20260714a"></script>
@@ -1110,9 +1159,10 @@
         if (accessGranted) return;
 
         if (!user || !userData) {
-            // 로그인 복원 실패·로그아웃. 홈으로 돌려보낸다(signOut은 부르지 않는다).
-            showGate('로그인이 필요합니다. 홈으로 이동합니다…');
-            setTimeout(function () { window.location.href = '../../index.html'; }, 800);
+            // 로그인 복원 실패·로그아웃 → **여기서 직접 로그인을 받는다**.
+            // 예전에는 홈페이지로 돌려보냈는데, 데스크탑 앱은 홈페이지를 거치지 않으므로
+            // 앱 창에 홈페이지가 뜨는 이상한 흐름이 됐다. (signOut 은 부르지 않는다)
+            showLoginForm();
             return;
         }
 
@@ -1142,15 +1192,70 @@
         });
     };
 
+    /**
+     * 게이트 오버레이.
+     * ⚠️ gate.textContent 로 통째로 덮어쓰면 안에 있는 로그인 폼이 지워진다 →
+     *    메시지는 전용 span 에만 넣는다.
+     */
     function showGate(msg) {
         var gate = byId('msg-gate');
+        var box = byId('msg-gate-msg');
         if (!gate) return;
-        gate.textContent = msg;
+        if (box) { box.textContent = msg; box.hidden = false; }
         gate.hidden = false;
     }
     function hideGate() {
         var gate = byId('msg-gate');
         if (gate) gate.hidden = true;
+    }
+
+    /** 로그인 폼을 펼친다 (안내 문구는 감춘다) */
+    function showLoginForm() {
+        var gate = byId('msg-gate');
+        var box = byId('msg-gate-msg');
+        var form = byId('msg-login');
+        if (!gate || !form) return;
+        if (box) box.hidden = true;
+        form.hidden = false;
+        gate.hidden = false;
+        var email = byId('msg-login-email');
+        if (email) email.focus();
+    }
+
+    /** 홈페이지 계정으로 직접 로그인 — auth.js 의 onAuthStateChanged 가 뒤를 이어받는다 */
+    function submitLogin(e) {
+        if (e) e.preventDefault();
+        var email = byId('msg-login-email');
+        var pw = byId('msg-login-pw');
+        var btn = byId('msg-login-btn');
+        var err = byId('msg-login-err');
+        if (!email || !pw) return;
+
+        var id = String(email.value || '').trim();
+        var secret = String(pw.value || '');
+        if (!id || !secret) { if (err) err.textContent = '이메일과 비밀번호를 입력하세요.'; return; }
+
+        if (err) err.textContent = '';
+        if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
+
+        firebase.auth().signInWithEmailAndPassword(id, secret)
+            .then(function () {
+                // 성공하면 auth.js 가 checkStaffAccess 를 부르고 게이트가 걷힌다.
+                pw.value = '';
+            })
+            .catch(function (e2) {
+                console.error('[메신저] 로그인 실패:', e2 && e2.code);
+                var m = '로그인하지 못했습니다.';
+                var c = (e2 && e2.code) || '';
+                if (c === 'auth/invalid-email') m = '이메일 형식이 올바르지 않습니다.';
+                else if (c === 'auth/user-not-found' || c === 'auth/wrong-password' || c === 'auth/invalid-credential') m = '이메일 또는 비밀번호가 맞지 않습니다.';
+                else if (c === 'auth/too-many-requests') m = '시도가 많아 잠시 막혔습니다. 잠시 후 다시 하세요.';
+                else if (c === 'auth/network-request-failed') m = '네트워크에 연결할 수 없습니다.';
+                if (err) err.textContent = m;
+            })
+            .then(function () {
+                if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
+            });
     }
 
     // 무한 "확인 중…" 방지.
@@ -1160,6 +1265,10 @@
         if (accessGranted) return;
         var gate = byId('msg-gate');
         if (!gate || gate.hidden) return;
+        // ⚠️ 로그인 폼이 떠 있으면 건드리지 않는다 — innerHTML 을 덮어쓰면 폼이 사라진다.
+        //    (로그인 대기 중인 것은 "확인 실패"가 아니라 정상 상태다)
+        var lf = byId('msg-login');
+        if (lf && !lf.hidden) return;
         gate.innerHTML =
             '<div style="text-align:center;line-height:1.9">' +
                 '로그인 상태를 확인하지 못했습니다.<br>' +
@@ -3882,6 +3991,10 @@
         if (schedPreset) schedPreset.addEventListener('change', onSchedPresetChange);
         var schedCustom = byId('msg-sched-custom');
         if (schedCustom) schedCustom.addEventListener('change', updateSchedPreview);
+        // 🔐 로그인 폼 (미로그인 상태에서만 보인다)
+        var loginForm = byId('msg-login');
+        if (loginForm) loginForm.addEventListener('submit', submitLogin);
+
         var schedPick = byId('msg-sched-pick');
         var schedFileInput = byId('msg-sched-file');
         if (schedPick && schedFileInput) schedPick.addEventListener('click', function () { schedFileInput.click(); });
