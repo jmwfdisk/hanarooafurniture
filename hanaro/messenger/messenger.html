@@ -1730,6 +1730,15 @@
             //    window.focus() 로 창부터 깨운 뒤 입력창에 준다.
             try { window.focus(); } catch (e) { }
             try { inp.focus(); } catch (e) { }
+
+            // 방을 연 직후 상태를 남긴다. 데스크탑 앱이 이 console.warn 을 로그 파일로 옮겨 적으므로
+            // **문제가 난 순간이 자동으로 기록된다**(사용자가 진단 메뉴를 누를 필요가 없다).
+            var r = inp.getBoundingClientRect();
+            console.warn('[방열림] 입력창=' + (inp.disabled ? '비활성' : '활성') +
+                ' 크기=' + Math.round(r.width) + 'x' + Math.round(r.height) +
+                ' 커서=' + (document.activeElement ? (document.activeElement.id || document.activeElement.tagName) : '없음') +
+                ' 대화화면=' + document.body.classList.contains('msg-detail') +
+                ' 창폭=' + window.innerWidth);
         }, 60);
         renderRooms();                 // 선택 표시 갱신
         renderPeerPresence();          // 다음 스냅샷을 기다리지 않고 접속 점을 바로 표시
