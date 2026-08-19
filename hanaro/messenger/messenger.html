@@ -4311,8 +4311,11 @@
             // 방이 열려 있는데 비활성으로 남아 있다면 그것도 함께 되돌린다.
             input.addEventListener('mousedown', function () {
                 if (currentRoomId && input.disabled) setComposerEnabled(true);
+                // 데스크탑 앱이 이 로그를 보고 **OS 레벨로 창을 활성화**한다.
+                // 렌더러의 window.focus() 만으로는 Windows 에서 키보드 포커스가 오지 않는 경우가 있다.
+                console.warn('[입력클릭]');
                 setTimeout(function () {
-                    try { window.focus(); } catch (e) { }   // 창부터 깨운다 (위 설명 참고)
+                    try { window.focus(); } catch (e) { }
                     try { input.focus(); } catch (e) { }
                 }, 0);
             });
